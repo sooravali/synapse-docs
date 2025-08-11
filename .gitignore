@@ -1,0 +1,77 @@
+# Environment variables (CRITICAL: Never commit API keys!)
+.env
+.env.local
+.env.production
+.env.development
+frontend/.env
+frontend/.env.local
+backend/.env
+backend/.env.local
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Python virtual environment
+venv/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Data directories - keep structure but ignore runtime files
+backend/data/*.db
+backend/data/faiss_index/*
+!backend/data/faiss_index/.gitkeep
+backend/data/audio/*
+!backend/data/audio/.gitkeep
+# Keep the main data directory structure
+!backend/data/.gitkeep
+
+# Frontend build output
+frontend/dist/
+
+# Uploads directory - keep structure but ignore PDF files  
+backend/uploads/*.pdf
+uploads/*.pdf
+# Keep the uploads directory structure
+!backend/uploads/.gitkeep
+
+# Audio files (may contain large TTS output)
+*.mp3
+*.wav
+*.m4a
+*.ogg
