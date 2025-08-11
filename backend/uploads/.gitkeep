@@ -1,0 +1,3 @@
+# This file ensures the uploads directory exists in the repository
+# Actual PDF files are excluded via .gitignore
+# The application creates uploaded PDF files in this directory for serving via /api/v1/documents/view/{id}
