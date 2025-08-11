@@ -1,0 +1,362 @@
+/* Document Workbench Styles */
+.document-workbench {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: white;
+  position: relative;
+  overflow: auto; /* Allow scrolling */
+}
+
+/* Empty State */
+.workbench-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.empty-icon {
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.workbench-empty h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.workbench-empty p {
+  margin: 0;
+  font-size: 14px;
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+/* Workbench Content */
+.workbench-content {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+/* PDF Viewer Container */
+.pdf-viewer-container {
+  height: 100%;
+  width: 100%;
+  position: relative;
+  /* Let Adobe PDF viewer handle its own scrolling */
+}
+
+.pdf-viewer-container.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Context Lens - Subtle highlight overlay */
+.context-lens {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-radius: 4px;
+  z-index: 10;
+  animation: contextLensFadeIn 0.3s ease-out;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+}
+
+@keyframes contextLensFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Action Halo - Progressive disclosure buttons */
+.action-halo {
+  position: absolute;
+  display: flex;
+  gap: 8px;
+  z-index: 20;
+  animation: haloFadeIn 0.2s ease-out;
+}
+
+@keyframes haloFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.halo-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.halo-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.halo-button:active {
+  transform: scale(0.95);
+}
+
+.halo-button.loading {
+  cursor: not-allowed;
+}
+
+.insights-button {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: white;
+}
+
+.insights-button:hover {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.podcast-button {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white;
+}
+
+.podcast-button:hover {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+}
+
+/* Button Loading Spinner */
+.button-spinner {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+}
+
+.button-spinner::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid transparent;
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Viewer Loading State */
+.viewer-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f9fafb;
+  z-index: 5;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+.viewer-loading p {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Search Result Highlights */
+.search-highlight {
+  position: absolute;
+  background: rgba(251, 191, 36, 0.3);
+  border: 1px solid rgba(251, 191, 36, 0.6);
+  border-radius: 2px;
+  pointer-events: none;
+  animation: highlightPulse 2s ease-in-out;
+}
+
+@keyframes highlightPulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .action-halo {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .halo-button {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .context-lens {
+    border-width: 1px;
+  }
+}
+
+/* Adobe Viewer Override Styles */
+#adobe-dc-view {
+  height: 100% !important;
+  width: 100% !important;
+  min-height: 400px !important; /* Ensure minimum height for SIZED_CONTAINER mode */
+}
+
+/* Hide Adobe branding if needed */
+.adobe-dc-view-iframe {
+  border: none !important;
+}
+
+/* Insights Bulb - Stage 2 Trigger */
+.insights-bulb {
+  background: #4f46e5;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: visible;
+}
+
+.insights-bulb:hover {
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+}
+
+.bulb-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bulb-icon {
+  font-size: 28px;
+  color: white;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+.bulb-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  border: 2px solid white;
+}
+
+.bulb-pulse {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  border: 2px solid #4f46e5;
+  animation: pulse 2s infinite;
+  opacity: 0.6;
+}
+
+.bulb-tooltip {
+  position: absolute;
+  top: 50%;
+  right: 70px;
+  transform: translateY(-50%);
+  background: #1a1a1a;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.insights-bulb:hover .bulb-tooltip {
+  opacity: 1;
+}
+
+.bulb-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  transform: translateY(-50%);
+  border: 6px solid transparent;
+  border-left-color: #1a1a1a;
+}
+
+/* Animations */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+}
