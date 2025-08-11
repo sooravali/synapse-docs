@@ -1,0 +1,2 @@
+# This file keeps the faiss_index directory in git
+# Faiss index files are generated at runtime by vector service

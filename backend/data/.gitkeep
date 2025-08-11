@@ -1,0 +1,6 @@
+# This file ensures the data directory exists in the repository
+# Runtime files (database, faiss index, audio) are excluded via .gitignore
+# The application uses this directory for:
+# - SQLite database (synapse.db)
+# - Faiss vector index storage
+# - Generated audio files
