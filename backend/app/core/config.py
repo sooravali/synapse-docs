@@ -35,9 +35,9 @@ class Settings(BaseSettings):
     AZURE_API_VERSION: Optional[str] = None
     AZURE_DEPLOYMENT_NAME: Optional[str] = None
     
-    # Gemini Configuration
+    # Gemini Configuration (Adobe Hackathon 2025 Compatible)
     GOOGLE_API_KEY: Optional[str] = None
-    GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = None  # Alternative credential method
+    GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = None  # Used as API key for hackathon
     GEMINI_MODEL: str = "gemini-1.5-flash"
     
     # Ollama Configuration (for local development)
