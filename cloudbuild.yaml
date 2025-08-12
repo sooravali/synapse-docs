@@ -1,0 +1,55 @@
+# This file is the recipe for Cloud Build to build, push, and deploy your app.
+steps:
+  # Step 1: Build the Docker image using the Dockerfile in your repository.
+  # The image is tagged with the unique commit SHA for versioning.
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '--platform', 'linux/amd64', '-t', 'gcr.io/${PROJECT_ID}/synapse-docs:${COMMIT_SHA}', '.']
+
+  # Step 2: Push the newly built image to Google Container Registry.
+  # This makes the image available for Cloud Run to pull.
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/${PROJECT_ID}/synapse-docs:${COMMIT_SHA}']
+
+  # Step 3: Deploy the image to Cloud Run, configuring it with secrets and storage.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'synapse-docs' # This will be the name of your service.
+      - '--image=gcr.io/${PROJECT_ID}/synapse-docs:${COMMIT_SHA}'
+      - '--region=us-central1' # IMPORTANT: Choose a region close to your users.
+      - '--platform=managed'
+      - '--port=8080'
+      - '--allow-unauthenticated' # Makes your web app publicly accessible.
+      - '--min-instances=0'       # Scale down to zero to save costs when idle.
+      - '--max-instances=2'     # Set a maximum to prevent unexpected high costs.
+      - '--cpu=2'               # Request 2 vCPUs for better processing performance.
+      - '--memory=4Gi'          # Request 4GB of RAM.
+      
+      # This is the magic part for persistent storage (Pillar 1).
+      # It mounts your GCS bucket into the container at /app/data.
+      # Using your specific bucket name: synapse-docs-data-midhunan
+      - '--volume-mounts=/app/data=synapse-data-vol'
+      - '--volumes=name=synapse-data-vol,gcs-bucket=name=synapse-docs-data-midhunan'
+
+      # This is the magic part for secure configuration (Pillar 2).
+      # It maps the secrets you created to environment variables inside the container.
+      - '--update-secrets=ADOBE_CLIENT_ID=adobe-client-id:latest'
+      - '--update-secrets=GOOGLE_APPLICATION_CREDENTIALS=gemini-api-key:latest'
+      - '--update-secrets=AZURE_TTS_KEY=azure-tts-key:latest'
+      - '--update-secrets=AZURE_TTS_ENDPOINT=azure-tts-endpoint:latest'
+      
+      # These are the non-secret environment variables from your original command.
+      - '--set-env-vars=LLM_PROVIDER=gemini'
+      - '--set-env-vars=GEMINI_MODEL=gemini-1.5-flash'
+      - '--set-env-vars=TTS_PROVIDER=azure'
+
+# Tell Cloud Build which images were created to store them.
+images:
+  - 'gcr.io/${PROJECT_ID}/synapse-docs:${COMMIT_SHA}'
+
+# Increase the timeout for the deployment step if needed.
+options:
+  machineType: 'N1_HIGHCPU_8'
+timeout: '1200s'
