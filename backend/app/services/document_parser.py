@@ -8,6 +8,7 @@ This service contains the surgically refactored logic from:
 Implements the complete 4-stage processing pipeline from the winning Challenge 1A submission.
 """
 import io
+import os
 import re
 import statistics
 import logging
@@ -469,9 +470,10 @@ class DocumentParser:
         return middle_blocks + left_column + right_column
     
     def _detect_document_language(self, pages_data: List[Dict]) -> str:
-        """Detect document language (from Challenge 1A)."""
+        """Detect document language with better fallback handling."""
         if not self.language_detector:
-            return "english"
+            # Return a more neutral default when language detection is unavailable
+            return os.environ.get("DEFAULT_DOCUMENT_LANGUAGE", "unknown")
         
         text_samples = []
         
@@ -483,7 +485,7 @@ class DocumentParser:
                     text_samples.append(text)
         
         if not text_samples:
-            return "english"
+            return os.environ.get("DEFAULT_DOCUMENT_LANGUAGE", "unknown")
         
         combined_text = " ".join(text_samples[:5])
         
@@ -494,7 +496,7 @@ class DocumentParser:
         except Exception as e:
             logger.warning(f"Language detection failed: {e}")
         
-        return "english"
+        return os.environ.get("DEFAULT_DOCUMENT_LANGUAGE", "unknown")
     
     def _extract_page_features(self, page_dict: Dict, page_idx: int, language: str) -> List[Dict]:
         """Extract features from a single page (from Challenge 1A)."""
@@ -681,22 +683,25 @@ class DocumentParser:
         
         features["vertical_position_ratio"] = bbox[1] / max(page_stats["page_height"], 1)
         
-        # Content features
-        if language not in ["japanese", "chinese", "korean"]:
-            features["is_uppercase"] = text.isupper() if text else False
-            features["is_titlecase"] = text.istitle() if text else False
-        else:
-            features["is_uppercase"] = False
-            features["is_titlecase"] = False
-        
+        # Content features - language-agnostic approach
         features["char_count"] = len(text)
         features["word_count"] = len(text.split()) if text else 0
-        features["ends_with_punct"] = text.rstrip().endswith(('.', '?', '!')) if text else False
-        features["has_colon_suffix"] = text.rstrip().endswith(':') if text else False
+        features["ends_with_punct"] = text.rstrip().endswith(('.', '?', '!', '。', '？', '！')) if text else False  # Support multiple punctuation styles
+        features["has_colon_suffix"] = text.rstrip().endswith((':', '：')) if text else False  # Support multiple colon styles
         features["has_numeric_prefix"] = bool(re.match(r'^\s*\d+(\.\d+)*[\.\)\s]', text)) if text else False
-        features["is_chapter_heading"] = bool(re.match(r'^\s*(chapter|section|part)\s+\d+', text, re.IGNORECASE)) if text else False
-        features["is_appendix"] = bool(re.match(r'^\s*appendix', text, re.IGNORECASE)) if text else False
-        features["starts_with_bullet"] = bool(re.match(r'^\s*[•\-\*]', text)) if text else False
+        features["is_chapter_heading"] = bool(re.match(r'^\s*(chapter|section|part|章|節|部)\s+\d+', text, re.IGNORECASE)) if text else False  # Multi-language support
+        features["is_appendix"] = bool(re.match(r'^\s*(appendix|附錄|附录)', text, re.IGNORECASE)) if text else False  # Multi-language support
+        features["starts_with_bullet"] = bool(re.match(r'^\s*[•\-\*・]', text)) if text else False  # Support different bullet styles
+        
+        # Language-agnostic case detection (only for languages that have case)
+        if language.lower() in ["japanese", "chinese", "korean", "thai", "arabic", "hebrew"]:
+            # Languages without traditional upper/lower case
+            features["is_uppercase"] = False
+            features["is_titlecase"] = False
+        else:
+            # Languages with case distinction
+            features["is_uppercase"] = text.isupper() if text else False
+            features["is_titlecase"] = text.istitle() if text else False
         
         features["language"] = language
         
