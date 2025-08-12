@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from sqlmodel import Session
 
 from app.core.database import get_session
+from app.core.config import settings
 from app.models.document import Document, TextChunk
 from app.schemas.document import (
     DocumentPublic, DocumentUploadResponse, DocumentProcessingStatus,
@@ -165,8 +166,10 @@ async def process_document_background(document_id: int, file_content: bytes, ses
         processing_metadata = {
             'total_chunks': len(chunk_objects),
             'page_count': max(chunk.page_number for chunk in chunk_objects) + 1 if chunk_objects else 0,
-            'document_language': 'english',  # Would be detected by Challenge 1A logic
-            'extraction_method': 'challenge_1a_pipeline'
+            'document_language': structure_analysis.get('language', 'unknown'),  # Use detected language from analysis
+            'extraction_method': 'challenge_1a_pipeline',
+            'embedding_model': embedding_service.model_name,
+            'embedding_dimension': len(embeddings[0]) if embeddings else 384
         }
         
         update_document_status(
@@ -231,8 +234,8 @@ async def upload_document(
         
         document = create_document(session, document_create)
         
-        # Create uploads directory if it doesn't exist
-        uploads_dir = "uploads"
+        # Create uploads directory if it doesn't exist (use environment-configurable path)
+        uploads_dir = os.environ.get("UPLOADS_DIR", "uploads")
         os.makedirs(uploads_dir, exist_ok=True)
         
         # Use document ID in filename to avoid conflicts
@@ -283,8 +286,8 @@ async def upload_multiple_documents(
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
     
-    if len(files) > 10:  # Limit to 10 files at once
-        raise HTTPException(status_code=400, detail="Maximum 10 files allowed per upload")
+    if len(files) > settings.MAX_FILES_PER_UPLOAD:  # Use configurable limit
+        raise HTTPException(status_code=400, detail=f"Maximum {settings.MAX_FILES_PER_UPLOAD} files allowed per upload")
     
     results = []
     
@@ -336,8 +339,8 @@ async def upload_multiple_documents(
             
             document = create_document(session, document_create)
             
-            # Create uploads directory if it doesn't exist
-            uploads_dir = "uploads"
+            # Create uploads directory if it doesn't exist (use environment-configurable path)
+            uploads_dir = os.environ.get("UPLOADS_DIR", "uploads")
             os.makedirs(uploads_dir, exist_ok=True)
             
             # Use document ID in filename to avoid conflicts
@@ -720,14 +723,19 @@ async def view_document(
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
     
-    # Check if file exists in uploads directory - use proper Docker container path
-    # In Docker, working directory is /app, so use /app/uploads or ./uploads
-    file_path = os.path.join("/app/uploads", document.file_name)
+    # Use configurable uploads directory
+    uploads_dir = os.environ.get("UPLOADS_DIR", "uploads")
     
-    # Fallback to local development path if the Docker path doesn't exist
+    # Check if file exists in uploads directory - use proper paths for different environments
+    file_path = os.path.join(uploads_dir, document.file_name)
+    
+    # For Docker environments, also try absolute path
     if not os.path.exists(file_path):
-        file_path = os.path.join("uploads", document.file_name)
-        if not os.path.exists(file_path):
+        docker_uploads_path = os.path.join("/app", uploads_dir)
+        docker_file_path = os.path.join(docker_uploads_path, document.file_name)
+        if os.path.exists(docker_file_path):
+            file_path = docker_file_path
+        else:
             raise HTTPException(status_code=404, detail="PDF file not found on disk")
     
     # Return the PDF file with proper content type
