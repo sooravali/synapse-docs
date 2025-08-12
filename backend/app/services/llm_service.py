@@ -46,11 +46,7 @@ class LLMService:
         """Chat with Gemini using Google AI API"""
         try:
             # Support both GOOGLE_API_KEY and GOOGLE_APPLICATION_CREDENTIALS
-            api_key = settings.GOOGLE_API_KEY
-            if not api_key and settings.GOOGLE_APPLICATION_CREDENTIALS:
-                # If using GOOGLE_APPLICATION_CREDENTIALS, we might need to extract the API key
-                # For simplicity, we'll assume GOOGLE_APPLICATION_CREDENTIALS contains the API key
-                api_key = settings.GOOGLE_APPLICATION_CREDENTIALS
+            api_key = settings.GOOGLE_API_KEY or settings.GOOGLE_APPLICATION_CREDENTIALS
             
             if not api_key:
                 raise ValueError("Either GOOGLE_API_KEY or GOOGLE_APPLICATION_CREDENTIALS must be configured")
@@ -65,10 +61,9 @@ class LLMService:
                 elif msg["role"] == "assistant":
                     conversation_parts.append({"text": msg["content"]})
             
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent"
             headers = {
                 "Content-Type": "application/json",
-                "x-goog-api-key": api_key
             }
             
             payload = {
@@ -82,7 +77,13 @@ class LLMService:
             }
             
             async with httpx.AsyncClient() as client:
-                response = await client.post(url, headers=headers, json=payload, timeout=30)
+                response = await client.post(
+                    url, 
+                    headers=headers, 
+                    json=payload,
+                    params={"key": api_key},
+                    timeout=30
+                )
                 response.raise_for_status()
                 result = response.json()
                 
