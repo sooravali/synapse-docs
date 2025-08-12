@@ -17,9 +17,9 @@ class Settings(BaseSettings):
     # CORS Configuration
     CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:8000", "http://localhost:8080"]
     
-    # Vector Search Configuration
+    # Vector Search Configuration (configurable for different scenarios)
     FAISS_INDEX_PATH: str = "./data/faiss_index/index.faiss"
-    EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
+    EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"  # Default, can be overridden via env var
     
     # LLM Configuration (Adobe Hackathon 2025 Requirements)
     LLM_PROVIDER: str = "gemini"
@@ -49,6 +49,23 @@ class Settings(BaseSettings):
     AZURE_TTS_KEY: Optional[str] = None
     AZURE_TTS_REGION: Optional[str] = None
     AZURE_TTS_ENDPOINT: Optional[str] = None
+    AZURE_TTS_VOICE: str = "en-US-AriaNeural"  # Configurable voice for different languages
+    MAX_TTS_CHARACTERS: int = 10000
+    
+    # File System Configuration (configurable for different deployment scenarios)
+    UPLOADS_DIR: str = "uploads"
+    AUDIO_DIR: str = "./data/audio"
+    DEFAULT_DOCUMENT_LANGUAGE: str = "unknown"
+    
+    # Processing Configuration
+    MAX_FILES_PER_UPLOAD: int = 10
+    MAX_FILE_SIZE_MB: int = 100
+    
+    # LLM Content Generation Configuration  
+    INSIGHTS_SYSTEM_PROMPT: Optional[str] = None
+    PODCAST_SYSTEM_PROMPT: Optional[str] = None
+    PODCAST_DURATION_MINUTES: str = "2-5"
+    PODCAST_WORD_COUNT: str = "300-500"
     
     class Config:
         env_file = ".env"
