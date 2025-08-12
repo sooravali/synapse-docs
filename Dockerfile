@@ -1,51 +1,68 @@
-# Adobe Hackathon 2025 - Dockerfile for Synapse-Docs
-# Builds for linux/amd64 platform as required
+# Adobe Hackathon 2025 - Ultra-Optimized Dockerfile for Synapse-Docs
+# Target: Reduce from ~12GB to ~3-4GB with full functionality preservation
 
-# Stage 1: Build the React frontend
-FROM node:18-alpine AS builder
-WORKDIR /app/frontend
-
-# Copy package files and install dependencies to leverage Docker layer caching
+# Stage 1: Frontend Build (minimal Alpine)
+FROM node:18-alpine AS frontend
+WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm install
-
-# Copy the rest of the frontend source code
+RUN npm ci --silent
 COPY frontend/ ./
-
-# Build the application for production
-# The frontend will use relative API URLs since it's served from the same domain
 RUN npm run build
 
-# Stage 2: Build the final Python application image
-FROM python:3.11-slim
-WORKDIR /app
+# Stage 2: Python Dependencies (optimized compilation)
+FROM python:3.11-slim AS python-deps
+WORKDIR /deps
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# Install system dependencies required for audio processing and Python packages
-RUN apt-get update && apt-get install -y \
+# Critical: Install minimal build tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    build-essential \
-    libssl-dev \
+    g++ \
+    libc6-dev \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install to user directory for isolation
 COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --user --no-warn-script-location \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    torch==2.5.0+cpu torchvision==0.20.0+cpu
+RUN pip install --no-cache-dir --user --no-warn-script-location \
+    -r requirements.txt
+RUN find /root/.local -name "*.pyc" -delete || true && \
+    find /root/.local -name "__pycache__" -exec rm -rf {} + || true
 
-# Copy the backend application code
-COPY backend/ /app
+# Stage 3: Minimal Runtime (ultra-slim)
+FROM python:3.11-slim AS runtime
+WORKDIR /app
 
-# Copy the compiled frontend assets from the builder stage
-COPY --from=builder /app/frontend/dist /app/static
+# Production environment optimization
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PATH=/root/.local/bin:$PATH \
+    MALLOC_TRIM_THRESHOLD_=100000
 
-# Create data directory for SQLite, Faiss index, and audio files
-RUN mkdir -p /app/data/audio
+# Install absolute minimal runtime libraries
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 \
+    libblas3 \
+    liblapack3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get autoremove -y \
+    && apt-get clean \
+    && rm -rf /tmp/* /var/tmp/*
 
-# Expose port 8080 as required by Adobe Hackathon 2025
+# Copy optimized Python environment
+COPY --from=python-deps /root/.local /root/.local
+
+# Copy minimal application files only
+COPY backend/app /app/app
+COPY backend/gunicorn_conf.py /app/
+COPY --from=frontend /frontend/dist /app/static
+
+# Create required directories with proper permissions
+RUN mkdir -p /app/data/audio /app/uploads
+
+# Use optimized startup
 EXPOSE 8080
-
-# Command to run the application directly using the Python config file
 CMD ["gunicorn", "-c", "gunicorn_conf.py", "app.main:app"]
