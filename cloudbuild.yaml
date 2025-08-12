@@ -3,12 +3,12 @@ steps:
   # Step 1: Build the Docker image using the Dockerfile in your repository.
   # The image is tagged with the unique commit SHA for versioning.
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '--platform', 'linux/amd64', '-t', 'gcr.io/${PROJECT_ID}/synapse-docs:${COMMIT_SHA}', '.']
+    args: ['build', '--platform', 'linux/amd64', '-t', 'gcr.io/$PROJECT_ID/synapse-docs:$COMMIT_SHA', '.']
 
   # Step 2: Push the newly built image to Google Container Registry.
   # This makes the image available for Cloud Run to pull.
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/${PROJECT_ID}/synapse-docs:${COMMIT_SHA}']
+    args: ['push', 'gcr.io/$PROJECT_ID/synapse-docs:$COMMIT_SHA']
 
   # Step 3: Deploy the image to Cloud Run, configuring it with secrets and storage.
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -17,7 +17,7 @@ steps:
       - 'run'
       - 'deploy'
       - 'synapse-docs' # This will be the name of your service.
-      - '--image=gcr.io/${PROJECT_ID}/synapse-docs:${COMMIT_SHA}'
+      - '--image=gcr.io/$PROJECT_ID/synapse-docs:$COMMIT_SHA'
       - '--region=us-central1' # IMPORTANT: Choose a region close to your users.
       - '--platform=managed'
       - '--port=8080'
@@ -47,7 +47,7 @@ steps:
 
 # Tell Cloud Build which images were created to store them.
 images:
-  - 'gcr.io/${PROJECT_ID}/synapse-docs:${COMMIT_SHA}'
+  - 'gcr.io/$PROJECT_ID/synapse-docs:$COMMIT_SHA'
 
 # Increase the timeout for the deployment step if needed.
 options:
