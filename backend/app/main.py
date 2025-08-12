@@ -61,7 +61,7 @@ async def startup_event():
     
     # Create database tables
     logger.info("Creating database tables...")
-    SQLModel.metadata.create_all(engine)
+    SQLModel.metadata.create_all(engine, checkfirst=True)
     logger.info("Database tables created successfully")
     
     # Initialize services

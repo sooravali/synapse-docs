@@ -1,25 +1,30 @@
 import multiprocessing
+import os
 
 # Server socket
-bind = "0.0.0.0:8080"
+# Reads the PORT from the environment; defaults to 8080 if not set.
+port = os.getenv("PORT", "8080")
+bind = f"0.0.0.0:{port}"
 
 # Worker processes
-workers = multiprocessing.cpu_count() * 2 + 1
+# Use only 1 worker for ML workloads to prevent memory exhaustion
+# Each worker loads the entire sentence transformer model (~400MB)
+workers = 1
 worker_class = "uvicorn.workers.UvicornWorker"
 
 # Logging
 loglevel = "info"
-accesslog = "-"
-errorlog = "-"
+accesslog = "-"  # Log to stdout
+errorlog = "-"   # Log to stderr
 
 # Timeout settings
 timeout = 120
 keepalive = 2
 
-# Performance settings
-max_requests = 5000  # Increased to handle more audio range requests
-max_requests_jitter = 100
-worker_connections = 1000
+# Performance settings - Optimized for ML workloads
+max_requests = 1000  # Prevent memory leaks in ML models
+max_requests_jitter = 50
+worker_connections = 500
 
-# Keep workers alive longer to avoid frequent restarts
+# Preload the application to improve performance
 preload_app = True

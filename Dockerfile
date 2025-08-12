@@ -44,11 +44,8 @@ COPY --from=builder /app/frontend/dist /app/static
 # Create data directory for SQLite, Faiss index, and audio files
 RUN mkdir -p /app/data/audio
 
-# Make startup script executable
-RUN chmod +x /app/start.sh
-
 # Expose port 8080 as required by Adobe Hackathon 2025
 EXPOSE 8080
 
-# Use the startup script
-CMD ["/app/start.sh"]
+# Command to run the application directly using the Python config file
+CMD ["gunicorn", "-c", "gunicorn_conf.py", "app.main:app"]
