@@ -5,6 +5,7 @@ https://github.com/rbabbar-adobe/sample-repo/blob/main/chat_with_llm.py
 """
 import os
 import json
+import asyncio
 import httpx
 from typing import Optional, Dict, Any
 from app.core.config import settings
@@ -43,61 +44,47 @@ class LLMService:
             raise
     
     async def _chat_with_gemini(self, messages: list, **kwargs) -> str:
-        """Chat with Gemini using Google AI API"""
-        try:
-            # Support both GOOGLE_API_KEY and GOOGLE_APPLICATION_CREDENTIALS
-            api_key = settings.GOOGLE_API_KEY or settings.GOOGLE_APPLICATION_CREDENTIALS
-            
-            if not api_key:
-                raise ValueError("Either GOOGLE_API_KEY or GOOGLE_APPLICATION_CREDENTIALS must be configured")
-            
-            # Convert messages format for Gemini API
-            conversation_parts = []
-            for msg in messages:
-                if msg["role"] == "system":
-                    conversation_parts.append({"text": f"System: {msg['content']}"})
-                elif msg["role"] == "user":
-                    conversation_parts.append({"text": msg["content"]})
-                elif msg["role"] == "assistant":
-                    conversation_parts.append({"text": msg["content"]})
-            
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent"
-            headers = {
-                "Content-Type": "application/json",
+        """Chat with Google Gemini"""
+        api_key = settings.GOOGLE_APPLICATION_CREDENTIALS or settings.GOOGLE_API_KEY
+        if not api_key:
+            raise ValueError("Gemini API key not configured")
+        
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent"
+        headers = {"Content-Type": "application/json"}
+        params = {"key": api_key}
+        
+        # Convert messages to Gemini format
+        content = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
+        payload = {
+            "contents": [{"parts": [{"text": content}]}],
+            "generationConfig": {
+                "temperature": 0.7,
+                "topK": 40,
+                "topP": 0.95,
+                "maxOutputTokens": 1024
             }
-            
-            payload = {
-                "contents": [{
-                    "parts": conversation_parts
-                }],
-                "generationConfig": {
-                    "temperature": kwargs.get("temperature", 0.7),
-                    "maxOutputTokens": kwargs.get("max_tokens", 1000)
-                }
-            }
-            
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    url, 
-                    headers=headers, 
-                    json=payload,
-                    params={"key": api_key},
-                    timeout=30
-                )
-                response.raise_for_status()
-                result = response.json()
-                
-                if "candidates" in result and len(result["candidates"]) > 0:
-                    candidate = result["candidates"][0]
-                    if "content" in candidate and "parts" in candidate["content"]:
-                        return candidate["content"]["parts"][0]["text"]
-                
-                logger.error(f"Unexpected Gemini response format: {result}")
-                return "Unable to generate response from Gemini API."
-                
-        except Exception as e:
-            logger.error(f"Gemini API error: {e}")
-            raise
+        }
+        
+        # Retry logic for transient errors
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(url, headers=headers, json=payload, params=params, timeout=30)
+                    response.raise_for_status()
+                    result = response.json()
+                    return result["candidates"][0]["content"]["parts"][0]["text"]
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code in [503, 429, 500] and attempt < max_retries - 1:
+                    wait_time = 2 ** attempt
+                    logger.warning(f"Gemini API error {e.response.status_code} (attempt {attempt + 1}/{max_retries}), retrying in {wait_time} seconds...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    logger.error(f"Gemini API error: {e}")
+                    if e.response.status_code == 503:
+                        raise Exception("Gemini API is temporarily unavailable. Please try again in a few moments.")
+                    raise
     
     async def _chat_with_openai(self, messages: list, **kwargs) -> str:
         """Chat with OpenAI API"""
@@ -240,15 +227,27 @@ Please analyze the main text and provide insights, taking into account any conne
             }
     except Exception as e:
         logger.error(f"Error generating insights: {e}")
+        error_message = str(e)
+        
+        # Make error messages more user-friendly
+        if "503" in error_message or "Service Unavailable" in error_message:
+            user_message = "The AI service is temporarily busy. Please try again in a moment."
+        elif "429" in error_message or "rate limit" in error_message.lower():
+            user_message = "Too many requests. Please wait a moment and try again."
+        elif "timeout" in error_message.lower():
+            user_message = "The request took too long. Please try again."
+        else:
+            user_message = "Unable to generate insights at this time. Please try again."
+        
         return {
             "insights": {
-                "key_insights": ["Unable to generate insights at this time"],
-                "did_you_know": [],
+                "key_insights": [user_message],
+                "did_you_know": ["AI insights are temporarily unavailable."],
                 "contradictions": [],
                 "connections": []
             },
             "status": "error",
-            "error": str(e)
+            "error": error_message
         }
 
 async def generate_podcast_script(content: str, related_content: str = "") -> str:
