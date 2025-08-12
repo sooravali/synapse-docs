@@ -16,6 +16,7 @@ const DocumentLibrary = ({ documents, onDocumentSelect, selectedDocument, onDocu
   const [filteredDocuments, setFilteredDocuments] = useState(documents);
   const [isClearingAll, setIsClearingAll] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
 
   // Filter documents based on search term
   useEffect(() => {
@@ -28,6 +29,48 @@ const DocumentLibrary = ({ documents, onDocumentSelect, selectedDocument, onDocu
       setFilteredDocuments(filtered);
     }
   }, [documents, searchTerm]);
+
+  // Poll for status updates when documents are processing
+  useEffect(() => {
+    const processingDocs = documents.filter(doc => doc.status === 'processing');
+    
+    if (processingDocs.length > 0 && !isPolling) {
+      setIsPolling(true);
+      console.log(`📊 Found ${processingDocs.length} documents still processing, starting status polling...`);
+      
+      const pollInterval = setInterval(async () => {
+        try {
+          console.log('🔄 Polling for document status updates...');
+          await onDocumentsUpdate();
+          
+          // Check if any documents are still processing
+          const stillProcessing = documents.filter(doc => doc.status === 'processing');
+          if (stillProcessing.length === 0) {
+            console.log('✅ All documents processing completed, stopping poll');
+            clearInterval(pollInterval);
+            setIsPolling(false);
+          }
+        } catch (error) {
+          console.error('❌ Error during status polling:', error);
+        }
+      }, 3000); // Poll every 3 seconds
+
+      // Auto-stop polling after 5 minutes to prevent infinite polling
+      const maxPollTime = setTimeout(() => {
+        console.log('⏰ Maximum polling time reached, stopping poll');
+        clearInterval(pollInterval);
+        setIsPolling(false);
+      }, 300000); // 5 minutes
+
+      return () => {
+        clearInterval(pollInterval);
+        clearTimeout(maxPollTime);
+        setIsPolling(false);
+      };
+    } else if (processingDocs.length === 0 && isPolling) {
+      setIsPolling(false);
+    }
+  }, [documents, isPolling, onDocumentsUpdate]);
 
   const handleFileUpload = async (files) => {
     const fileArray = Array.from(files);
@@ -57,8 +100,10 @@ const DocumentLibrary = ({ documents, onDocumentSelect, selectedDocument, onDocu
       });
       setUploadProgress({ ...progressTracker });
 
-      // Refresh document list
+      // Refresh document list immediately
       await onDocumentsUpdate();
+      
+      // Note: Documents will start as "processing" - polling effect will handle status updates
       
       // Clear progress after successful upload
       setTimeout(() => {
@@ -119,6 +164,9 @@ const DocumentLibrary = ({ documents, onDocumentSelect, selectedDocument, onDocu
   const getStatusText = (doc) => {
     if (doc.status === 'ready') {
       return `${doc.total_chunks || 0} chunks indexed`;
+    }
+    if (doc.status === 'processing' && isPolling) {
+      return 'Processing (auto-updating...)';
     }
     return doc.status.charAt(0).toUpperCase() + doc.status.slice(1);
   };
