@@ -160,27 +160,29 @@ async def generate_insights(text: str, context: str = "") -> Dict[str, Any]:
     Generate insights using the configured LLM provider.
     This implements the "Insights Bulb" feature from the hackathon requirements.
     """
-    # Enhanced system prompt for context-rich insights
-    system_prompt = """You are an intelligent document analyst with access to a comprehensive document library. 
-    Generate deep, context-aware insights for the given text.
-    
-    When analyzing the text, consider:
-    1. Key themes and concepts
-    2. Connections to related content from the document library
-    3. Potential contradictions or nuances
-    4. Surprising facts or lesser-known details
-    5. Cross-references and relationships
-    
-    Provide your response in the following JSON structure:
-    {
-        "key_insights": ["insight 1", "insight 2", "insight 3"],
-        "did_you_know": ["interesting fact 1", "interesting fact 2"],
-        "contradictions": ["contradiction or nuance 1"],
-        "connections": ["connection to related content 1", "connection 2"]
-    }
-    
-    Make insights actionable and thought-provoking. Each insight should be 1-2 sentences maximum.
-    When related content is provided, explicitly reference and analyze connections."""
+    # Get configurable system prompt from environment or use default
+    base_system_prompt = os.environ.get("INSIGHTS_SYSTEM_PROMPT", 
+        """You are an intelligent document analyst with access to a comprehensive document library. 
+        Generate deep, context-aware insights for the given text.
+        
+        When analyzing the text, consider:
+        1. Key themes and concepts
+        2. Connections to related content from the document library
+        3. Potential contradictions or nuances
+        4. Surprising facts or lesser-known details
+        5. Cross-references and relationships
+        
+        Provide your response in the following JSON structure:
+        {
+            "key_insights": ["insight 1", "insight 2", "insight 3"],
+            "did_you_know": ["interesting fact 1", "interesting fact 2"],
+            "contradictions": ["contradiction or nuance 1"],
+            "connections": ["connection to related content 1", "connection 2"]
+        }
+        
+        Make insights actionable and thought-provoking. Each insight should be 1-2 sentences maximum.
+        When related content is provided, explicitly reference and analyze connections."""
+    )
     
     # Enhanced user prompt that includes context
     user_content = f"""MAIN TEXT TO ANALYZE:
@@ -194,7 +196,7 @@ Please analyze the main text and provide insights, taking into account any conne
     messages = [
         {
             "role": "system",
-            "content": system_prompt
+            "content": base_system_prompt
         },
         {
             "role": "user",
@@ -255,20 +257,31 @@ async def generate_podcast_script(content: str, related_content: str = "") -> st
     Generate a podcast script for the "Podcast Mode" feature.
     Creates a 2-5 minute narrated overview as required by hackathon.
     """
+    # Get configurable podcast prompt from environment or use default
+    system_prompt = os.environ.get("PODCAST_SYSTEM_PROMPT",
+        """You are a podcast script writer. Create a 2-5 minute engaging narrated script 
+        based on the provided content. The script should:
+        1. Be conversational and engaging
+        2. Include the main content points
+        3. Incorporate related content naturally
+        4. Use natural speech patterns suitable for text-to-speech
+        5. Be approximately 300-500 words for 2-5 minute duration"""
+    )
+    
+    # Get configurable duration from environment
+    target_duration = os.environ.get("PODCAST_DURATION_MINUTES", "2-5")
+    word_count_range = os.environ.get("PODCAST_WORD_COUNT", "300-500")
+    
+    # Update prompt with configurable parameters
+    user_prompt = f"Main content: {content}\n\nRelated content: {related_content}\n\nPlease create a {target_duration} minute script (approximately {word_count_range} words)."
     messages = [
         {
             "role": "system",
-            "content": """You are a podcast script writer. Create a 2-5 minute engaging narrated script 
-            based on the provided content. The script should:
-            1. Be conversational and engaging
-            2. Include the main content points
-            3. Incorporate related content naturally
-            4. Use natural speech patterns suitable for text-to-speech
-            5. Be approximately 300-500 words for 2-5 minute duration"""
+            "content": system_prompt
         },
         {
             "role": "user",
-            "content": f"Main content: {content}\n\nRelated content: {related_content}"
+            "content": user_prompt
         }
     ]
     
