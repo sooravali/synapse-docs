@@ -1,20 +1,30 @@
 """
 LLM-powered API endpoints for insights and podcast features.
 """
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 import io
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List
 
-from app.core.llm_services import llm_service, podcast_service, InsightRequest, PodcastRequest
+from app.services.llm_service import generate_insights, generate_podcast_script
+from app.services.tts_service import generate_podcast_audio
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+class InsightRequest(BaseModel):
+    main_text: str
+    recommendations: List[Dict[str, Any]] = []
+
+class PodcastRequest(BaseModel):
+    main_text: str
+    recommendations: List[Dict[str, Any]] = []
+
 @router.post("/insights", response_model=Dict[str, Any])
-async def generate_insights(request: InsightRequest):
+async def generate_text_insights(request: InsightRequest):
     """
     Generate intelligent insights from main content and recommendations.
     
@@ -28,7 +38,18 @@ async def generate_insights(request: InsightRequest):
     try:
         logger.info(f"Generating insights for text of length: {len(request.main_text)}")
         
-        insights = await llm_service.generate_insights(request)
+        # Create context from recommendations
+        context = ""
+        if request.recommendations:
+            context_parts = []
+            for rec in request.recommendations:
+                text = rec.get('text_chunk', rec.get('text', ''))
+                doc_name = rec.get('document_name', 'Unknown Document')
+                page = rec.get('page_number', 'N/A')
+                context_parts.append(f"From '{doc_name}' (page {page}): {text[:200]}...")
+            context = "\n".join(context_parts)
+        
+        insights = await generate_insights(request.main_text, context)
         
         logger.info("Successfully generated insights")
         return insights
@@ -41,7 +62,7 @@ async def generate_insights(request: InsightRequest):
         )
 
 @router.post("/podcast")
-async def generate_podcast(request: PodcastRequest):
+async def generate_podcast_audio_endpoint(request: PodcastRequest):
     """
     Generate a podcast audio file from insights.
     
@@ -56,22 +77,35 @@ async def generate_podcast(request: PodcastRequest):
     try:
         logger.info(f"Generating podcast for text of length: {len(request.main_text)}")
         
-        # Generate podcast audio
-        audio_content = await podcast_service.generate_podcast(request)
+        # Create context from recommendations
+        related_content = ""
+        if request.recommendations:
+            parts = []
+            for rec in request.recommendations:
+                text = rec.get('text_chunk', rec.get('text', ''))
+                parts.append(text[:200])
+            related_content = " ".join(parts)
         
-        logger.info(f"Successfully generated podcast audio ({len(audio_content)} bytes)")
+        # Generate podcast script
+        script = await generate_podcast_script(request.main_text, related_content)
         
-        # Return audio as streaming response
-        audio_stream = io.BytesIO(audio_content)
+        # Generate audio
+        audio_result = await generate_podcast_audio(script)
         
-        return StreamingResponse(
-            io.BytesIO(audio_content),
-            media_type="audio/mpeg",
-            headers={
-                "Content-Disposition": "attachment; filename=podcast.mp3",
-                "Content-Length": str(len(audio_content))
-            }
-        )
+        if audio_result[0]:  # If audio was generated successfully
+            with open(audio_result[0], 'rb') as f:
+                audio_content = f.read()
+            
+            return StreamingResponse(
+                io.BytesIO(audio_content),
+                media_type="audio/mpeg",
+                headers={
+                    "Content-Disposition": "attachment; filename=podcast.mp3",
+                    "Content-Length": str(len(audio_content))
+                }
+            )
+        else:
+            raise HTTPException(status_code=500, detail="Failed to generate podcast audio")
         
     except Exception as e:
         logger.error(f"Error generating podcast: {e}")
@@ -84,14 +118,11 @@ async def generate_podcast(request: PodcastRequest):
 async def insights_health():
     """Check the health of LLM services."""
     try:
-        # Simple health check - verify configuration
-        provider = llm_service.llm_provider
-        has_key = bool(llm_service.gemini_api_key or llm_service.azure_openai_key)
+        from app.services.llm_service import llm_service
         
         return {
-            "status": "healthy" if has_key else "configuration_missing",
-            "llm_provider": provider,
-            "configured": has_key
+            "status": "healthy",
+            "llm_provider": llm_service.provider
         }
     except Exception as e:
         logger.error(f"LLM health check failed: {e}")
@@ -104,17 +135,11 @@ async def insights_health():
 async def podcast_health():
     """Check the health of TTS services."""
     try:
-        # Simple health check - verify configuration
-        provider = podcast_service.tts_service.tts_provider
-        has_key = bool(
-            podcast_service.tts_service.azure_tts_key or 
-            podcast_service.tts_service.google_tts_key
-        )
+        from app.services.tts_service import tts_service
         
         return {
-            "status": "healthy" if has_key else "configuration_missing",
-            "tts_provider": provider,
-            "configured": has_key
+            "status": "healthy",
+            "tts_provider": tts_service.provider
         }
     except Exception as e:
         logger.error(f"TTS health check failed: {e}")
