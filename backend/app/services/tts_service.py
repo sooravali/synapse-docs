@@ -113,8 +113,9 @@ class TTSService:
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             
             # Limit text length
-            if len(text) > 10000:
-                text = text[:9500] + "... [Content truncated for audio generation]"
+            max_tts_chars = int(os.environ.get("MAX_TTS_CHARACTERS", "10000"))
+            if len(text) > max_tts_chars:
+                text = text[:max_tts_chars-100] + "... [Content truncated for audio generation]"
                 logger.info(f"Text truncated to {len(text)} characters for TTS")
             
             # Construct the REST API URL - correct Azure TTS REST API endpoint
@@ -136,10 +137,14 @@ class TTSService:
             else:
                 raise ValueError("Neither AZURE_TTS_REGION nor AZURE_TTS_ENDPOINT configured")
             
-            # Create SSML for better voice control
+            # Create SSML for better voice control (configurable voice)
+            voice_name = os.environ.get("AZURE_TTS_VOICE", "en-US-AriaNeural")
+            voice_lang = voice_name.split('-')[0:2]  # Extract language from voice name
+            voice_lang_str = '-'.join(voice_lang) if len(voice_lang) >= 2 else 'en-US'
+            
             ssml = f"""
-            <speak version='1.0' xml:lang='en-US'>
-                <voice xml:lang='en-US' xml:gender='Female' name='en-US-AriaNeural'>
+            <speak version='1.0' xml:lang='{voice_lang_str}'>
+                <voice xml:lang='{voice_lang_str}' name='{voice_name}'>
                     {text}
                 </voice>
             </speak>
@@ -205,8 +210,9 @@ class TTSService:
                 logger.warning("Neither AZURE_TTS_REGION nor AZURE_TTS_ENDPOINT configured, using mock audio")
                 return await self._generate_mock_audio(text, output_path)
             
-            # Set voice and output format
-            speech_config.speech_synthesis_voice_name = "en-US-AriaNeural"
+            # Set voice and output format (configurable voice)
+            voice_name = os.environ.get("AZURE_TTS_VOICE", "en-US-AriaNeural")
+            speech_config.speech_synthesis_voice_name = voice_name
             speech_config.set_speech_synthesis_output_format(speechsdk.SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3)
             
             # Platform compatibility fix: Try to disable platform-specific features
@@ -238,9 +244,10 @@ class TTSService:
             # Generate speech with retry logic
             logger.info(f"Generating Azure TTS audio for {len(text)} characters")
             
-            # Limit text length to avoid quota issues
-            if len(text) > 10000:
-                text = text[:9500] + "... [Content truncated for audio generation]"
+            # Limit text length to avoid quota issues (configurable)
+            max_tts_chars = int(os.environ.get("MAX_TTS_CHARACTERS", "10000"))
+            if len(text) > max_tts_chars:
+                text = text[:max_tts_chars-100] + "... [Content truncated for audio generation]"
                 logger.info(f"Text truncated to {len(text)} characters for TTS")
             
             # Try synthesis with platform error handling
@@ -390,7 +397,9 @@ async def generate_podcast_audio(script: str, output_filename: str = "podcast.mp
     Returns tuple of (path to audio file or None, is_real_audio boolean).
     """
     try:
-        output_path = f"./data/audio/{output_filename}"
+        # Use configurable audio directory
+        audio_dir = os.environ.get("AUDIO_DIR", "./data/audio")
+        output_path = os.path.join(audio_dir, output_filename)
         success = await tts_service.generate_audio(script, output_path)
         
         if success:
