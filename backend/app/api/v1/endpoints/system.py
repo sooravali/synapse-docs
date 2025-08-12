@@ -12,9 +12,7 @@ from sqlmodel import Session
 
 from app.core.database import get_session
 from app.schemas.document import HealthCheck, ServiceInfo
-from app.services.document_parser import DocumentParser
-from app.services.embedding_service import EmbeddingService
-from app.services.faiss_service import FaissService
+from app.services.shared import get_document_parser, get_embedding_service, get_faiss_service
 from app.crud.crud_document import get_database_health
 
 logger = logging.getLogger(__name__)
