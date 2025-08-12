@@ -119,7 +119,9 @@ async def get_audio_status():
     try:
         from app.services.tts_service import tts_service
         
-        audio_path = "./data/audio/latest_podcast.mp3"
+        # Use configurable audio directory
+        audio_dir = os.environ.get("AUDIO_DIR", "./data/audio")
+        audio_path = os.path.join(audio_dir, "latest_podcast.mp3")
         
         if not os.path.exists(audio_path):
             return {
@@ -153,7 +155,9 @@ async def get_podcast_audio(filename: str, request: Request):
     Serve generated podcast audio files with proper range request support.
     """
     try:
-        audio_path = f"./data/audio/{filename}"
+        # Use configurable audio directory
+        audio_dir = os.environ.get("AUDIO_DIR", "./data/audio")
+        audio_path = os.path.join(audio_dir, filename)
         
         # Check if the actual MP3 file exists
         if os.path.exists(audio_path):
