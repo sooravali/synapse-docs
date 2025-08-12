@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     """
     
     # Database Configuration
-    DATABASE_URL: str = "sqlite:///./data/synapse.db"
+    DATABASE_URL: str = "sqlite:///./synapse.db"
     
     # Adobe PDF Embed API Configuration
     ADOBE_CLIENT_ID: Optional[str] = None
@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:8000", "http://localhost:8080"]
     
     # Vector Search Configuration
-    FAISS_INDEX_PATH: str = "./data/faiss_index.bin"
+    FAISS_INDEX_PATH: str = "./data/faiss_index/index.faiss"
     EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
     
     # LLM Configuration (Adobe Hackathon 2025 Requirements)
