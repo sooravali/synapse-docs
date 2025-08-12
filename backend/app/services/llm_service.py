@@ -241,7 +241,12 @@ Please analyze the main text and provide insights, taking into account any conne
     except Exception as e:
         logger.error(f"Error generating insights: {e}")
         return {
-            "insights": ["Unable to generate insights at this time"],
+            "insights": {
+                "key_insights": ["Unable to generate insights at this time"],
+                "did_you_know": [],
+                "contradictions": [],
+                "connections": []
+            },
             "status": "error",
             "error": str(e)
         }
