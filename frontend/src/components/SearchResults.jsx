@@ -10,6 +10,12 @@ import { useState } from 'react';
 const SearchResults = ({ results = [], onResultClick, isLoading = false, query = '' }) => {
   const [selectedResult, setSelectedResult] = useState(null);
 
+  // Helper function to clean filename display
+  const cleanFileName = (fileName) => {
+    if (!fileName) return '';
+    return fileName.replace(/^doc_\d+_/, '').replace(/\.pdf$/, '');
+  };
+
   const handleResultClick = (result, index) => {
     setSelectedResult(index);
     console.log('Search result clicked:', result);
@@ -173,7 +179,7 @@ const SearchResults = ({ results = [], onResultClick, isLoading = false, query =
                     color: '#007bff',
                     textDecoration: 'none'
                   }}>
-                    📄 {result.file_name || `Document ${result.document_id}`}
+                    📄 {cleanFileName(result.file_name) || `Document ${result.document_id}`}
                   </h4>
                   {(result.page_number !== undefined && result.page_number !== null) && (
                     <p style={{ 
