@@ -12,7 +12,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ||
 // Create axios instance with default configuration
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000, // 30 second timeout
+  timeout: 120000, // 2 minute timeout for general operations
   headers: {
     'Content-Type': 'application/json',
   },
@@ -29,6 +29,7 @@ export const documentAPI = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      timeout: 300000, // 5 minute timeout for single file upload
     });
     return response.data;
   },
@@ -44,6 +45,7 @@ export const documentAPI = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      timeout: 600000, // 10 minute timeout for multiple file upload
     });
     return response.data;
   },
