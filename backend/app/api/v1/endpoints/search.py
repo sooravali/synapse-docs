@@ -16,7 +16,8 @@ from app.schemas.document import (
     SearchQuery, SearchResponse, SearchResultItem, ErrorResponse
 )
 from app.crud.crud_document import (
-    get_text_chunks_by_faiss_positions, search_chunks_by_text, get_document
+    get_text_chunks_by_faiss_positions, search_chunks_by_text, get_document,
+    get_text_chunks_by_document
 )
 from app.services.shared import get_embedding_service, get_faiss_service
 
@@ -78,33 +79,61 @@ async def semantic_search(
         # Create lookup for chunks by Faiss position
         chunk_lookup = {chunk.faiss_index_position: chunk for chunk in chunks}
         
-        # Stage 4: Build search results
+        # Stage 4: Build enhanced search results using improved semantic analysis
         search_results = []
         
+        # Convert chunks to the format expected by embedding service
+        document_chunks = []
         for faiss_result in faiss_results:
             faiss_pos = faiss_result['faiss_index_position']
             chunk = chunk_lookup.get(faiss_pos)
             
             if not chunk:
                 continue
+                
+            # Filter by document IDs if specified
+            if (search_query.document_ids and 
+                chunk.document_id not in search_query.document_ids):
+                continue
+                
+            # Create enhanced chunk data
+            chunk_data = {
+                'text_chunk': chunk.text_chunk,
+                'page_number': chunk.page_number,
+                'chunk_index': chunk.chunk_index,
+                'chunk_type': chunk.chunk_type,
+                'heading_level': chunk.heading_level,
+                'semantic_cluster': chunk.semantic_cluster,
+                'content_quality_score': getattr(chunk, 'content_quality_score', 0.5),
+                'semantic_markers': getattr(chunk, 'semantic_markers', []),
+                'extraction_method': getattr(chunk, 'extraction_method', 'standard'),
+                'section_title': getattr(chunk, 'section_title', ''),
+                'similarity_score': faiss_result['similarity_score'],
+                'chunk_obj': chunk  # Keep reference to original chunk
+            }
+            document_chunks.append(chunk_data)
+        
+        # Use enhanced semantic content extraction
+        enhanced_results = embedding_service.extract_semantic_content(
+            document_chunks, search_query.query_text, search_query.top_k, search_query.similarity_threshold
+        )
+        
+        # Build final search results with enhanced information
+        for enhanced_result in enhanced_results:
+            chunk = enhanced_result['chunk_obj']
             
             # Get document info
             document = get_document(session, chunk.document_id)
             if not document:
                 continue
             
-            # Filter by document IDs if specified
-            if (search_query.document_ids and 
-                chunk.document_id not in search_query.document_ids):
-                continue
-            
-            # Create search result item
+            # Create enhanced search result item with focused preview instead of full chunk
             result_item = SearchResultItem(
                 chunk_id=chunk.id,
                 document_id=chunk.document_id,
                 document_name=document.file_name,
-                similarity_score=faiss_result['similarity_score'],
-                text_chunk=chunk.text_chunk,
+                similarity_score=enhanced_result.get('enhanced_score', enhanced_result.get('similarity_score', 0.0)),
+                text_chunk=enhanced_result.get('content_preview', chunk.text_chunk[:200] + '...'),
                 page_number=chunk.page_number,
                 chunk_index=chunk.chunk_index,
                 chunk_type=chunk.chunk_type,
@@ -112,11 +141,16 @@ async def semantic_search(
                 semantic_cluster=chunk.semantic_cluster
             )
             
-            search_results.append(result_item)
+            # Add enhanced metadata if available
+            if hasattr(result_item, '__dict__'):
+                result_item.__dict__.update({
+                    'match_explanation': enhanced_result.get('match_explanation', ''),
+                    'key_phrases': enhanced_result.get('key_phrases', []),
+                    'content_preview': enhanced_result.get('content_preview', ''),
+                    'extraction_quality': enhanced_result.get('extraction_method', 'standard')
+                })
             
-            # Stop if we have enough results
-            if len(search_results) >= search_query.top_k:
-                break
+            search_results.append(result_item)
         
         total_time = (time.time() - start_time) * 1000
         
@@ -270,6 +304,113 @@ async def find_similar_chunks(
     except Exception as e:
         logger.error(f"Similar chunks search failed: {e}")
         raise HTTPException(status_code=500, detail=f"Similar chunks search failed: {str(e)}")
+
+@router.get("/related/{chunk_id}", response_model=List[SearchResultItem])
+async def find_related_content(
+    chunk_id: int,
+    threshold: float = Query(0.7, ge=0.1, le=1.0, description="Similarity threshold for related content"),
+    max_results: int = Query(3, ge=1, le=10, description="Maximum number of related chunks to return"),
+    session: Session = Depends(get_session)
+):
+    """
+    Find content related to a specific chunk using enhanced semantic analysis.
+    Implements the "Connect the Dots" feature for better document intelligence.
+    """
+    try:
+        # Get the reference chunk
+        from app.crud.crud_document import get_text_chunk
+        reference_chunk = get_text_chunk(session, chunk_id)
+        if not reference_chunk:
+            raise HTTPException(status_code=404, detail="Chunk not found")
+        
+        # Get all chunks from the same document
+        document_chunks = get_text_chunks_by_document(session, reference_chunk.document_id)
+        if not document_chunks:
+            return []
+        
+        # Convert chunks to format expected by embedding service
+        chunk_data_list = []
+        chunk_lookup = {}
+        
+        for chunk in document_chunks:
+            chunk_data = {
+                'text_chunk': chunk.text_chunk,
+                'page_number': chunk.page_number,
+                'chunk_index': chunk.chunk_index,
+                'chunk_type': chunk.chunk_type or 'content',
+                'heading_level': chunk.heading_level,
+                'semantic_cluster': chunk.semantic_cluster,
+                'content_quality_score': getattr(chunk, 'content_quality_score', 0.5),
+                'semantic_markers': getattr(chunk, 'semantic_markers', []),
+                'extraction_method': getattr(chunk, 'extraction_method', 'standard'),
+                'section_title': getattr(chunk, 'section_title', '')
+            }
+            chunk_data_list.append(chunk_data)
+            chunk_lookup[f"{chunk.page_number}_{chunk.chunk_index}"] = chunk
+        
+        # Create reference chunk data
+        reference_chunk_data = {
+            'text_chunk': reference_chunk.text_chunk,
+            'page_number': reference_chunk.page_number,
+            'chunk_index': reference_chunk.chunk_index,
+            'chunk_type': reference_chunk.chunk_type or 'content',
+            'heading_level': reference_chunk.heading_level,
+            'semantic_cluster': reference_chunk.semantic_cluster,
+            'content_quality_score': getattr(reference_chunk, 'content_quality_score', 0.5),
+            'semantic_markers': getattr(reference_chunk, 'semantic_markers', []),
+            'extraction_method': getattr(reference_chunk, 'extraction_method', 'standard'),
+            'section_title': getattr(reference_chunk, 'section_title', '')
+        }
+        
+        # Find related content using enhanced semantic analysis
+        embedding_service = get_embedding_service()
+        related_chunks = embedding_service.find_related_content(
+            reference_chunk_data, chunk_data_list, threshold, max_results
+        )
+        
+        # Convert to search result items
+        search_results = []
+        document = get_document(session, reference_chunk.document_id)
+        
+        for related_chunk in related_chunks:
+            # Find the corresponding database chunk
+            chunk_key = f"{related_chunk['page_number']}_{related_chunk['chunk_index']}"
+            db_chunk = chunk_lookup.get(chunk_key)
+            
+            if not db_chunk:
+                continue
+                
+            result_item = SearchResultItem(
+                chunk_id=db_chunk.id,
+                document_id=db_chunk.document_id,
+                document_name=document.file_name if document else "Unknown",
+                similarity_score=related_chunk.get('similarity_score', 0.0),
+                text_chunk=db_chunk.text_chunk,
+                page_number=db_chunk.page_number,
+                chunk_index=db_chunk.chunk_index,
+                chunk_type=db_chunk.chunk_type,
+                heading_level=db_chunk.heading_level,
+                semantic_cluster=db_chunk.semantic_cluster
+            )
+            
+            # Add relationship information if available
+            if hasattr(result_item, '__dict__'):
+                result_item.__dict__.update({
+                    'relationship_type': related_chunk.get('relationship_type', 'related'),
+                    'content_preview': related_chunk.get('content_preview', ''),
+                    'extraction_quality': related_chunk.get('extraction_method', 'standard')
+                })
+            
+            search_results.append(result_item)
+        
+        logger.info(f"Found {len(search_results)} related chunks for chunk {chunk_id}")
+        return search_results
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to find related content: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to find related content: {str(e)}")
 
 @router.get("/suggest")
 async def search_suggestions(

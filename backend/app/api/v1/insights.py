@@ -2,15 +2,19 @@
 Insights API for Adobe Hackathon 2025
 Implements the "Insights Bulb" and "Podcast Mode" features
 """
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import logging
 import os
 
+from sqlmodel import Session
+from app.core.database import get_session
+from app.crud.crud_document import get_document, get_text_chunks_by_document
 from app.services.llm_service import generate_insights, generate_podcast_script
 from app.services.tts_service import generate_podcast_audio
+from app.services.shared import get_embedding_service
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +24,26 @@ class InsightsRequest(BaseModel):
     text: str
     context: Optional[str] = ""
 
+class DocumentInsightsRequest(BaseModel):
+    document_id: int
+    analysis_type: Optional[str] = "comprehensive"  # "structure", "themes", "quality", "comprehensive"
+
 class PodcastRequest(BaseModel):
     content: str
     related_content: Optional[str] = ""
 
 class InsightsResponse(BaseModel):
     insights: str
+    status: str
+    error: Optional[str] = None
+
+class DocumentInsightsResponse(BaseModel):
+    document_id: int
+    document_name: str
+    insights: List[Dict[str, Any]]
+    summary: str
+    total_chunks: int
+    processing_quality: str
     status: str
     error: Optional[str] = None
 
@@ -60,6 +78,83 @@ async def generate_text_insights(request: InsightsRequest):
     except Exception as e:
         logger.error(f"Error in insights generation: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/document", response_model=DocumentInsightsResponse)
+async def generate_document_insights(
+    request: DocumentInsightsRequest, 
+    session: Session = Depends(get_session)
+):
+    """
+    Generate comprehensive insights for a document using enhanced semantic analysis.
+    Leverages the improved Challenge 1A + 1B processing for better document intelligence.
+    """
+    try:
+        logger.info(f"Generating insights for document ID: {request.document_id}")
+        
+        # Get document
+        document = get_document(session, request.document_id)
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Get document chunks
+        chunks = get_text_chunks_by_document(session, request.document_id)
+        if not chunks:
+            return DocumentInsightsResponse(
+                document_id=request.document_id,
+                document_name=document.file_name,
+                insights=[],
+                summary="No content available for analysis",
+                total_chunks=0,
+                processing_quality="none",
+                status="empty",
+                error="No text chunks found for document"
+            )
+        
+        # Convert chunks to format expected by embedding service
+        document_chunks = []
+        for chunk in chunks:
+            chunk_data = {
+                'text_chunk': chunk.text_chunk,
+                'page_number': chunk.page_number,
+                'chunk_index': chunk.chunk_index,
+                'chunk_type': chunk.chunk_type or 'content',
+                'heading_level': chunk.heading_level,
+                'semantic_cluster': chunk.semantic_cluster,
+                'content_quality_score': getattr(chunk, 'content_quality_score', 0.5),
+                'semantic_markers': getattr(chunk, 'semantic_markers', []),
+                'extraction_method': getattr(chunk, 'extraction_method', 'standard'),
+                'section_title': getattr(chunk, 'section_title', '')
+            }
+            document_chunks.append(chunk_data)
+        
+        # Generate enhanced insights using improved semantic analysis
+        embedding_service = get_embedding_service()
+        insights_result = embedding_service.generate_document_insights(document_chunks)
+        
+        return DocumentInsightsResponse(
+            document_id=request.document_id,
+            document_name=document.file_name,
+            insights=insights_result.get("insights", []),
+            summary=insights_result.get("summary", "Analysis completed"),
+            total_chunks=insights_result.get("total_chunks", len(chunks)),
+            processing_quality=insights_result.get("processing_quality", "standard"),
+            status="success"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating document insights: {e}")
+        return DocumentInsightsResponse(
+            document_id=request.document_id,
+            document_name="Unknown",
+            insights=[],
+            summary="Analysis failed",
+            total_chunks=0,
+            processing_quality="error",
+            status="error",
+            error=str(e)
+        )
 
 @router.post("/podcast", response_model=PodcastResponse)
 async def generate_podcast(request: PodcastRequest, background_tasks: BackgroundTasks):

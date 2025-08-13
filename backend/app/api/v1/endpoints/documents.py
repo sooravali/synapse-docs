@@ -82,26 +82,47 @@ async def process_document_background(document_id: int, file_content: bytes, ses
         
         logger.info(f"Document {document_id}: Extracted {len(text_chunks)} text chunks")
         
-        # Stage 2: Store text chunks in database
+        # Stage 2: Store text chunks in database with enhanced metadata
         chunk_objects = []
         for i, chunk_data in enumerate(text_chunks):
             try:
                 from app.crud.crud_document import create_text_chunk
                 from app.schemas.document import TextChunkCreate
                 
+                # Extract enhanced metadata from our improved parser
+                chunk_type = chunk_data.get('chunk_type', 'content')
+                heading_level = chunk_data.get('heading_level', 0)
+                section_title = chunk_data.get('section_title', '')
+                extraction_method = chunk_data.get('extraction_method', 'enhanced_pipeline')
+                content_quality_score = chunk_data.get('content_quality_score', 0.5)
+                semantic_markers = chunk_data.get('semantic_markers', [])
+                
                 chunk_create = TextChunkCreate(
                     document_id=document_id,
                     page_number=chunk_data.get('page_number', 0),
                     text_chunk=chunk_data.get('text_chunk', ''),
                     chunk_index=i,
-                    chunk_type='content'
+                    chunk_type=chunk_type,
+                    heading_level=heading_level if heading_level else None,
+                    section_title=section_title if section_title else None
                 )
                 
                 chunk_obj = create_text_chunk(session, chunk_create)
+                
+                # Store enhanced metadata as chunk attributes (if the model supports it)
+                if hasattr(chunk_obj, '__dict__'):
+                    chunk_obj.__dict__.update({
+                        'extraction_method': extraction_method,
+                        'content_quality_score': content_quality_score,
+                        'semantic_markers': semantic_markers
+                    })
+                
                 chunk_objects.append(chunk_obj)
                 
             except Exception as e:
                 logger.error(f"Failed to create chunk {i} for document {document_id}: {e}")
+        
+        logger.info(f"Document {document_id}: Created {len(chunk_objects)} enhanced text chunks")
         
         if not chunk_objects:
             update_document_status(
@@ -125,16 +146,22 @@ async def process_document_background(document_id: int, file_content: bytes, ses
         
         logger.info(f"Document {document_id}: Generated {len(embeddings)} embeddings")
         
-        # Stage 4: Store embeddings in Faiss vector database
+        # Stage 4: Store embeddings in Faiss vector database with enhanced metadata
         metadata_list = []
         for chunk in chunk_objects:
-            metadata_list.append({
+            chunk_metadata = {
                 'chunk_id': chunk.id,
                 'document_id': document_id,
-                'page_number': chunk.page_number,
+                'page_number': chunk.page_number or 0,  # Handle None page numbers
                 'chunk_index': chunk.chunk_index,
+                'chunk_type': getattr(chunk, 'chunk_type', 'content'),
+                'heading_level': getattr(chunk, 'heading_level', 0),
+                'section_title': getattr(chunk, 'section_title', ''),
+                'extraction_method': getattr(chunk, 'extraction_method', 'enhanced_pipeline'),
+                'content_quality_score': getattr(chunk, 'content_quality_score', 0.5),
                 'text_preview': chunk.text_chunk[:100] + "..." if len(chunk.text_chunk) > 100 else chunk.text_chunk
-            })
+            }
+            metadata_list.append(chunk_metadata)
         
         faiss_positions = faiss_service.add_embeddings(embeddings, metadata_list)
         
@@ -159,18 +186,42 @@ async def process_document_background(document_id: int, file_content: bytes, ses
         # Stage 6: Perform semantic analysis using Challenge 1B logic
         logger.info(f"Document {document_id}: Running semantic analysis")
         
-        document_chunks = get_chunks_for_semantic_analysis(session, document_id)
-        structure_analysis = embedding_service.analyze_document_structure(document_chunks)
+        try:
+            document_chunks = get_chunks_for_semantic_analysis(session, document_id)
+            logger.info(f"Document {document_id}: Retrieved {len(document_chunks)} chunks for analysis")
+            
+            # Debug: check chunk data
+            for i, chunk in enumerate(document_chunks):
+                logger.info(f"Document {document_id}: Chunk {i}: page_number={chunk.get('page_number')}, type={type(chunk.get('page_number'))}")
+            
+            structure_analysis = embedding_service.analyze_document_structure(document_chunks)
+        except Exception as semantic_error:
+            logger.error(f"Document {document_id}: Semantic analysis failed: {semantic_error}")
+            # Continue with a basic structure_analysis
+            structure_analysis = {"language": "unknown", "sections": []}
         
-        # Stage 7: Update document status to ready
+        # Stage 7: Update document status to ready with enhanced metadata
+        # Calculate page count safely, handling None values
+        page_numbers = [chunk.page_number for chunk in chunk_objects if chunk.page_number is not None]
+        page_count = max(page_numbers) + 1 if page_numbers else 1
+        logger.info(f"Document {document_id}: Calculated page_count={page_count} from page_numbers={page_numbers}")
+        
+        # Debug structure_analysis
+        logger.info(f"Document {document_id}: structure_analysis={structure_analysis}")
+        logger.info(f"Document {document_id}: structure_analysis type={type(structure_analysis)}")
+        
         processing_metadata = {
             'total_chunks': len(chunk_objects),
-            'page_count': max(chunk.page_number for chunk in chunk_objects) + 1 if chunk_objects else 0,
-            'document_language': structure_analysis.get('language', 'unknown'),  # Use detected language from analysis
-            'extraction_method': 'challenge_1a_pipeline',
+            'page_count': page_count,
+            'document_language': structure_analysis.get('language', 'unknown') if structure_analysis else 'unknown',
+            'extraction_method': 'enhanced_challenge_1a_pipeline',
             'embedding_model': embedding_service.model_name,
-            'embedding_dimension': len(embeddings[0]) if embeddings else 384
+            'embedding_dimension': len(embeddings[0]) if embeddings else 384,
+            'processing_quality': 'enhanced',
+            'semantic_analysis_available': True
         }
+        
+        logger.info(f"Document {document_id}: Created processing_metadata successfully")
         
         update_document_status(
             session, document_id, "ready", 
