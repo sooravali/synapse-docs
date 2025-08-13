@@ -20,6 +20,12 @@ const DocumentWorkbench = forwardRef(({
   searchResults = [],
   connectionResults = []
 }, ref) => {
+
+  // Helper function to clean filename display
+  const cleanFileName = (fileName) => {
+    if (!fileName) return '';
+    return fileName.replace(/^doc_\d+_/, '').replace(/\.pdf$/, '');
+  };
   const [isViewerReady, setIsViewerReady] = useState(false);
   const [showActionHalo, setShowActionHalo] = useState(false);
   const [actionHaloPosition, setActionHaloPosition] = useState({ top: 0, left: 0 });
@@ -125,7 +131,7 @@ const DocumentWorkbench = forwardRef(({
             setSelectedText(selectedText);
             
             // Step 1: Mark text selection as active and store context
-            const enrichedContext = `[Selected Text from ${document?.file_name || 'document'}]\n${selectedText}`;
+            const enrichedContext = `[Selected Text from ${cleanFileName(document?.file_name) || 'document'}]\n${selectedText}`;
             setIsTextSelectionActive(true);
             setTextSelectionContext(enrichedContext);
             
@@ -1033,7 +1039,7 @@ const DocumentWorkbench = forwardRef(({
       setSelectedText(selectedText);
       
       // Step 1: Mark text selection as active and store context
-      const enrichedContext = `[Selected Text from ${document?.file_name || 'document'}]\n${selectedText}`;
+      const enrichedContext = `[Selected Text from ${cleanFileName(document?.file_name) || 'document'}]\n${selectedText}`;
       setIsTextSelectionActive(true);
       setTextSelectionContext(enrichedContext);
       
@@ -1070,7 +1076,7 @@ const DocumentWorkbench = forwardRef(({
     
     try {
       // Create enriched context with clear source information
-      const enrichedContext = `[Selected Text from ${document?.file_name || 'document'}]\n${selectedText}`;
+      const enrichedContext = `[Selected Text from ${cleanFileName(document?.file_name) || 'document'}]\n${selectedText}`;
       
       // This triggers insights generation using the already-generated connections as context
       await onInsightsRequest(enrichedContext);
@@ -1091,7 +1097,7 @@ const DocumentWorkbench = forwardRef(({
     
     try {
       // Create enriched context with clear source information
-      const enrichedContext = `[Selected Text from ${document?.file_name || 'document'}]\n${selectedText}`;
+      const enrichedContext = `[Selected Text from ${cleanFileName(document?.file_name) || 'document'}]\n${selectedText}`;
       
       await onPodcastRequest(enrichedContext);
       console.log(`✅ Generated podcast successfully from selected text`);
@@ -1162,7 +1168,7 @@ const DocumentWorkbench = forwardRef(({
             <div className="current-document">
               <span className="document-icon">📄</span>
               <span className="document-name">
-                {document.file_name.replace(/^doc_\d+_/, '').replace(/\.pdf$/, '')}
+                {cleanFileName(document.file_name)}
               </span>
             </div>
             <div className="document-meta">
