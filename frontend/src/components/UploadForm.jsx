@@ -27,10 +27,10 @@ const UploadForm = ({ onUploadSuccess, onUploadError }) => {
     }
 
     // Check file sizes
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 100 * 1024 * 1024; // 100MB
     const oversizedFiles = validFiles.filter(file => file.size > maxSize);
     if (oversizedFiles.length > 0) {
-      const error = new Error(`Some files exceed 10MB limit: ${oversizedFiles.map(f => f.name).join(', ')}`);
+      const error = new Error(`Some files exceed 100MB limit: ${oversizedFiles.map(f => f.name).join(', ')}`);
       setLastUploadResult({ success: false, message: error.message });
       onUploadError?.(error);
       return;
@@ -271,7 +271,7 @@ const UploadForm = ({ onUploadSuccess, onUploadError }) => {
               fontSize: '12px', 
               color: '#868e96'
             }}>
-              Maximum file size: 10MB per file, up to 10 files
+              Maximum file size: 100MB per file
             </p>
           </>
         )}
