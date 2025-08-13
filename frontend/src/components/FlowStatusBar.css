@@ -1,0 +1,100 @@
+/* Flow Status Bar Styles */
+.flow-status-bar {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  margin: 0;
+}
+
+.status-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.status-steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.status-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.status-step.pending {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.status-step.active {
+  background: rgba(255, 255, 255, 0.9);
+  color: #667eea;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+  animation: pulse 2s infinite;
+}
+
+.status-step.completed {
+  background: #10b981;
+  color: white;
+}
+
+.status-connector {
+  width: 16px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 1px;
+}
+
+.status-message {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.9;
+  flex: 1;
+  min-width: 0;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 25px rgba(255, 255, 255, 0.5);
+  }
+}
+
+@media (max-width: 768px) {
+  .flow-status-bar {
+    padding: 8px 16px;
+  }
+  
+  .status-content {
+    gap: 12px;
+  }
+  
+  .status-step {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .status-step svg {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .status-message {
+    font-size: 13px;
+  }
+}

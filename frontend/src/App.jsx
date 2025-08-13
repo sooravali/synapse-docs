@@ -26,6 +26,7 @@ import { useState, useRef, useEffect } from 'react';
 import DocumentLibrary from './components/DocumentLibrary';
 import DocumentWorkbench from './components/DocumentWorkbench';
 import SynapsePanel from './components/SynapsePanel';
+import QuickStartGuide from './components/QuickStartGuide';
 import { documentAPI, searchAPI, insightsAPI } from './api';
 import './App.css';
 
@@ -43,9 +44,12 @@ function App() {
   
   // UI State
   const [viewerError, setViewerError] = useState(null);
+  const [showQuickStart, setShowQuickStart] = useState(false);
+  const [hasInsights, setHasInsights] = useState(false);
   
   // Component References
   const synapsePanelRef = useRef(null);
+  const documentWorkbenchRef = useRef(null);
 
   // Load documents on component mount
   useEffect(() => {
@@ -62,6 +66,15 @@ function App() {
       console.log('📋 Loaded documents:', docs);
       
       setDocuments(docs);
+      
+      // Show quick start guide for first-time users
+      if (docs.length === 0) {
+        // Check if user has seen the guide before
+        const hasSeenQuickStart = localStorage.getItem('synapse_quickstart_seen');
+        if (!hasSeenQuickStart) {
+          setShowQuickStart(true);
+        }
+      }
       
       // Auto-select first ready document if none selected
       if (!selectedDocument && docs.length > 0) {
@@ -82,6 +95,13 @@ function App() {
     setSelectedDocument(document);
     setCurrentContext(''); // Clear context when switching documents
     setSearchResults([]); // Clear search results
+    setConnectionResults([]); // Clear connections when switching documents
+    setHasInsights(false); // Reset insights state
+    
+    // Clear any insights and reset Synapse panel state
+    if (synapsePanelRef.current && synapsePanelRef.current.resetPanelState) {
+      synapsePanelRef.current.resetPanelState();
+    }
   };
 
   // STAGE 1: Connections Workflow (Real-time & Automatic)
@@ -101,6 +121,7 @@ function App() {
       try {
         // Generate insights using the selected text + current connections as context
         await synapsePanelRef.current.generateInsights(context, connectionResults);
+        setHasInsights(true);
       } catch (error) {
         console.error('Failed to generate insights:', error);
       }
@@ -127,12 +148,42 @@ function App() {
       setSelectedDocument(targetDoc);
     }
     
-    // TODO: Navigate to specific page/location in the PDF
-    // This would require Adobe PDF Embed API integration
+    // Navigate to specific page in the PDF using the exposed DocumentWorkbench method
+    if (connection.page_number !== undefined && connection.page_number !== null) {
+      const targetPageNumber = connection.page_number + 1; // Convert from 0-based to 1-based for display
+      console.log(`🚀 Attempting to navigate to page ${targetPageNumber}`);
+      
+      // If switching documents, wait longer for the document to fully load and initialize
+      const navigationDelay = (targetDoc && targetDoc.id !== selectedDocument?.id) ? 3500 : 100;
+      
+      setTimeout(async () => {
+        if (documentWorkbenchRef.current && documentWorkbenchRef.current.navigateToPage) {
+          const success = await documentWorkbenchRef.current.navigateToPage(targetPageNumber);
+          if (success) {
+            console.log(`✅ Successfully navigated to page ${targetPageNumber}`);
+          } else {
+            console.error(`❌ Failed to navigate to page ${targetPageNumber}`);
+          }
+        } else {
+          console.warn('⚠️ DocumentWorkbench ref not available for navigation');
+        }
+      }, navigationDelay);
+    } else {
+      console.warn('⚠️ Connection does not have a valid page number for navigation');
+    }
+  };
+
+  const handleQuickStartDismiss = () => {
+    setShowQuickStart(false);
+    localStorage.setItem('synapse_quickstart_seen', 'true');
   };
 
   return (
     <div className="app">
+      {showQuickStart && (
+        <QuickStartGuide onDismiss={handleQuickStartDismiss} />
+      )}
+      
       <div className="app-layout">
         {/* Left Panel: The Knowledge Base */}
         <div className="panel panel-left">
@@ -141,12 +192,17 @@ function App() {
             selectedDocument={selectedDocument}
             onDocumentSelect={handleDocumentSelect}
             onDocumentsUpdate={loadDocuments}
+            connectionsCount={connectionResults.length}
+            hasInsights={hasInsights}
+            isLoadingConnections={isSearching}
+            currentContext={currentContext}
           />
         </div>
 
         {/* Center Panel: The Workbench */}
         <div className="panel panel-center">
           <DocumentWorkbench
+            ref={documentWorkbenchRef}
             document={selectedDocument}
             currentContext={currentContext}
             onContextChange={handleContextChange}
