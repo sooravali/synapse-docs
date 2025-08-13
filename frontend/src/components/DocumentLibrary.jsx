@@ -118,8 +118,13 @@ const DocumentLibrary = ({
       });
       setUploadProgress({ ...progressTracker });
 
-      // Refresh document list immediately
+      // Small delay to ensure database transaction is committed
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Refresh document list after ensuring DB is updated
+      console.log('🔄 Refreshing document list after upload...');
       await onDocumentsUpdate();
+      console.log('✅ Document list refreshed, checking status...');
       
       // Note: Documents will start as "processing" - polling effect will handle status updates
       
@@ -183,10 +188,14 @@ const DocumentLibrary = ({
     if (doc.status === 'ready') {
       return `${doc.total_chunks || 0} chunks indexed • Ready to explore!`;
     }
-    if (doc.status === 'processing' && isPolling) {
-      return 'Processing (auto-updating...)';
+    if (doc.status === 'processing') {
+      return isPolling ? 'Processing (auto-updating...)' : 'Processing...';
     }
-    return doc.status.charAt(0).toUpperCase() + doc.status.slice(1);
+    if (doc.status === 'error') {
+      return doc.error_message ? `Error: ${doc.error_message}` : 'Error occurred during processing';
+    }
+    // Fallback for any unknown status
+    return `Status: ${doc.status}`;
   };
 
   const handleClearAll = async () => {
