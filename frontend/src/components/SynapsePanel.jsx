@@ -15,6 +15,12 @@ const SynapsePanel = forwardRef(({
   onConnectionSelect,
   onConnectionsUpdate 
 }, ref) => {
+
+  // Helper function to clean filename display
+  const cleanFileName = (fileName) => {
+    if (!fileName) return '';
+    return fileName.replace(/^doc_\d+_/, '').replace(/\.pdf$/, '');
+  };
   const [activeTab, setActiveTab] = useState('connections');
   const [connections, setConnections] = useState([]);
   const [insights, setInsights] = useState(null);
@@ -367,7 +373,7 @@ const SynapsePanel = forwardRef(({
       // Enhanced payload with context-rich data from Stage 1 connections
       const enrichedContext = contextConnections.length > 0 
         ? `Related content from library:\n${contextConnections.map((conn, i) => 
-            `${i + 1}. From "${conn.document_name}": ${conn.text_chunk.substring(0, 150)}...`
+            `${i + 1}. From "${cleanFileName(conn.document_name)}": ${conn.text_chunk.substring(0, 150)}...`
           ).join('\n\n')}`
         : "";
       
@@ -616,7 +622,7 @@ const SynapsePanel = forwardRef(({
   const renderConnectionCard = (connection) => {
     const similarity = formatSimilarityScore(connection.similarity_score);
     const isCurrentDocument = selectedDocument && selectedDocument.id === connection.document_id;
-    const documentName = connection.document_name.replace(/^doc_\d+_/, '').replace(/\.pdf$/, '');
+    const documentName = cleanFileName(connection.document_name);
     const isNavigating = navigatingConnectionId === connection.chunk_id;
     
     return (
@@ -736,7 +742,7 @@ const SynapsePanel = forwardRef(({
           </p>
           {insights.context && insights.context.includes('[Selected Text from') && (
             <p className="context-source">
-              📄 From: {selectedDocument?.file_name || 'document'}
+              📄 From: {cleanFileName(selectedDocument?.file_name) || 'document'}
             </p>
           )}
         </div>
@@ -933,7 +939,7 @@ const SynapsePanel = forwardRef(({
                     </p>
                     {currentContext?.includes('[Selected Text from') && (
                       <p className="context-source">
-                        📄 From: {selectedDocument?.file_name || 'document'}
+                        📄 From: {cleanFileName(selectedDocument?.file_name) || 'document'}
                       </p>
                     )}
                   </div>
