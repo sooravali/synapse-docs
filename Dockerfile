@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir --user --no-warn-script-location \
     --extra-index-url https://download.pytorch.org/whl/cpu \
-    torch==2.5.0+cpu torchvision==0.20.0+cpu
+    torch==2.6.0+cpu torchvision
 RUN pip install --no-cache-dir --user --no-warn-script-location \
     -r requirements.txt
 RUN find /root/.local -name "*.pyc" -delete || true && \
