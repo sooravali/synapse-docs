@@ -185,17 +185,19 @@ class EmbeddingService:
             logger.error(f"Failed to create batch embeddings: {e}")
             return []
     
-    def extract_semantic_content(self, document_chunks: List[Dict], query: str, max_chunks: int = 10) -> List[Dict]:
+    def extract_semantic_content(self, document_chunks: List[Dict], query: str, max_chunks: int = 10, query_threshold: float = None) -> List[Dict]:
         """
         Extract most relevant content chunks using semantic similarity (from Challenge 1B).
+        Enhanced with better ranking and context awareness.
         
         Args:
             document_chunks: List of text chunks from document
             query: Query text for semantic matching
             max_chunks: Maximum number of chunks to return
+            query_threshold: Override threshold for similarity filtering
             
         Returns:
-            List of ranked chunks with similarity scores
+            List of ranked chunks with similarity scores and enhanced metadata
         """
         if not document_chunks or not query:
             return []
@@ -203,12 +205,34 @@ class EmbeddingService:
         try:
             # Extract text content from chunks
             chunk_texts = []
+            chunk_metadata = []
+            
             for chunk in document_chunks:
                 if isinstance(chunk, dict):
                     text = chunk.get('text_chunk', '') or chunk.get('text', '')
+                    # Include section title for better context
+                    section_title = chunk.get('section_title', '')
+                    if section_title and section_title not in text[:100]:
+                        text = f"{section_title}: {text}"
+                    
+                    chunk_texts.append(text)
+                    chunk_metadata.append({
+                        'original_chunk': chunk,
+                        'chunk_type': chunk.get('chunk_type', 'content'),
+                        'extraction_method': chunk.get('extraction_method', 'unknown'),
+                        'content_quality_score': chunk.get('content_quality_score', 0.5),
+                        'semantic_markers': chunk.get('semantic_markers', [])
+                    })
                 else:
                     text = str(chunk)
-                chunk_texts.append(text)
+                    chunk_texts.append(text)
+                    chunk_metadata.append({
+                        'original_chunk': {'text': text},
+                        'chunk_type': 'unknown',
+                        'extraction_method': 'legacy',
+                        'content_quality_score': 0.5,
+                        'semantic_markers': []
+                    })
             
             # Generate embeddings for query and chunks
             query_embedding = self.create_embedding(query)
@@ -222,17 +246,41 @@ class EmbeddingService:
             # Calculate similarities
             similarities = self._calculate_similarities(query_embedding, chunk_embeddings)
             
-            # Rank and filter chunks
+            # Enhanced ranking with multiple factors
             ranked_results = []
-            for i, (chunk, similarity) in enumerate(zip(document_chunks, similarities)):
-                if similarity >= self.similarity_threshold * 0.7:  # Slightly lower threshold for retrieval
-                    result_chunk = chunk.copy() if isinstance(chunk, dict) else {'text': str(chunk)}
-                    result_chunk['similarity_score'] = float(similarity)
-                    result_chunk['rank'] = len(ranked_results) + 1
+            for i, (similarity, metadata) in enumerate(zip(similarities, chunk_metadata)):
+                # Use query threshold if provided, otherwise use a flexible threshold
+                if query_threshold is not None:
+                    effective_threshold = max(query_threshold * 0.8, 0.1)  # Ensure we don't filter too aggressively
+                else:
+                    effective_threshold = min(self.similarity_threshold * 0.4, 0.25)
+                
+                if similarity >= effective_threshold:  # More flexible threshold for better results
+                    
+                    # Calculate enhanced relevance score
+                    relevance_score = self._calculate_enhanced_relevance(
+                        similarity, metadata, query, chunk_texts[i]
+                    )
+                    
+                    result_chunk = metadata['original_chunk'].copy()
+                    result_chunk.update({
+                        'similarity_score': float(similarity),
+                        'relevance_score': float(relevance_score),
+                        'rank': 0,  # Will be set after sorting
+                        'match_explanation': self._generate_match_explanation(query, chunk_texts[i], similarity),
+                        'key_phrases': self._extract_key_phrases(chunk_texts[i]),
+                        'content_preview': self._generate_query_focused_preview(chunk_texts[i], query)
+                    })
+                    
                     ranked_results.append(result_chunk)
             
-            # Sort by similarity and return top results
-            ranked_results.sort(key=lambda x: x['similarity_score'], reverse=True)
+            # Sort by enhanced relevance score
+            ranked_results.sort(key=lambda x: x['relevance_score'], reverse=True)
+            
+            # Set ranks and return top results
+            for i, result in enumerate(ranked_results[:max_chunks]):
+                result['rank'] = i + 1
+            
             return ranked_results[:max_chunks]
             
         except Exception as e:
@@ -495,7 +543,439 @@ class EmbeddingService:
                 "sklearn": SKLEARN_AVAILABLE
             }
         }
-from typing import List
-import logging
+    
+    # Enhanced methods for better semantic analysis
+    
+    def _calculate_enhanced_relevance(self, similarity: float, metadata: Dict, 
+                                    query: str, chunk_text: str) -> float:
+        """Calculate enhanced relevance score combining multiple factors."""
+        base_score = similarity
+        
+        # Quality boost
+        quality_score = metadata.get('content_quality_score', 0.5)
+        quality_boost = (quality_score - 0.5) * 0.2
+        
+        # Chunk type boost
+        chunk_type = metadata.get('chunk_type', 'content')
+        type_boost = 0.0
+        if chunk_type in ['H1', 'H2']:
+            type_boost = 0.1  # Headings are important
+        elif chunk_type in ['introduction', 'summary']:
+            type_boost = 0.05
+        
+        # Semantic markers boost
+        markers = metadata.get('semantic_markers', [])
+        marker_boost = len(markers) * 0.02  # Small boost for semantic richness
+        
+        # Keyword matching boost (simple implementation)
+        query_words = set(query.lower().split())
+        chunk_words = set(chunk_text.lower().split())
+        keyword_overlap = len(query_words.intersection(chunk_words)) / max(1, len(query_words))
+        keyword_boost = keyword_overlap * 0.15
+        
+        # Extraction method boost
+        extraction_method = metadata.get('extraction_method', 'unknown')
+        method_boost = 0.0
+        if extraction_method == 'embedded_toc':
+            method_boost = 0.1  # ToC-based extraction is high quality
+        elif extraction_method == 'enhanced_pipeline':
+            method_boost = 0.05
+        
+        enhanced_score = base_score + quality_boost + type_boost + marker_boost + keyword_boost + method_boost
+        return min(enhanced_score, 1.0)  # Cap at 1.0
+    
+    def _generate_match_explanation(self, query: str, chunk_text: str, similarity: float) -> str:
+        """Generate explanation for why this chunk matches the query."""
+        if similarity > 0.8:
+            return "High semantic similarity - content closely matches your query"
+        elif similarity > 0.6:
+            return "Good semantic match - content is relevant to your query"
+        elif similarity > 0.4:
+            return "Moderate match - content contains related concepts"
+        else:
+            return "Basic match - content has some relevance"
+    
+    def _extract_key_phrases(self, text: str) -> List[str]:
+        """Extract key phrases from text for highlighting."""
+        if not text:
+            return []
+        
+        # Simple key phrase extraction (could be enhanced with NLP)
+        phrases = []
+        
+        # Extract noun phrases (simplified)
+        words = text.split()
+        for i in range(len(words) - 1):
+            phrase = f"{words[i]} {words[i + 1]}"
+            if len(phrase) > 8 and phrase.lower() not in ['the the', 'and and', 'of of']:
+                phrases.append(phrase)
+        
+        # Extract capitalized phrases
+        import re
+        capitalized = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', text)
+        phrases.extend(capitalized[:5])
+        
+        return phrases[:10]  # Return top 10 phrases
+    
+    def _generate_query_focused_preview(self, text: str, query: str, max_length: int = 300) -> str:
+        """Generate a preview that focuses on content most relevant to the query."""
+        if not text:
+            return ""
+        
+        import re
+        
+        # Clean text
+        text = re.sub(r'\s+', ' ', text).strip()
+        
+        # If text is short enough, return as is
+        if len(text) <= max_length:
+            return text
+            
+        # Extract query terms
+        query_terms = [term.lower().strip() for term in re.split(r'[^\w]+', query) if len(term) > 2]
+        
+        if not query_terms:
+            return self._generate_content_preview(text, max_length)
+        
+        # Split text into sentences
+        sentences = re.split(r'[.!?]+', text)
+        sentence_scores = []
+        
+        # Score sentences based on query term presence and position
+        for i, sentence in enumerate(sentences):
+            if not sentence.strip():
+                continue
+                
+            sentence_lower = sentence.lower()
+            score = 0
+            
+            # Count query terms in sentence
+            for term in query_terms:
+                score += sentence_lower.count(term) * 2  # Weight for exact matches
+                # Partial matches
+                for word in sentence_lower.split():
+                    if term in word or word in term:
+                        score += 0.5
+            
+            # Boost score for sentences near the beginning (but not too much)
+            position_bonus = max(0, (len(sentences) - i) / len(sentences)) * 0.3
+            score += position_bonus
+            
+            sentence_scores.append((sentence.strip(), score, i))
+        
+        if not sentence_scores:
+            return self._generate_content_preview(text, max_length)
+        
+        # Sort by score and select best sentences
+        sentence_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        selected_sentences = []
+        total_length = 0
+        
+        # Add sentences until we reach max length
+        for sentence, score, original_idx in sentence_scores:
+            if not sentence:
+                continue
+                
+            sentence_with_space = sentence + '. '
+            if total_length + len(sentence_with_space) <= max_length:
+                selected_sentences.append((sentence, original_idx))
+                total_length += len(sentence_with_space)
+            elif total_length == 0:  # Always include at least one sentence
+                # Truncate the sentence to fit
+                available = max_length - 3  # Space for "..."
+                truncated = sentence[:available] + "..."
+                selected_sentences.append((truncated, original_idx))
+                break
+        
+        if not selected_sentences:
+            return self._generate_content_preview(text, max_length)
+        
+        # Sort selected sentences by original order
+        selected_sentences.sort(key=lambda x: x[1])
+        
+        # Join sentences
+        preview = '. '.join([sent for sent, _ in selected_sentences])
+        if not preview.endswith('.'):
+            preview += '.'
+            
+        return preview
 
-logger = logging.getLogger(__name__)
+    def _generate_content_preview(self, text: str, max_length: int = 200) -> str:
+        """Generate a preview of the content."""
+        if not text:
+            return ""
+        
+        # Clean text
+        import re
+        text = re.sub(r'\s+', ' ', text).strip()
+        
+        if len(text) <= max_length:
+            return text
+        
+        # Try to break at sentence boundary
+        preview = text[:max_length]
+        last_sentence = max(preview.rfind('.'), preview.rfind('!'), preview.rfind('?'))
+        
+        if last_sentence > max_length * 0.7:  # If we can break at a good sentence point
+            return preview[:last_sentence + 1]
+        else:
+            # Break at word boundary
+            last_space = preview.rfind(' ')
+            if last_space > 0:
+                return preview[:last_space] + "..."
+            else:
+                return preview + "..."
+    
+    def find_related_content(self, chunk: Dict, document_chunks: List[Dict], 
+                           threshold: float = 0.7, max_results: int = 3) -> List[Dict]:
+        """
+        Find content related to the given chunk within the same document.
+        Useful for the "Connect the Dots" feature.
+        """
+        if not chunk or not document_chunks:
+            return []
+        
+        try:
+            # Get text from the reference chunk
+            reference_text = ""
+            if isinstance(chunk, dict):
+                reference_text = chunk.get('text_chunk', '') or chunk.get('text', '')
+                section_title = chunk.get('section_title', '')
+                if section_title and section_title not in reference_text[:50]:
+                    reference_text = f"{section_title}: {reference_text}"
+            else:
+                reference_text = str(chunk)
+            
+            if not reference_text:
+                return []
+            
+            # Find similar content using embeddings
+            related_chunks = self.extract_semantic_content(
+                document_chunks, reference_text, max_results + 1  # +1 to account for self-match
+            )
+            
+            # Filter out the original chunk and apply threshold
+            filtered_chunks = []
+            for related_chunk in related_chunks:
+                # Skip if it's the same chunk
+                if (related_chunk.get('page_number') == chunk.get('page_number') and
+                    related_chunk.get('text_chunk', '') == chunk.get('text_chunk', '')):
+                    continue
+                
+                if related_chunk.get('similarity_score', 0) >= threshold:
+                    # Add relationship explanation
+                    related_chunk['relationship_type'] = self._determine_relationship_type(
+                        chunk, related_chunk
+                    )
+                    filtered_chunks.append(related_chunk)
+            
+            return filtered_chunks[:max_results]
+            
+        except Exception as e:
+            logger.error(f"Failed to find related content: {e}")
+            return []
+    
+    def _determine_relationship_type(self, source_chunk: Dict, related_chunk: Dict) -> str:
+        """Determine the type of relationship between two chunks."""
+        source_page = source_chunk.get('page_number', 0)
+        related_page = related_chunk.get('page_number', 0)
+        
+        source_type = source_chunk.get('chunk_type', 'content')
+        related_type = related_chunk.get('chunk_type', 'content')
+        
+        # Page-based relationships
+        if abs(source_page - related_page) <= 1:
+            return "nearby_content"
+        elif related_page > source_page:
+            return "continues_topic"
+        elif related_page < source_page:
+            return "background_info"
+        
+        # Type-based relationships
+        if source_type.startswith('H') and related_type == 'content':
+            return "section_content"
+        elif source_type == 'content' and related_type.startswith('H'):
+            return "related_heading"
+        elif source_type == related_type:
+            return "similar_section"
+        
+        return "thematically_related"
+    
+    def generate_document_insights(self, document_chunks: List[Dict]) -> Dict[str, Any]:
+        """
+        Generate insights about the document structure and content.
+        Enhanced version for better user experience.
+        """
+        if not document_chunks:
+            return {"insights": [], "summary": "No content available"}
+        
+        try:
+            insights = []
+            
+            # Analyze document structure
+            structure_insight = self._analyze_document_structure_enhanced(document_chunks)
+            insights.append(structure_insight)
+            
+            # Analyze content themes
+            themes_insight = self._analyze_content_themes(document_chunks)
+            insights.append(themes_insight)
+            
+            # Analyze document quality
+            quality_insight = self._analyze_document_quality(document_chunks)
+            insights.append(quality_insight)
+            
+            # Generate executive summary
+            summary = self._generate_executive_summary(document_chunks)
+            
+            return {
+                "insights": insights,
+                "summary": summary,
+                "total_chunks": len(document_chunks),
+                "processing_quality": "enhanced"
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to generate document insights: {e}")
+            return {"insights": [], "summary": "Analysis failed"}
+    
+    def _analyze_document_structure_enhanced(self, chunks: List[Dict]) -> Dict:
+        """Analyze document structure with enhanced insights."""
+        structure = {
+            "type": "structure_analysis",
+            "title": "Document Structure",
+            "insights": []
+        }
+        
+        # Count different types of content
+        heading_counts = {}
+        extraction_methods = {}
+        
+        for chunk in chunks:
+            chunk_type = chunk.get('chunk_type', 'content')
+            if chunk_type.startswith('H'):
+                heading_counts[chunk_type] = heading_counts.get(chunk_type, 0) + 1
+            
+            method = chunk.get('extraction_method', 'unknown')
+            extraction_methods[method] = extraction_methods.get(method, 0) + 1
+        
+        # Generate insights
+        total_headings = sum(heading_counts.values())
+        if total_headings > 0:
+            structure["insights"].append(f"Document has {total_headings} headings with good hierarchical structure")
+        else:
+            structure["insights"].append("Document appears to have minimal heading structure")
+        
+        # Quality insights based on extraction method
+        if 'embedded_toc' in extraction_methods:
+            structure["insights"].append("Document has embedded table of contents - high structural quality")
+        elif 'enhanced_pipeline' in extraction_methods:
+            structure["insights"].append("Document processed with advanced structure detection")
+        
+        return structure
+    
+    def _analyze_content_themes(self, chunks: List[Dict]) -> Dict:
+        """Analyze main themes in the document."""
+        themes = {
+            "type": "theme_analysis", 
+            "title": "Content Themes",
+            "insights": []
+        }
+        
+        # Collect all semantic markers
+        all_markers = []
+        for chunk in chunks:
+            markers = chunk.get('semantic_markers', [])
+            all_markers.extend(markers)
+        
+        # Count marker frequencies
+        from collections import Counter
+        marker_counts = Counter(all_markers)
+        
+        if marker_counts:
+            top_themes = marker_counts.most_common(3)
+            theme_descriptions = {
+                'introductory': 'Introduction and overview content',
+                'conclusive': 'Conclusions and summary content', 
+                'methodological': 'Process and methodology descriptions',
+                'results': 'Results and findings',
+                'technical': 'Technical and detailed information',
+                'visual_reference': 'References to charts, tables, and figures'
+            }
+            
+            for theme, count in top_themes:
+                description = theme_descriptions.get(theme, f'{theme.replace("_", " ").title()} content')
+                themes["insights"].append(f"{description} appears {count} time(s)")
+        else:
+            themes["insights"].append("Content themes could not be automatically determined")
+        
+        return themes
+    
+    def _analyze_document_quality(self, chunks: List[Dict]) -> Dict:
+        """Analyze overall document quality."""
+        quality = {
+            "type": "quality_analysis",
+            "title": "Content Quality",
+            "insights": []
+        }
+        
+        # Calculate average quality score
+        quality_scores = [chunk.get('content_quality_score', 0.5) for chunk in chunks]
+        avg_quality = sum(quality_scores) / len(quality_scores)
+        
+        if avg_quality > 1.5:
+            quality["insights"].append("High quality content with good structure and readability")
+        elif avg_quality > 1.0:
+            quality["insights"].append("Good quality content with decent structure")
+        elif avg_quality > 0.7:
+            quality["insights"].append("Moderate quality content - some sections may need attention")
+        else:
+            quality["insights"].append("Content quality could be improved")
+        
+        # Analyze chunk size distribution
+        chunk_sizes = [len(chunk.get('text_chunk', '')) for chunk in chunks]
+        avg_size = sum(chunk_sizes) / len(chunk_sizes)
+        
+        if avg_size > 500:
+            quality["insights"].append("Content is well-detailed with substantial sections")
+        elif avg_size > 200:
+            quality["insights"].append("Content has good detail level")
+        else:
+            quality["insights"].append("Content sections are concise")
+        
+        return quality
+    
+    def _generate_executive_summary(self, chunks: List[Dict]) -> str:
+        """Generate an executive summary of the document."""
+        if not chunks:
+            return "No content available for summary."
+        
+        # Find key summary content
+        summary_chunks = []
+        
+        for chunk in chunks:
+            # Prioritize summary-like content
+            markers = chunk.get('semantic_markers', [])
+            chunk_type = chunk.get('chunk_type', '')
+            
+            if ('introductory' in markers or 'conclusive' in markers or 
+                chunk_type in ['H1'] or
+                'summary' in chunk.get('section_title', '').lower()):
+                summary_chunks.append(chunk)
+        
+        # If no specific summary content, use first and last chunks
+        if not summary_chunks:
+            summary_chunks = chunks[:2] + chunks[-1:]
+        
+        # Generate summary text
+        summary_parts = []
+        for chunk in summary_chunks[:3]:  # Limit to 3 chunks
+            text = chunk.get('text_chunk', '')
+            preview = self._generate_content_preview(text, 150)
+            if preview:
+                summary_parts.append(preview)
+        
+        if summary_parts:
+            return " ... ".join(summary_parts)
+        else:
+            return f"Document contains {len(chunks)} sections with varied content."

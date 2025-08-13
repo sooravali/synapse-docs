@@ -98,35 +98,45 @@ class DocumentParser:
     def get_text_chunks(self, file_content: bytes) -> List[Dict]:
         """
         Execute the entire Challenge 1A pipeline in memory and return semantically coherent text chunks.
+        Enhanced with improved section detection and context preservation.
         
         Args:
             file_content: Raw bytes of the PDF file
             
         Returns:
-            List of dictionaries with format: {'page_number': int, 'text_chunk': str}
+            List of dictionaries with format: {'page_number': int, 'text_chunk': str, 'section_title': str, 'chunk_type': str}
         """
         try:
-            # Stage 1: Extract text with metadata using the Challenge 1A approach
+            # Stage 1: Fast path - check for embedded ToC first
+            embedded_toc = self._check_embedded_toc_from_bytes(file_content)
+            if embedded_toc:
+                logger.info("Found embedded ToC, using fast path extraction")
+                return self._extract_chunks_from_toc(file_content, embedded_toc)
+            
+            # Stage 2: Extract text with metadata using the Challenge 1A approach
             pages_data = self._extract_text_with_metadata_from_bytes(file_content)
             
             if not pages_data:
                 logger.warning("No pages extracted from PDF")
                 return []
             
-            # Stage 2: Apply the comprehensive feature extraction
+            # Stage 3: Apply the comprehensive feature extraction with enhanced layout analysis
             page_features, document_language = self._extract_comprehensive_features(pages_data)
             
             if not page_features or not any(page_features):
                 logger.warning("No features extracted from PDF")
                 return self._fallback_text_extraction(pages_data)
             
-            # Stage 3: Classify headings using CRF-based approach
-            page_classifications = self._classify_headings(page_features)
+            # Stage 4: Classify headings using enhanced CRF-based approach
+            page_classifications = self._classify_headings_enhanced(page_features, document_language)
             
-            # Stage 4: Build hierarchical structure and extract coherent chunks
-            text_chunks = self._build_text_chunks(pages_data, page_features, page_classifications, document_language)
+            # Stage 5: Build hierarchical structure with improved context preservation
+            text_chunks = self._build_enhanced_text_chunks(pages_data, page_features, page_classifications, document_language)
             
-            logger.info(f"Successfully extracted {len(text_chunks)} text chunks from PDF")
+            # Stage 6: Post-process chunks for better semantic coherence
+            text_chunks = self._post_process_chunks(text_chunks)
+            
+            logger.info(f"Successfully extracted {len(text_chunks)} enhanced text chunks from PDF")
             return text_chunks
             
         except Exception as e:
@@ -1125,7 +1135,7 @@ class DocumentParser:
         return chunks
     
     def _extract_with_pdfminer_fallback_from_bytes(self, file_content: bytes) -> List[Dict[str, Any]]:
-        """Fallback extraction using pdfminer from bytes."""
+        """Fallback extraction using pdfminer from bytes with page detection."""
         if not PDFMINER_AVAILABLE:
             logger.error("pdfminer.six not available for fallback extraction")
             return []
@@ -1133,7 +1143,12 @@ class DocumentParser:
         try:
             logger.info("Using pdfminer fallback for bytes")
             
-            # Create file-like object from bytes
+            # Try page-by-page extraction first
+            pages_data = self._extract_pages_separately(file_content)
+            if pages_data:
+                return pages_data
+            
+            # Fallback to text analysis for page detection
             file_obj = io.BytesIO(file_content)
             
             laparams = LAParams(
@@ -1149,46 +1164,184 @@ class DocumentParser:
             if not text:
                 return []
             
-            # Create simplified page structure
-            lines = text.split('\n')
-            text_blocks = []
-            
-            page_width = 595
-            page_height = 842
-            y_position = page_height - 50
-            
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    y_position -= 15
-                    continue
-                
-                text_block = {
-                    "text": line,
-                    "bbox": [50, y_position, page_width - 50, y_position + 12],
-                    "font": "Unknown",
-                    "font_size": 12.0,
-                    "font_flags": 0,
-                    "is_bold": False,
-                    "is_italic": False,
-                    "page_num": 0,
-                    "page_width": page_width,
-                    "page_height": page_height
-                }
-                
-                text_blocks.append(text_block)
-                y_position -= 20
-            
-            return [{
-                "page_num": 0,
-                "page_width": page_width,
-                "page_height": page_height,
-                "text_blocks": text_blocks
-            }]
+            # Analyze text for page breaks and content distribution
+            return self._create_pages_from_text_analysis(text)
             
         except Exception as e:
             logger.error(f"pdfminer fallback extraction failed: {e}")
             return []
+
+    def _extract_pages_separately(self, file_content: bytes) -> List[Dict[str, Any]]:
+        """Try to extract pages separately using PDFPage."""
+        try:
+            from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
+            from pdfminer.pdfpage import PDFPage
+            from pdfminer.converter import TextConverter
+            
+            file_obj = io.BytesIO(file_content)
+            pages_data = []
+            
+            # Get all pages first to know total count
+            all_pages = list(PDFPage.get_pages(file_obj))
+            logger.info(f"Found {len(all_pages)} pages in PDF")
+            
+            if len(all_pages) <= 1:
+                # Single page, use simple approach
+                return []
+            
+            # Process each page individually
+            for page_idx, page in enumerate(all_pages):
+                try:
+                    # Reset file object for each page extraction
+                    page_file_obj = io.BytesIO(file_content)
+                    
+                    laparams = LAParams(
+                        line_margin=0.5,
+                        word_margin=0.1,
+                        char_margin=2.0,
+                        boxes_flow=0.5,
+                        all_texts=False
+                    )
+                    
+                    output_string = io.StringIO()
+                    rsrcmgr = PDFResourceManager()
+                    device = TextConverter(rsrcmgr, output_string, laparams=laparams)
+                    interpreter = PDFPageInterpreter(rsrcmgr, device)
+                    
+                    # Process only the current page
+                    current_page_generator = PDFPage.get_pages(page_file_obj)
+                    for i, current_page in enumerate(current_page_generator):
+                        if i == page_idx:
+                            interpreter.process_page(current_page)
+                            break
+                    
+                    page_text = output_string.getvalue()
+                    device.close()
+                    output_string.close()
+                    
+                    if page_text.strip():
+                        page_data = self._create_page_from_text(page_text, page_idx)
+                        if page_data:
+                            pages_data.append(page_data)
+                    
+                except Exception as page_error:
+                    logger.warning(f"Failed to extract page {page_idx + 1}: {page_error}")
+                    continue
+            
+            return pages_data if len(pages_data) > 1 else []
+            
+        except Exception as e:
+            logger.warning(f"Page-by-page extraction failed: {e}")
+            return []
+    
+    def _create_pages_from_text_analysis(self, text: str) -> List[Dict[str, Any]]:
+        """Create pages by analyzing text content for breaks and patterns."""
+        lines = text.split('\n')
+        
+        # Look for page indicators, form feeds, or natural breaks
+        page_breaks = []
+        current_line = 0
+        
+        # Method 1: Look for explicit page markers
+        for i, line in enumerate(lines):
+            # Common page break indicators
+            if re.search(r'^\s*Page\s+\d+', line, re.IGNORECASE):
+                page_breaks.append(i)
+            elif re.search(r'^\s*\d+\s*$', line.strip()) and len(line.strip()) <= 3:
+                # Potential page number on its own line
+                page_breaks.append(i)
+            elif '\x0c' in line or '\f' in line:  # Form feed characters
+                page_breaks.append(i)
+        
+        # Method 2: Estimate by content length if no explicit breaks found
+        if not page_breaks:
+            estimated_lines_per_page = 45  # Typical lines per page
+            for i in range(0, len(lines), estimated_lines_per_page):
+                page_breaks.append(i)
+        
+        # Method 3: Look for content patterns (headers, footers, repeated elements)
+        if len(page_breaks) <= 2:  # Still not enough page breaks
+            potential_breaks = []
+            for i in range(1, len(lines) - 1):
+                line = lines[i].strip()
+                prev_line = lines[i-1].strip()
+                next_line = lines[i+1].strip() if i+1 < len(lines) else ""
+                
+                # Look for potential page headers/footers
+                if (not line and not prev_line and next_line and 
+                    len(next_line) < 50 and any(char.isupper() for char in next_line)):
+                    potential_breaks.append(i+1)
+                
+                # Look for chapter/section breaks
+                elif (line.startswith(('Chapter', 'Section', 'CHAPTER', 'SECTION')) or
+                      re.match(r'^\d+\.?\s+[A-Z]', line)):
+                    potential_breaks.append(i)
+            
+            # Merge with existing breaks
+            all_breaks = sorted(set(page_breaks + potential_breaks))
+            if len(all_breaks) > len(page_breaks):
+                page_breaks = all_breaks
+        
+        # Ensure we have at least some reasonable breaks
+        if not page_breaks or page_breaks[0] != 0:
+            page_breaks.insert(0, 0)
+        
+        # Create pages from breaks
+        pages_data = []
+        for i, start_line in enumerate(page_breaks):
+            end_line = page_breaks[i + 1] if i + 1 < len(page_breaks) else len(lines)
+            
+            page_lines = lines[start_line:end_line]
+            page_text = '\n'.join(page_lines)
+            
+            if page_text.strip():
+                page_data = self._create_page_from_text(page_text, i)
+                if page_data:
+                    pages_data.append(page_data)
+        
+        logger.info(f"Created {len(pages_data)} pages from text analysis")
+        return pages_data
+    
+    def _create_page_from_text(self, text: str, page_num: int) -> Dict[str, Any]:
+        """Create a page structure from text content."""
+        lines = text.split('\n')
+        text_blocks = []
+        
+        page_width = 595
+        page_height = 842
+        y_position = page_height - 50
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                y_position -= 15
+                continue
+            
+            text_block = {
+                "text": line,
+                "bbox": [50, y_position, page_width - 50, y_position + 12],
+                "font": "Unknown",
+                "font_size": 12.0,
+                "font_flags": 0,
+                "is_bold": False,
+                "is_italic": False,
+                "page_num": page_num,
+                "page_width": page_width,
+                "page_height": page_height
+            }
+            
+            text_blocks.append(text_block)
+            y_position -= 20
+        
+        if not text_blocks:
+            return None
+            
+        return {
+            "page_num": page_num,
+            "page_width": page_width,
+            "page_height": page_height,
+            "text_blocks": text_blocks
+        }
     
     def _simple_fallback_extraction(self, file_content: bytes) -> List[Dict]:
         """Simple fallback when all processing fails."""
@@ -1207,7 +1360,10 @@ class DocumentParser:
                     if page_text.strip():
                         chunks.append({
                             'page_number': page_num,
-                            'text_chunk': page_text.strip()
+                            'text_chunk': page_text.strip(),
+                            'section_title': f'Page {page_num + 1} Content',
+                            'chunk_type': 'fallback',
+                            'extraction_method': 'simple_fallback'
                         })
                 
                 return chunks
@@ -1217,3 +1373,487 @@ class DocumentParser:
         
         # Ultimate fallback - return empty list
         return []
+    
+    # Enhanced methods for improved document processing
+    
+    def _check_embedded_toc_from_bytes(self, file_content: bytes) -> Optional[List[List]]:
+        """Check for embedded Table of Contents from bytes (Fast Path implementation)."""
+        if not FITZ_AVAILABLE:
+            return None
+            
+        try:
+            doc = fitz.open(stream=file_content, filetype="pdf")
+            toc = doc.get_toc()
+            doc.close()
+            
+            if toc and len(toc) > 0:
+                logger.info(f"Found embedded ToC with {len(toc)} entries")
+                return toc
+            return None
+        except Exception as e:
+            logger.warning(f"Error checking embedded ToC: {e}")
+            return None
+    
+    def _extract_chunks_from_toc(self, file_content: bytes, toc: List[List]) -> List[Dict]:
+        """Extract chunks based on embedded ToC structure."""
+        try:
+            doc = fitz.open(stream=file_content, filetype="pdf")
+            chunks = []
+            
+            for i, (level, title, page_num) in enumerate(toc):
+                # Determine end page for section
+                if i + 1 < len(toc):
+                    end_page = toc[i + 1][2] - 1
+                else:
+                    end_page = len(doc) - 1
+                
+                # Extract content between start and end page
+                section_text = ""
+                for p in range(page_num - 1, min(end_page, len(doc))):
+                    if p >= 0:
+                        page = doc[p]
+                        section_text += page.get_text() + "\n"
+                
+                if section_text.strip():
+                    chunks.append({
+                        'page_number': page_num - 1,  # Convert to 0-based
+                        'text_chunk': section_text.strip(),
+                        'section_title': title,
+                        'chunk_type': f'H{min(level, 3)}',  # Map to H1, H2, H3
+                        'extraction_method': 'embedded_toc'
+                    })
+            
+            doc.close()
+            return chunks
+            
+        except Exception as e:
+            logger.error(f"Failed to extract chunks from ToC: {e}")
+            return []
+    
+    def _classify_headings_enhanced(self, page_features: List[List[Dict]], document_language: str) -> List[List[str]]:
+        """Enhanced heading classification with improved CRF training and contextual analysis."""
+        if not page_features:
+            return []
+        
+        # Enhanced CRF training with better features
+        if self.crf_classifier and CRF_AVAILABLE:
+            try:
+                # Create enhanced training data with document-level context
+                X_train, y_train = self._create_enhanced_training_data(page_features, document_language)
+                
+                if X_train and y_train:
+                    logger.info("Training enhanced CRF model with document context")
+                    self.crf_classifier.fit(X_train, y_train)
+                    
+                    # Predict with enhanced features
+                    X_test = self._prepare_enhanced_crf_features(page_features, document_language)
+                    predictions = self.crf_classifier.predict(X_test)
+                    
+                    return self._convert_crf_predictions(predictions)
+            except Exception as e:
+                logger.warning(f"Enhanced CRF classification failed: {e}")
+        
+        # Fallback to rule-based classification
+        return self._rule_based_classification_enhanced(page_features, document_language)
+    
+    def _build_enhanced_text_chunks(self, pages_data: List[Dict], page_features: List[List[Dict]], 
+                                  page_classifications: List[List[str]], document_language: str) -> List[Dict]:
+        """Build text chunks with enhanced context preservation and semantic coherence."""
+        chunks = []
+        current_section = {"title": "", "content": [], "start_page": 0, "heading_level": None}
+        
+        for page_idx, (page_data, page_feature_list, page_class_list) in enumerate(
+            zip(pages_data, page_features, page_classifications)
+        ):
+            page_chunks = []
+            
+            for line_features, line_class in zip(page_feature_list, page_class_list):
+                text = line_features.get('text', '').strip()
+                if not text or len(text) < 3:
+                    continue
+                
+                # Handle headings - start new sections
+                if line_class.startswith('H'):
+                    # Save current section if it has content
+                    if current_section["content"]:
+                        chunk = self._finalize_section_chunk(current_section, page_idx)
+                        if chunk:
+                            chunks.append(chunk)
+                    
+                    # Start new section
+                    current_section = {
+                        "title": text,
+                        "content": [],
+                        "start_page": page_idx,
+                        "heading_level": line_class,
+                        "context_before": self._get_context_before(line_features, page_feature_list),
+                        "context_after": self._get_context_after(line_features, page_feature_list)
+                    }
+                else:
+                    # Add content to current section
+                    current_section["content"].append({
+                        "text": text,
+                        "page": page_idx,
+                        "features": line_features
+                    })
+            
+            # Handle page boundaries - create page-level chunks if section is too long
+            if len(current_section["content"]) > 20:  # Arbitrary threshold
+                chunk = self._create_page_chunk(current_section, page_idx)
+                if chunk:
+                    page_chunks.append(chunk)
+                current_section["content"] = []
+            
+            chunks.extend(page_chunks)
+        
+        # Finalize last section
+        if current_section["content"]:
+            chunk = self._finalize_section_chunk(current_section, len(pages_data) - 1)
+            if chunk:
+                chunks.append(chunk)
+        
+        return chunks
+    
+    def _post_process_chunks(self, chunks: List[Dict]) -> List[Dict]:
+        """Post-process chunks for better semantic coherence and user experience."""
+        if not chunks:
+            return chunks
+        
+        processed_chunks = []
+        
+        for chunk in chunks:
+            # Clean and enhance text content
+            text = chunk.get('text_chunk', '')
+            
+            # Remove excessive whitespace while preserving structure
+            text = self._clean_text_content(text)
+            
+            # Add context markers for better readability
+            if chunk.get('section_title') and chunk.get('section_title') not in text[:100]:
+                text = f"[{chunk['section_title']}]\n\n{text}"
+            
+            # Ensure minimum chunk size for meaningful content
+            if len(text.strip()) < 50:
+                continue
+            
+            # Update chunk with enhanced information
+            enhanced_chunk = {
+                'page_number': chunk.get('page_number', 0),
+                'text_chunk': text,
+                'section_title': chunk.get('section_title', 'Untitled Section'),
+                'chunk_type': chunk.get('chunk_type', 'content'),
+                'extraction_method': chunk.get('extraction_method', 'enhanced_pipeline'),
+                'content_quality_score': self._calculate_content_quality(text),
+                'semantic_markers': self._extract_semantic_markers(text)
+            }
+            
+            processed_chunks.append(enhanced_chunk)
+        
+        # Sort by page number and quality for consistent ordering
+        processed_chunks.sort(key=lambda x: (x['page_number'], -x['content_quality_score']))
+        
+        return processed_chunks
+    
+    # Helper methods for enhanced processing
+    
+    def _create_enhanced_training_data(self, page_features: List[List[Dict]], document_language: str) -> Tuple[List, List]:
+        """Create enhanced training data with document-level context."""
+        # This is a simplified version - in practice, would use more sophisticated training
+        X_train, y_train = [], []
+        
+        for page_feature_list in page_features:
+            page_X, page_y = [], []
+            
+            for i, features in enumerate(page_feature_list):
+                # Create CRF features with enhanced context
+                crf_features = self._create_crf_features_enhanced(features, i, page_feature_list, document_language)
+                page_X.append(crf_features)
+                
+                # Simple rule-based labeling for training
+                label = self._rule_based_label(features)
+                page_y.append(label)
+            
+            if page_X and page_y:
+                X_train.append(page_X)
+                y_train.append(page_y)
+        
+        return X_train, y_train
+    
+    def _prepare_enhanced_crf_features(self, page_features: List[List[Dict]], document_language: str) -> List:
+        """Prepare enhanced CRF features for prediction."""
+        X_test = []
+        
+        for page_feature_list in page_features:
+            page_X = []
+            
+            for i, features in enumerate(page_feature_list):
+                crf_features = self._create_crf_features_enhanced(features, i, page_feature_list, document_language)
+                page_X.append(crf_features)
+            
+            if page_X:
+                X_test.append(page_X)
+        
+        return X_test
+    
+    def _create_crf_features_enhanced(self, features: Dict, index: int, page_features: List[Dict], language: str) -> Dict:
+        """Create enhanced CRF features with better contextual information."""
+        crf_features = {
+            'text_length': len(features.get('text', '')),
+            'is_bold': features.get('is_bold', False),
+            'font_size': features.get('font_size', 12),
+            'is_uppercase': features.get('text', '').isupper(),
+            'has_colon': features.get('text', '').endswith(':'),
+            'starts_with_number': bool(re.match(r'^\d+\.', features.get('text', ''))),
+            'language': language,
+            'position_in_page': index / max(1, len(page_features)),
+            'relative_font_size': features.get('font_size', 12) / 12.0,
+        }
+        
+        # Add contextual features
+        if index > 0:
+            prev_features = page_features[index - 1]
+            crf_features['prev_is_bold'] = prev_features.get('is_bold', False)
+            crf_features['prev_font_size'] = prev_features.get('font_size', 12)
+        
+        if index < len(page_features) - 1:
+            next_features = page_features[index + 1]
+            crf_features['next_font_size'] = next_features.get('font_size', 12)
+        
+        return crf_features
+    
+    def _rule_based_label(self, features: Dict) -> str:
+        """Simple rule-based labeling for CRF training."""
+        text = features.get('text', '')
+        is_bold = features.get('is_bold', False)
+        font_size = features.get('font_size', 12)
+        
+        # Simple heuristics
+        if is_bold and font_size > 14:
+            return 'B-H1'
+        elif is_bold and font_size > 12:
+            return 'B-H2'
+        elif text.isupper() and len(text) < 100:
+            return 'B-H2'
+        elif re.match(r'^\d+\.', text):
+            return 'B-H3'
+        else:
+            return 'O'
+    
+    def _convert_crf_predictions(self, predictions: List) -> List[List[str]]:
+        """Convert CRF predictions to heading classifications."""
+        converted = []
+        
+        for page_preds in predictions:
+            page_converted = []
+            for pred in page_preds:
+                if pred.startswith('B-'):
+                    page_converted.append(pred[2:])  # Remove B- prefix
+                else:
+                    page_converted.append('P')  # Paragraph
+            converted.append(page_converted)
+        
+        return converted
+    
+    def _rule_based_classification_enhanced(self, page_features: List[List[Dict]], document_language: str) -> List[List[str]]:
+        """Enhanced rule-based classification with language-specific rules."""
+        classifications = []
+        
+        for page_feature_list in page_features:
+            page_classifications = []
+            
+            for features in page_feature_list:
+                # Enhanced rule-based classification
+                text = features.get('text', '').strip()
+                is_bold = features.get('is_bold', False)
+                font_size = features.get('font_size', 12)
+                
+                score = 0
+                
+                # Font size scoring
+                if font_size > 16:
+                    score += 3
+                elif font_size > 14:
+                    score += 2
+                elif font_size > 12:
+                    score += 1
+                
+                # Bold text scoring
+                if is_bold:
+                    score += 2
+                
+                # Pattern-based scoring
+                if re.match(r'^\d+\.', text):
+                    score += 2
+                if text.isupper() and len(text) < 100:
+                    score += 1
+                if text.endswith(':'):
+                    score += 1
+                
+                # Length-based filtering
+                if len(text) < 5 or len(text) > 200:
+                    score -= 2
+                
+                # Classification based on score
+                if score >= 4:
+                    page_classifications.append('H1')
+                elif score >= 3:
+                    page_classifications.append('H2')
+                elif score >= 2:
+                    page_classifications.append('H3')
+                else:
+                    page_classifications.append('P')
+            
+            classifications.append(page_classifications)
+        
+        return classifications
+    
+    def _finalize_section_chunk(self, section: Dict, page_idx: int) -> Optional[Dict]:
+        """Finalize a section into a text chunk with accurate page number."""
+        if not section["content"]:
+            return None
+        
+        # Combine content texts
+        content_text = " ".join(item["text"] for item in section["content"] if item.get("text", "").strip())
+        
+        if len(content_text.strip()) < 30:  # Minimum content length
+            return None
+        
+        # Determine the primary page for this chunk based on content distribution
+        page_content_lengths = {}
+        for item in section["content"]:
+            item_page = item.get("page", section["start_page"])
+            item_text = item.get("text", "").strip()
+            if item_text:
+                page_content_lengths[item_page] = page_content_lengths.get(item_page, 0) + len(item_text)
+        
+        # Use the page with the most content for this chunk
+        primary_page = section["start_page"]  # Default fallback
+        if page_content_lengths:
+            primary_page = max(page_content_lengths.items(), key=lambda x: x[1])[0]
+        
+        return {
+            'page_number': primary_page,  # Use 0-based indexing consistently
+            'text_chunk': content_text,
+            'section_title': section["title"] or f"Section starting at page {section['start_page'] + 1}",
+            'chunk_type': section.get("heading_level", "content"),
+            'extraction_method': 'enhanced_pipeline'
+        }
+    
+    def _create_page_chunk(self, section: Dict, page_idx: int) -> Optional[Dict]:
+        """Create a chunk for a page when section is too long."""
+        if not section["content"]:
+            return None
+        
+        page_content = [item for item in section["content"] if item["page"] == page_idx]
+        if not page_content:
+            return None
+        
+        content_text = " ".join(item["text"] for item in page_content if item.get("text", "").strip())
+        
+        if len(content_text.strip()) < 30:  # Minimum content length
+            return None
+        
+        return {
+            'page_number': page_idx,  # Use 0-based indexing consistently
+            'text_chunk': content_text,
+            'section_title': f"{section['title']} (Page {page_idx + 1})",
+            'chunk_type': 'page_section',
+            'extraction_method': 'enhanced_pipeline'
+        }
+    
+    def _get_context_before(self, line_features: Dict, page_features: List[Dict]) -> str:
+        """Get contextual information before a line."""
+        # Find current line in page features
+        try:
+            current_idx = page_features.index(line_features)
+            if current_idx > 0:
+                prev_line = page_features[current_idx - 1]
+                return prev_line.get('text', '')[:50]  # First 50 chars
+        except (ValueError, IndexError):
+            pass
+        return ""
+    
+    def _get_context_after(self, line_features: Dict, page_features: List[Dict]) -> str:
+        """Get contextual information after a line."""
+        try:
+            current_idx = page_features.index(line_features)
+            if current_idx < len(page_features) - 1:
+                next_line = page_features[current_idx + 1]
+                return next_line.get('text', '')[:50]  # First 50 chars
+        except (ValueError, IndexError):
+            pass
+        return ""
+    
+    def _clean_text_content(self, text: str) -> str:
+        """Clean and normalize text content."""
+        if not text:
+            return ""
+        
+        # Remove excessive whitespace
+        text = re.sub(r'\s+', ' ', text)
+        
+        # Fix common PDF extraction issues
+        text = text.replace('\x00', '')  # Remove null bytes
+        text = re.sub(r'[^\x20-\x7E\n\r\t]', ' ', text)  # Keep only printable ASCII + whitespace
+        
+        # Normalize line breaks
+        text = re.sub(r'\n+', '\n', text)
+        text = re.sub(r'[ \t]+', ' ', text)
+        
+        return text.strip()
+    
+    def _calculate_content_quality(self, text: str) -> float:
+        """Calculate a quality score for text content."""
+        if not text:
+            return 0.0
+        
+        score = 0.0
+        
+        # Length scoring (prefer medium-length chunks)
+        length = len(text)
+        if 100 <= length <= 1000:
+            score += 1.0
+        elif 50 <= length < 2000:
+            score += 0.5
+        
+        # Sentence structure scoring
+        sentences = text.count('.') + text.count('!') + text.count('?')
+        if sentences > 0:
+            score += min(sentences * 0.1, 0.5)
+        
+        # Word variety scoring
+        words = set(text.lower().split())
+        if len(words) > 10:
+            score += 0.3
+        
+        # Avoid very repetitive content
+        unique_ratio = len(set(text.split())) / max(1, len(text.split()))
+        score += unique_ratio * 0.2
+        
+        return min(score, 2.0)  # Cap at 2.0
+    
+    def _extract_semantic_markers(self, text: str) -> List[str]:
+        """Extract semantic markers from text for better categorization."""
+        markers = []
+        
+        # Common semantic patterns
+        if re.search(r'\b(introduction|overview|summary)\b', text, re.IGNORECASE):
+            markers.append('introductory')
+        
+        if re.search(r'\b(conclusion|summary|final)\b', text, re.IGNORECASE):
+            markers.append('conclusive')
+        
+        if re.search(r'\b(method|approach|process)\b', text, re.IGNORECASE):
+            markers.append('methodological')
+        
+        if re.search(r'\b(result|finding|outcome)\b', text, re.IGNORECASE):
+            markers.append('results')
+        
+        if re.search(r'\b(table|figure|chart|graph)\b', text, re.IGNORECASE):
+            markers.append('visual_reference')
+        
+        # Technical content markers
+        if re.search(r'\b(algorithm|formula|equation)\b', text, re.IGNORECASE):
+            markers.append('technical')
+        
+        return markers
