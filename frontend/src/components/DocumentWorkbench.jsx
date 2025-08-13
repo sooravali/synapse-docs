@@ -5,13 +5,13 @@
  * and Action Halo for progressive disclosure of features.
  * Uses Adobe PDF Embed API with proper event handling and text selection.
  */
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, MessageSquare, Volume2, Eye } from 'lucide-react';
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import { Play, Pause, MessageSquare, Volume2, Eye, Lightbulb, Radio, Network } from 'lucide-react';
 import { searchAPI, insightsAPI, podcastAPI } from '../api';
 import { configService } from '../services/configService';
 import './DocumentWorkbench.css';
 
-const DocumentWorkbench = ({ 
+const DocumentWorkbench = forwardRef(({ 
   document, 
   currentContext, 
   onContextChange, 
@@ -19,7 +19,7 @@ const DocumentWorkbench = ({
   onPodcastRequest,
   searchResults = [],
   connectionResults = []
-}) => {
+}, ref) => {
   const [isViewerReady, setIsViewerReady] = useState(false);
   const [showActionHalo, setShowActionHalo] = useState(false);
   const [actionHaloPosition, setActionHaloPosition] = useState({ top: 0, left: 0 });
@@ -27,9 +27,12 @@ const DocumentWorkbench = ({
   const [isGeneratingPodcast, setIsGeneratingPodcast] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const [currentDetectedContext, setCurrentContext] = useState('');
+  const [isTextSelectionActive, setIsTextSelectionActive] = useState(false); // Track if text selection is active
+  const [textSelectionContext, setTextSelectionContext] = useState(''); // Store text selection context
   
   const viewerRef = useRef(null);
   const adobeViewRef = useRef(null);
+  const adobeViewerRef = useRef(null); // Store the resolved adobeViewer from previewFile promise
   const callbackRef = useRef(null);
   
   // OPTIMIZATION: Debouncing and deduplication for efficient API calls
@@ -37,6 +40,53 @@ const DocumentWorkbench = ({
   const lastDetectedContextRef = useRef('');
   const lastScrollTime = useRef(0);
   const isDetectingContext = useRef(false);
+  const isTextSelectionActiveRef = useRef(false); // Ref for periodic checks to access current state
+
+  // CONTEXT PRIORITY: Helper function to determine effective current context
+  // Text selection ALWAYS takes priority over reading context
+  const getEffectiveContext = () => {
+    if (textSelectionContext && textSelectionContext.length > 0) {
+      console.log(`🎯 Using TEXT SELECTION context: "${textSelectionContext.substring(0, 50)}..."`);
+      return textSelectionContext;
+    } else {
+      console.log(`📖 Using READING context: "${currentContext.substring(0, 50)}..."`);
+      return currentContext;
+    }
+  };
+
+  // Expose navigation methods to parent component
+  useImperativeHandle(ref, () => ({
+    navigateToPage: async (pageNumber) => {
+      console.log(`🚀 DocumentWorkbench: Navigating to page ${pageNumber}`);
+      
+      // Use the proper Adobe API pattern from documentation
+      if (!adobeViewerRef.current) {
+        console.warn('⚠️ Adobe viewer not ready for navigation');
+        return false;
+      }
+
+      try {
+        // Use page number directly for Adobe API (pageNumber should match display page number)
+        console.log(`📄 Navigating to display page ${pageNumber} (Adobe API parameter: ${pageNumber - 1})`);
+        
+        // Use the official Adobe API pattern
+        const apis = await adobeViewerRef.current.getAPIs();
+        if (apis && typeof apis.gotoLocation === 'function') {
+          // Adobe gotoLocation parameter: pass the exact page number without conversion
+          // If user wants to see "Page 12", we pass 12 to gotoLocation
+          await apis.gotoLocation(pageNumber);
+          console.log(`✅ Successfully navigated to display page ${pageNumber}`);
+          return true;
+        } else {
+          console.warn('⚠️ Adobe gotoLocation API not available');
+          return false;
+        }
+      } catch (error) {
+        console.error(`❌ Failed to navigate to page ${pageNumber}:`, error);
+        return false;
+      }
+    }
+  }));
 
   // Adobe PDF Embed API client ID - will be fetched from config service
   const [CLIENT_ID, setCLIENT_ID] = useState('');
@@ -59,9 +109,8 @@ const DocumentWorkbench = ({
     loadConfig();
   }, []);
 
-  // STAGE 2: Text Selection Handler (Triggers ACTION HALO only)
-  // This shows the Action Halo for explicit insights generation
-  // NO automatic connections - those are handled by scroll detection
+  // UNIFIED WORKFLOW: Text Selection Handler (Triggers CONNECTIONS + Simple Notification)
+  // This immediately generates connections from selected text and shows a simple confirmation
   useEffect(() => {
     const handleMouseUp = () => {
       setTimeout(() => {
@@ -70,26 +119,50 @@ const DocumentWorkbench = ({
           const selectedText = selection.toString().trim();
           
           if (selectedText.length > 20) {
-            console.log(`✨ STAGE 2 - Text selection detected: "${selectedText.substring(0, 50)}..."`);
-            console.log(`💡 Showing Action Halo for EXPLICIT Insights (no connections)`);
+            console.log(`✨ UNIFIED WORKFLOW - Text selection detected: "${selectedText.substring(0, 50)}..."`);
+            console.log(`🎯 Step 1: Generating CONNECTIONS from selected text (overrides reading connections)`);
             
             setSelectedText(selectedText);
+            
+            // Step 1: Mark text selection as active and store context
+            const enrichedContext = `[Selected Text from ${document?.file_name || 'document'}]\n${selectedText}`;
+            setIsTextSelectionActive(true);
+            setTextSelectionContext(enrichedContext);
+            
+            // This will override any reading-based connections
+            if (onContextChange) {
+              onContextChange(enrichedContext);
+            }
+            
+            // Step 2: Show simple "connections generated" notification
             setShowActionHalo(true);
             
-            // Position action halo near mouse (approximate)
-            setActionHaloPosition({
-              top: 200,
-              left: 100
-            });
+            // Position notification near selection
+            try {
+              const rect = selection.getRangeAt(0).getBoundingClientRect();
+              setActionHaloPosition({
+                top: rect.top + window.scrollY - 40,
+                left: rect.left + window.scrollX + (rect.width / 2) - 75
+              });
+            } catch (e) {
+              // Fallback position
+              setActionHaloPosition({ top: 200, left: 100 });
+            }
             
-            // CRITICAL: DO NOT trigger onContextChange here
-            // Text selection is ONLY for showing Action Halo
-            // Connections are handled separately by scroll detection
-            
-            // Auto-hide action halo after 10 seconds
+            // Auto-hide notification after 3 seconds
             setTimeout(() => {
               setShowActionHalo(false);
-            }, 10000);
+            }, 3000);
+          } else {
+            // If no valid text is selected, deactivate text selection mode BUT KEEP CONNECTIONS
+            const selection = window.getSelection();
+            if (!selection || selection.toString().trim().length === 0) {
+              console.log(`🔄 Text deselected - marking as inactive but preserving connections`);
+              setIsTextSelectionActive(false);
+              setSelectedText('');
+              // NOTE: Keep textSelectionContext to preserve connections in SynapsePanel
+              // Reading context will take over only on scroll/page change
+            }
           }
         } catch (e) {
           console.warn('Failed to handle text selection:', e);
@@ -97,12 +170,84 @@ const DocumentWorkbench = ({
       }, 100); // Small delay to ensure selection is complete
     };
 
+    // Handle clicks to detect text deselection (DISABLED - too aggressive with Adobe PDF)
+    const handleClick = (e) => {
+      // Adobe PDF manages its own selection state, so don't try to detect deselection via clicks
+      // Let the user explicitly take actions like scrolling or navigation to change context
+      console.log('� Click detected - but preserving text selection context');
+    };
+
+    // Handle focus events that might indicate deselection (DISABLED - too aggressive with Adobe PDF)
+    const handleFocusChange = (e) => {
+      // Adobe PDF manages its own selection state, so don't try to detect deselection via focus
+      // Let the user explicitly take actions like scrolling or navigation to change context
+      console.log('� Focus change detected - but preserving text selection context');
+    };
+
+    // Handle selection change events (DISABLED - too aggressive with Adobe PDF)
+    const handleSelectionChange = () => {
+      // Adobe PDF manages its own selection state, so don't try to detect deselection via selectionchange
+      // This event fires too frequently and causes false positives
+      console.log('� Selection change detected - but preserving text selection context');
+    };
+
+    // Handle escape key to deselect text
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isTextSelectionActive) {
+        console.log(`🔄 Escape pressed - deselecting text but preserving connections`);
+        window.getSelection()?.removeAllRanges();
+        setIsTextSelectionActive(false);
+        setSelectedText('');
+        // NOTE: Keep textSelectionContext to preserve connections
+        // Reading context will take over on scroll/page change
+      }
+    };
+
     globalThis.document.addEventListener('mouseup', handleMouseUp);
+    globalThis.document.addEventListener('click', handleClick);
+    globalThis.document.addEventListener('keydown', handleKeyDown);
+    globalThis.document.addEventListener('focusin', handleFocusChange);
+    globalThis.document.addEventListener('focusout', handleFocusChange);
+    globalThis.document.addEventListener('selectionchange', handleSelectionChange);
     
     return () => {
       globalThis.document.removeEventListener('mouseup', handleMouseUp);
+      globalThis.document.removeEventListener('click', handleClick);
+      globalThis.document.removeEventListener('keydown', handleKeyDown);
+      globalThis.document.removeEventListener('focusin', handleFocusChange);
+      globalThis.document.removeEventListener('focusout', handleFocusChange);
+      globalThis.document.removeEventListener('selectionchange', handleSelectionChange);
     };
-  }, []); // Clean dependency - no context change triggers
+  }, [document, onContextChange, isTextSelectionActive]);
+
+  // Sync the ref with the state for periodic checks to access current value
+  useEffect(() => {
+    isTextSelectionActiveRef.current = isTextSelectionActive;
+  }, [isTextSelectionActive]);
+
+  // ROBUST DESELECTION DETECTION: Poll for text deselection when selection is active
+  useEffect(() => {
+    if (!isTextSelectionActive) return;
+
+    console.log('🔍 Starting text selection monitoring...');
+    
+    const checkForDeselection = () => {
+      if (!isTextSelectionActiveRef.current) return; // Stop if already deactivated
+      
+      // IMPROVED: Don't rely on window.getSelection() for Adobe PDF
+      // Instead, rely on explicit user actions (scroll, click, navigation)
+      // The polling should be much more conservative
+      console.log('� Text selection still active - monitoring for explicit deselection actions');
+    };
+
+    // Check much less frequently and be more conservative
+    const deselectionInterval = setInterval(checkForDeselection, 5000);
+    
+    return () => {
+      console.log('🧹 Stopping text selection monitoring...');
+      clearInterval(deselectionInterval);
+    };
+  }, [isTextSelectionActive]);
 
   // Wait for Adobe DC View SDK to be ready and CLIENT_ID to be loaded
   useEffect(() => {
@@ -143,6 +288,12 @@ const DocumentWorkbench = ({
       return;
     }
 
+    // PRIORITY CHECK: Don't override text selection context
+    if (isTextSelectionActiveRef.current) {
+      console.log('🔒 Text selection active - skipping reading context detection to preserve selected text connections');
+      return;
+    }
+
     // OPTIMIZATION: Prevent concurrent detection calls
     if (isDetectingContext.current) {
       console.log('🔄 Context detection already in progress, skipping...');
@@ -150,7 +301,7 @@ const DocumentWorkbench = ({
     }
 
     isDetectingContext.current = true;
-    console.log('🎯 STAGE 1 - Detecting central paragraph from PDF viewport...');
+    console.log('🎯 STAGE 1 - Detecting central paragraph from PDF viewport (reading context)...');
     
     try {
       let centralText = '';
@@ -282,7 +433,20 @@ const DocumentWorkbench = ({
       // This prevents duplicate API calls for the same content
       if (centralText.length > 50 && centralText !== lastDetectedContextRef.current) {
         console.log(`🎯 STAGE 1 - NEW central paragraph detected: "${centralText.substring(0, 50)}..."`);
+        
+        // CRITICAL: Only switch to reading context if NO text selection is active
+        if (textSelectionContext && textSelectionContext.length > 0) {
+          console.log('🔒 Text selection context active - preserving connections, ignoring reading context');
+          return; // Keep text selection connections
+        }
+        
         console.log(`⚡ Triggering AUTOMATIC CONNECTIONS workflow (effortless & instant)`);
+        
+        // Clear any previous text selection context when switching to reading
+        if (textSelectionContext) {
+          console.log('🧹 Clearing previous text selection context - switching to reading mode');
+          setTextSelectionContext('');
+        }
         
         // Update our tracking refs
         lastDetectedContextRef.current = centralText;
@@ -307,6 +471,12 @@ const DocumentWorkbench = ({
 
   // OPTIMIZATION: Immediate scroll handler for instant connections
   const handleScrollForContextDetection = () => {
+    // PRIORITY CHECK: Don't trigger reading context if text selection is active
+    if (isTextSelectionActiveRef.current) {
+      console.log('🔒 Text selection active - ignoring scroll for context detection to preserve selected text connections');
+      return;
+    }
+    
     const now = Date.now();
     
     // OPTIMIZATION: Minimal throttle to prevent excessive duplicate calls within same millisecond
@@ -347,6 +517,10 @@ const DocumentWorkbench = ({
         }
         adobeViewRef.current = null;
       }
+      
+      // Clear references
+      adobeViewerRef.current = null;
+      callbackRef.current = null;
 
       // Clear the container
       if (viewerRef.current) {
@@ -421,11 +595,17 @@ const DocumentWorkbench = ({
         eventOptions
       );
 
-      // Wait for PDF to be ready
-      await previewFilePromise;
+      // Wait for PDF to be ready and store the adobeViewer reference
+      try {
+        const adobeViewer = await previewFilePromise;
+        adobeViewerRef.current = adobeViewer;
+        console.log('✅ Adobe PDF viewer initialized successfully');
+      } catch (previewError) {
+        console.error('❌ Failed to await previewFile promise:', previewError);
+        throw previewError;
+      }
       
       setIsViewerReady(true);
-      console.log('✅ Adobe PDF viewer initialized successfully');
 
     } catch (error) {
       console.error('❌ Failed to initialize Adobe viewer:', error);
@@ -471,6 +651,21 @@ const DocumentWorkbench = ({
       case 'PREVIEW_SELECTION_END':
         console.log('📊 Selection end event data:', event.data);
         console.log('📊 Full event object:', event);
+        
+        // Check if this is a deselection event (no new selection)
+        if (!event.data || !event.data.newSelection || Object.keys(event.data.selections || {}).length === 0) {
+          if (isTextSelectionActiveRef.current) {
+            console.log('🔄 Adobe PDF deselection detected - returning to reading context');
+            setIsTextSelectionActive(false);
+            setTextSelectionContext('');
+            setSelectedText('');
+            
+            setTimeout(() => {
+              detectCentralParagraph();
+            }, 500);
+            return;
+          }
+        }
         
         // Extract selection data from the event
         if (event.data && event.data.newSelection) {
@@ -681,6 +876,12 @@ const DocumentWorkbench = ({
 
     // Optimized scroll handler that detects when user stops reading
     const handleScroll = () => {
+      // PRIORITY CHECK: Don't trigger reading context if text selection is active
+      if (isTextSelectionActiveRef.current) {
+        console.log('🔒 Text selection active - ignoring scroll events to preserve selected text connections');
+        return;
+      }
+      
       const now = Date.now();
       isScrolling = true;
       lastScrollTime = now;
@@ -692,9 +893,14 @@ const DocumentWorkbench = ({
       
       // Set new timeout to detect when scrolling stops
       scrollTimeout = setTimeout(() => {
-        isScrolling = false;
-        console.log('📚 User stopped scrolling - detecting central paragraph...');
-        detectCentralParagraph();
+        // Double-check text selection before triggering
+        if (!isTextSelectionActiveRef.current) {
+          isScrolling = false;
+          console.log('📚 User stopped scrolling - detecting central paragraph...');
+          detectCentralParagraph();
+        } else {
+          console.log('🔒 Text selection still active - skipping reading context detection');
+        }
       }, 1000); // Wait 1 second after scrolling stops
     };
 
@@ -754,6 +960,12 @@ const DocumentWorkbench = ({
     
     // Method 4: Periodic checking for reading context (less frequent, avoid interrupting reading)
     const periodicCheck = () => {
+      // PRIORITY CHECK: Don't trigger reading context if text selection is active
+      if (isTextSelectionActiveRef.current) {
+        console.log('🔒 Text selection active - skipping periodic reading context detection');
+        return;
+      }
+      
       const now = Date.now();
       // Only trigger if user hasn't scrolled recently (avoid interrupting active reading)
       if (!isScrolling && (now - lastScrollTime > 15000)) {
@@ -815,41 +1027,54 @@ const DocumentWorkbench = ({
     
     if (selectedText && selectedText.length > 10) {
       console.log(`✅ Valid text selection: "${selectedText.substring(0, 50)}..."`);
-      console.log(`💡 Showing Action Halo for on-demand Insights (NO automatic connections)`);
+      console.log(`✨ UNIFIED WORKFLOW - Adobe PDF text selection detected: "${selectedText.substring(0, 50)}..."`);
+      console.log(`🎯 Step 1: Generating CONNECTIONS from selected text (overrides reading connections)`);
       
       setSelectedText(selectedText);
+      
+      // Step 1: Mark text selection as active and store context
+      const enrichedContext = `[Selected Text from ${document?.file_name || 'document'}]\n${selectedText}`;
+      setIsTextSelectionActive(true);
+      setTextSelectionContext(enrichedContext);
+      
+      // This will override any reading-based connections
+      if (onContextChange) {
+        onContextChange(enrichedContext);
+      }
+      
+      // Step 2: Show simple "connections generated" notification
       setShowActionHalo(true);
       
-      // Position action halo (approximate, since Adobe doesn't provide exact coordinates)
+      // Position notification (approximate, since Adobe doesn't provide exact coordinates)
       setActionHaloPosition({
         top: 200,
         left: 100
       });
       
-      // DO NOT trigger connections automatically - only show Action Halo for Insights
-      // Connections are triggered separately by scroll-based reading detection
-      
-      // Auto-hide action halo after 10 seconds
+      // Auto-hide notification after 3 seconds
       setTimeout(() => {
         setShowActionHalo(false);
-      }, 10000);
+      }, 3000);
     } else {
       console.log(`❌ No valid text selection found in event data`);
     }
   };
 
-  // STAGE 2: Action Halo Button Handlers (Explicit user actions)
+  // UNIFIED WORKFLOW: Action Halo Button Handlers (Step 2: Optional insights/podcast)
   const handleInsightsClick = async () => {
     if (!selectedText || isGeneratingInsights) return;
     
-    console.log(`🧠 STAGE 2 - User clicked Insights button for: "${selectedText.substring(0, 50)}..."`);
+    console.log(`🧠 UNIFIED WORKFLOW - Step 2: User clicked Insights for: "${selectedText.substring(0, 50)}..."`);
     setIsGeneratingInsights(true);
     setShowActionHalo(false);
     
     try {
-      // This triggers the EXPLICIT insights workflow
-      await onInsightsRequest(selectedText);
-      console.log(`✅ Generated insights successfully`);
+      // Create enriched context with clear source information
+      const enrichedContext = `[Selected Text from ${document?.file_name || 'document'}]\n${selectedText}`;
+      
+      // This triggers insights generation using the already-generated connections as context
+      await onInsightsRequest(enrichedContext);
+      console.log(`✅ Generated insights successfully from selected text`);
     } catch (error) {
       console.error('Failed to generate insights:', error);
     } finally {
@@ -860,38 +1085,21 @@ const DocumentWorkbench = ({
   const handlePodcastClick = async () => {
     if (!selectedText || isGeneratingPodcast) return;
     
-    console.log(`🎧 STAGE 2 - User clicked Podcast button for: "${selectedText.substring(0, 50)}..."`);
+    console.log(`🎧 UNIFIED WORKFLOW - Step 2: User clicked Podcast for: "${selectedText.substring(0, 50)}..."`);
     setIsGeneratingPodcast(true);
     setShowActionHalo(false);
     
     try {
-      await onPodcastRequest(selectedText);
-      console.log(`✅ Generated podcast successfully`);
+      // Create enriched context with clear source information
+      const enrichedContext = `[Selected Text from ${document?.file_name || 'document'}]\n${selectedText}`;
+      
+      await onPodcastRequest(enrichedContext);
+      console.log(`✅ Generated podcast successfully from selected text`);
     } catch (error) {
       console.error('Failed to generate podcast:', error);
     } finally {
       setIsGeneratingPodcast(false);
     }
-  };
-
-  const handleContextLensClick = () => {
-    console.log('👁️ STAGE 2 - User clicked Context Lens for selected text');
-    
-    if (!selectedText) {
-      console.warn('⚠️ No selected text available for Context Lens');
-      return;
-    }
-    
-    console.log(`💡 Triggering EXPLICIT Insights workflow for: "${selectedText.substring(0, 50)}..."`);
-    
-    // This triggers the EXPLICIT insights workflow (not connections)
-    if (onInsightsRequest) {
-      onInsightsRequest(selectedText);
-    } else {
-      console.warn('⚠️ onInsightsRequest callback not available');
-    }
-    
-    setShowActionHalo(false);
   };
 
   // Cleanup on unmount
@@ -904,6 +1112,10 @@ const DocumentWorkbench = ({
           console.warn('Failed to cleanup Adobe viewer:', e);
         }
       }
+      // Clear references
+      adobeViewerRef.current = null;
+      adobeViewRef.current = null;
+      callbackRef.current = null;
     };
   }, []);
 
@@ -919,14 +1131,47 @@ const DocumentWorkbench = ({
     return (
       <div className="document-workbench-empty">
         <Eye size={48} className="empty-icon" />
-        <h3>Select a document to begin</h3>
-        <p>Choose a document from your library to start reading and discovering connections.</p>
+        <div className="empty-content">
+          <h3>Select a Document to Begin</h3>
+          <p>Choose a document from your library to start exploring connections and generating insights.</p>
+          <div className="empty-features">
+            <div className="feature-item">
+              <span className="feature-icon">🔗</span>
+              <span>Discover related content as you read</span>
+            </div>
+            <div className="feature-item">
+              <span className="feature-icon">💡</span>
+              <span>Get AI insights on selected text</span>
+            </div>
+            <div className="feature-item">
+              <span className="feature-icon">🎙️</span>
+              <span>Generate podcasts from your content</span>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="document-workbench">
+      {/* Navigation Breadcrumb */}
+      {document && document.file_name && (
+        <div className="navigation-breadcrumb">
+          <div className="breadcrumb-content">
+            <div className="current-document">
+              <span className="document-icon">📄</span>
+              <span className="document-name">
+                {document.file_name.replace(/^doc_\d+_/, '').replace(/\.pdf$/, '')}
+              </span>
+            </div>
+            <div className="document-meta">
+              <span className="page-info">Ready to navigate</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Adobe PDF Embed Viewer Container */}
       <div 
         id="adobe-dc-view" 
@@ -964,10 +1209,36 @@ const DocumentWorkbench = ({
         </div>
       )}
 
-      {/* Action Halo - Progressive Disclosure Interface */}
+      {/* Text Selection Mode Indicator & Manual Deselect */}
+      {isTextSelectionActive && (
+        <div className="text-selection-indicator">
+          <div className="selection-status">
+            <span className="status-icon">✋</span>
+            <span className="status-text">Text Selection Active</span>
+            <button 
+              className="deselect-btn"
+              onClick={() => {
+                console.log('🔄 Manual deselect button clicked - returning to reading context');
+                window.getSelection()?.removeAllRanges();
+                setIsTextSelectionActive(false);
+                setTextSelectionContext('');
+                setSelectedText('');
+                setTimeout(() => {
+                  detectCentralParagraph();
+                }, 500);
+              }}
+              title="Exit text selection mode and return to reading context"
+            >
+              ✕ Exit
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Simple Connections Notification - Text Selection Feedback */}
       {showActionHalo && selectedText && (
         <div 
-          className="action-halo"
+          className="connections-notification"
           style={{
             position: 'absolute',
             top: actionHaloPosition.top,
@@ -975,42 +1246,10 @@ const DocumentWorkbench = ({
             zIndex: 1000
           }}
         >
-          <div className="action-buttons">
-            <button 
-              className={`action-btn insights-btn ${isGeneratingInsights ? 'loading' : ''}`}
-              onClick={handleInsightsClick}
-              disabled={isGeneratingInsights}
-              title="Generate insights for selected text"
-            >
-              <Lightbulb size={16} />
-              {isGeneratingInsights ? 'Generating...' : 'Insights'}
-            </button>
-            
-            <button 
-              className={`action-btn podcast-btn ${isGeneratingPodcast ? 'loading' : ''}`}
-              onClick={handlePodcastClick}
-              disabled={isGeneratingPodcast}
-              title="Generate podcast for selected text"
-            >
-              <Podcast size={16} />
-              {isGeneratingPodcast ? 'Creating...' : 'Podcast'}
-            </button>
-            
-            <button 
-              className="action-btn context-btn"
-              onClick={handleContextLensClick}
-              title="View related connections"
-            >
-              <Eye size={16} />
-              Context
-            </button>
+          <div className="notification-content">
+            <Network size={16} />
+            <span>Connections Generated!</span>
           </div>
-          
-          {selectedText && (
-            <div className="context-preview">
-              "{selectedText.substring(0, 100)}..."
-            </div>
-          )}
         </div>
       )}
 
@@ -1023,6 +1262,6 @@ const DocumentWorkbench = ({
       )}
     </div>
   );
-};
+});
 
 export default DocumentWorkbench;
