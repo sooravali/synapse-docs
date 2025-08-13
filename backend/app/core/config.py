@@ -58,7 +58,6 @@ class Settings(BaseSettings):
     DEFAULT_DOCUMENT_LANGUAGE: str = "unknown"
     
     # Processing Configuration
-    MAX_FILES_PER_UPLOAD: int = 10
     MAX_FILE_SIZE_MB: int = 100
     
     # LLM Content Generation Configuration  
