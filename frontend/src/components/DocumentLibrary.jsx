@@ -28,14 +28,22 @@ const DocumentLibrary = ({
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
 
+  // Helper function to clean filename display
+  const cleanFileName = (fileName) => {
+    if (!fileName) return '';
+    return fileName.replace(/^doc_\d+_/, '').replace(/\.pdf$/, '');
+  };
+
   // Filter documents based on search term
   useEffect(() => {
     if (!searchTerm.trim()) {
       setFilteredDocuments(documents);
     } else {
-      const filtered = documents.filter(doc => 
-        doc.file_name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      const filtered = documents.filter(doc => {
+        // Search against the cleaned filename (what users see) instead of raw filename
+        const cleanedName = cleanFileName(doc.file_name);
+        return cleanedName.toLowerCase().includes(searchTerm.toLowerCase());
+      });
       setFilteredDocuments(filtered);
     }
   }, [documents, searchTerm]);
@@ -363,7 +371,7 @@ const DocumentLibrary = ({
               onClick={() => onDocumentSelect(doc)}
             >
               <div className="document-info">
-                <div className="document-name">{doc.file_name}</div>
+                <div className="document-name">{cleanFileName(doc.file_name)}</div>
                 <div className="document-meta">
                   {getStatusIcon(doc.status)}
                   <span className="document-status">{getStatusText(doc)}</span>
