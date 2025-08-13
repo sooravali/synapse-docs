@@ -337,9 +337,6 @@ async def upload_multiple_documents(
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
     
-    if len(files) > settings.MAX_FILES_PER_UPLOAD:  # Use configurable limit
-        raise HTTPException(status_code=400, detail=f"Maximum {settings.MAX_FILES_PER_UPLOAD} files allowed per upload")
-    
     results = []
     
     for file in files:
