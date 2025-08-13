@@ -22,7 +22,7 @@ const SearchResults = ({ results = [], onResultClick, isLoading = false, query =
     return percentage;
   };
 
-  const truncateText = (text, maxLength = 200) => {
+  const truncateText = (text, maxLength = 350) => {
     if (!text || text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
   };
@@ -150,12 +150,16 @@ const SearchResults = ({ results = [], onResultClick, isLoading = false, query =
                 if (!isSelected) {
                   e.target.style.borderColor = '#007bff';
                   e.target.style.backgroundColor = '#f8f9fa';
+                  e.target.style.transform = 'translateY(-1px)';
+                  e.target.style.boxShadow = '0 2px 8px rgba(0,123,255,0.15)';
                 }
               }}
               onMouseLeave={(e) => {
                 if (!isSelected) {
                   e.target.style.borderColor = '#e9ecef';
                   e.target.style.backgroundColor = 'white';
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = 'none';
                 }
               }}
             >
@@ -171,14 +175,14 @@ const SearchResults = ({ results = [], onResultClick, isLoading = false, query =
                   }}>
                     📄 {result.file_name || `Document ${result.document_id}`}
                   </h4>
-                  {result.page_number && (
+                  {(result.page_number !== undefined && result.page_number !== null) && (
                     <p style={{ 
                       margin: 0, 
                       fontSize: '12px', 
                       color: '#6c757d',
                       fontWeight: '500'
                     }}>
-                      Page {result.page_number}
+                      Page {result.page_number + 1}
                     </p>
                   )}
                 </div>
@@ -221,7 +225,7 @@ const SearchResults = ({ results = [], onResultClick, isLoading = false, query =
                 />
               </div>
 
-              {/* Click Indicator */}
+              {/* Jump to Source Button */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -230,11 +234,25 @@ const SearchResults = ({ results = [], onResultClick, isLoading = false, query =
                 paddingTop: '8px',
                 borderTop: '1px solid #e9ecef'
               }}>
-                <span style={{ fontSize: '12px', color: '#868e96' }}>
-                  Click to view in document
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '12px', color: '#868e96' }}>
+                    {(result.page_number !== undefined && result.page_number !== null) 
+                      ? `Jump to Page ${result.page_number + 1}` 
+                      : 'Click to view in document'}
+                  </span>
+                  <div style={{
+                    backgroundColor: isSelected ? '#007bff' : '#e9ecef',
+                    color: isSelected ? 'white' : '#868e96',
+                    padding: '2px 6px',
+                    borderRadius: '10px',
+                    fontSize: '10px',
+                    fontWeight: '500'
+                  }}>
+                    JUMP TO SOURCE
+                  </div>
+                </div>
                 <span style={{ fontSize: '16px', color: isSelected ? '#007bff' : '#dee2e6' }}>
-                  {isSelected ? '👆' : '👉'}
+                  {isSelected ? '�' : '�'}
                 </span>
               </div>
 

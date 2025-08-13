@@ -7,9 +7,19 @@
 import { useState, useEffect } from 'react';
 import { documentAPI } from '../api';
 import { Upload, Search, CheckCircle, AlertCircle, Clock, FileText, Trash2 } from 'lucide-react';
+import FlowStatusBar from './FlowStatusBar';
 import './DocumentLibrary.css';
 
-const DocumentLibrary = ({ documents, onDocumentSelect, selectedDocument, onDocumentsUpdate }) => {
+const DocumentLibrary = ({ 
+  documents, 
+  onDocumentSelect, 
+  selectedDocument, 
+  onDocumentsUpdate,
+  connectionsCount,
+  hasInsights,
+  isLoadingConnections,
+  currentContext
+}) => {
   const [uploadProgress, setUploadProgress] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
@@ -163,7 +173,7 @@ const DocumentLibrary = ({ documents, onDocumentSelect, selectedDocument, onDocu
 
   const getStatusText = (doc) => {
     if (doc.status === 'ready') {
-      return `${doc.total_chunks || 0} chunks indexed`;
+      return `${doc.total_chunks || 0} chunks indexed • Ready to explore!`;
     }
     if (doc.status === 'processing' && isPolling) {
       return 'Processing (auto-updating...)';
@@ -213,6 +223,15 @@ const DocumentLibrary = ({ documents, onDocumentSelect, selectedDocument, onDocu
 
   return (
     <div className="document-library">
+      {/* Flow Status Bar */}
+      <FlowStatusBar 
+        document={selectedDocument}
+        connectionsCount={connectionsCount}
+        hasInsights={hasInsights}
+        isLoadingConnections={isLoadingConnections}
+        currentContext={currentContext}
+      />
+      
       <div className="library-header">
         <div className="library-title-section">
           <h2 className="library-title">
@@ -303,9 +322,37 @@ const DocumentLibrary = ({ documents, onDocumentSelect, selectedDocument, onDocu
         {filteredDocuments.length === 0 ? (
           <div className="empty-state">
             {documents.length === 0 ? (
-              <p>No documents uploaded yet. Start by uploading some PDFs!</p>
+              <div className="getting-started">
+                <div className="welcome-content">
+                  <h3>Welcome to Synapse</h3>
+                  <p>Upload your first PDF to start discovering connections and generating insights across your documents.</p>
+                  <div className="next-steps">
+                    <div className="step">
+                      <span className="step-number">1</span>
+                      <span>Upload PDFs using the area above</span>
+                    </div>
+                    <div className="step">
+                      <span className="step-number">2</span>
+                      <span>Select a document to view it</span>
+                    </div>
+                    <div className="step">
+                      <span className="step-number">3</span>
+                      <span>Scroll to discover related content</span>
+                    </div>
+                    <div className="step">
+                      <span className="step-number">4</span>
+                      <span>Select text for AI insights</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ) : (
-              <p>No documents match your search.</p>
+              <div className="no-matches">
+                <p>No documents match your search.</p>
+                <button onClick={() => setSearchTerm('')} className="clear-search-btn">
+                  Clear search
+                </button>
+              </div>
             )}
           </div>
         ) : (
