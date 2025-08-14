@@ -38,6 +38,13 @@ const SynapsePanel = forwardRef(({
       return `${cleaned.substring(0, maxLength - 3)}...`;
     }
   };
+
+  // Helper function to clean filename references within insight text
+  const cleanInsightText = (text) => {
+    if (!text || typeof text !== 'string') return text;
+    // Replace doc_X_ patterns within the text content
+    return text.replace(/\bdoc_\d+_([^.\s]+(?:\.\w+)?)/gi, '$1');
+  };
   const [activeTab, setActiveTab] = useState('connections');
   const [connections, setConnections] = useState([]);
   const [insights, setInsights] = useState(null);
@@ -588,6 +595,28 @@ const SynapsePanel = forwardRef(({
           contradictions: [],
           connections: []
         };
+      }
+      
+      // Clean filename references in all insight text content
+      const cleanInsightArray = (insights) => {
+        if (!Array.isArray(insights)) return insights;
+        return insights.map(insight => cleanInsightText(insight));
+      };
+
+      // Apply cleaning to all insight sections
+      if (parsedInsights) {
+        if (parsedInsights.key_insights) {
+          parsedInsights.key_insights = cleanInsightArray(parsedInsights.key_insights);
+        }
+        if (parsedInsights.did_you_know) {
+          parsedInsights.did_you_know = cleanInsightArray(parsedInsights.did_you_know);
+        }
+        if (parsedInsights.contradictions) {
+          parsedInsights.contradictions = cleanInsightArray(parsedInsights.contradictions);
+        }
+        if (parsedInsights.connections) {
+          parsedInsights.connections = cleanInsightArray(parsedInsights.connections);
+        }
       }
       
       setInsights({
