@@ -52,10 +52,10 @@ const DocumentWorkbench = forwardRef(({
   // Text selection ALWAYS takes priority over reading context
   const getEffectiveContext = () => {
     if (textSelectionContext && textSelectionContext.length > 0) {
-      console.log(`🎯 Using TEXT SELECTION context: "${textSelectionContext.substring(0, 50)}..."`);
+      console.log(`Using TEXT SELECTION context: "${textSelectionContext.substring(0, 50)}..."`);
       return textSelectionContext;
     } else {
-      console.log(`📖 Using READING context: "${currentContext.substring(0, 50)}..."`);
+      console.log(`Using READING context: "${currentContext.substring(0, 50)}..."`);
       return currentContext;
     }
   };
@@ -63,11 +63,11 @@ const DocumentWorkbench = forwardRef(({
   // Expose navigation methods to parent component
   useImperativeHandle(ref, () => ({
     navigateToPage: async (pageNumber) => {
-      console.log(`🚀 DocumentWorkbench: Navigating to page ${pageNumber}`);
+      console.log(`DocumentWorkbench: Navigating to page ${pageNumber}`);
       
       // Check if viewer is ready
       if (!isViewerReady || !adobeViewerRef.current) {
-        console.warn('⚠️ Adobe viewer not ready for navigation, waiting...');
+        console.warn('Adobe viewer not ready for navigation, waiting...');
         
         // Wait up to 2 seconds for viewer to be ready
         let waitTime = 0;
@@ -80,27 +80,27 @@ const DocumentWorkbench = forwardRef(({
         }
         
         if (!isViewerReady || !adobeViewerRef.current) {
-          console.error('⚠️ Adobe viewer still not ready after waiting');
+          console.error(' Adobe viewer still not ready after waiting');
           return false;
         }
       }
 
       try {
-        console.log(`📄 Navigating to display page ${pageNumber}`);
+        console.log(` Navigating to display page ${pageNumber}`);
         
         // Use the official Adobe API pattern
         const apis = await adobeViewerRef.current.getAPIs();
         if (apis && typeof apis.gotoLocation === 'function') {
           // Adobe gotoLocation: pass the page number (1-based)
           await apis.gotoLocation(pageNumber);
-          console.log(`✅ Successfully navigated to display page ${pageNumber}`);
+          console.log(` Successfully navigated to display page ${pageNumber}`);
           return true;
         } else {
-          console.warn('⚠️ Adobe gotoLocation API not available');
+          console.warn(' Adobe gotoLocation API not available');
           return false;
         }
       } catch (error) {
-        console.error(`❌ Failed to navigate to page ${pageNumber}:`, error);
+        console.error(` Failed to navigate to page ${pageNumber}:`, error);
         return false;
       }
     }
@@ -117,10 +117,10 @@ const DocumentWorkbench = forwardRef(({
         setCLIENT_ID(clientId);
         
         if (!clientId) {
-          console.error('❌ Adobe Client ID not configured. Please set ADOBE_CLIENT_ID environment variable.');
+          console.error(' Adobe Client ID not configured. Please set ADOBE_CLIENT_ID environment variable.');
         }
       } catch (error) {
-        console.error('❌ Failed to load configuration:', error);
+        console.error(' Failed to load configuration:', error);
       }
     };
     
@@ -137,8 +137,8 @@ const DocumentWorkbench = forwardRef(({
           const selectedText = selection.toString().trim();
           
           if (selectedText.length > 20) {
-            console.log(`✨ UNIFIED WORKFLOW - Text selection detected: "${selectedText.substring(0, 50)}..."`);
-            console.log(`🎯 Step 1: Generating CONNECTIONS from selected text (overrides reading connections)`);
+            console.log(` UNIFIED WORKFLOW - Text selection detected: "${selectedText.substring(0, 50)}..."`);
+            console.log(` Step 1: Generating CONNECTIONS from selected text (overrides reading connections)`);
             
             setSelectedText(selectedText);
             
@@ -175,7 +175,7 @@ const DocumentWorkbench = forwardRef(({
             // If no valid text is selected, deactivate text selection mode BUT KEEP CONNECTIONS
             const selection = window.getSelection();
             if (!selection || selection.toString().trim().length === 0) {
-              console.log(`🔄 Text deselected - marking as inactive but preserving connections`);
+              console.log(` Text deselected - marking as inactive but preserving connections`);
               setIsTextSelectionActive(false);
               setSelectedText('');
               // NOTE: Keep textSelectionContext to preserve connections in SynapsePanel
@@ -212,7 +212,7 @@ const DocumentWorkbench = forwardRef(({
     // Handle escape key to deselect text
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && isTextSelectionActive) {
-        console.log(`🔄 Escape pressed - deselecting text but preserving connections`);
+        console.log(` Escape pressed - deselecting text but preserving connections`);
         window.getSelection()?.removeAllRanges();
         setIsTextSelectionActive(false);
         setSelectedText('');
@@ -247,7 +247,7 @@ const DocumentWorkbench = forwardRef(({
   useEffect(() => {
     if (!isTextSelectionActive) return;
 
-    console.log('🔍 Starting text selection monitoring...');
+    console.log(' Starting text selection monitoring...');
     
     const checkForDeselection = () => {
       if (!isTextSelectionActiveRef.current) return; // Stop if already deactivated
@@ -262,7 +262,7 @@ const DocumentWorkbench = forwardRef(({
     const deselectionInterval = setInterval(checkForDeselection, 5000);
     
     return () => {
-      console.log('🧹 Stopping text selection monitoring...');
+      console.log(' Stopping text selection monitoring...');
       clearInterval(deselectionInterval);
     };
   }, [isTextSelectionActive]);
@@ -270,7 +270,7 @@ const DocumentWorkbench = forwardRef(({
   // Wait for Adobe DC View SDK to be ready and CLIENT_ID to be loaded
   useEffect(() => {
     const handleSDKReady = () => {
-      console.log('📄 Adobe DC View SDK is ready');
+      console.log(' Adobe DC View SDK is ready');
       if (CLIENT_ID) {
         initializeViewer();
       }
@@ -280,7 +280,7 @@ const DocumentWorkbench = forwardRef(({
       handleSDKReady();
     } else if (window.AdobeDC) {
       // SDK is ready but waiting for CLIENT_ID
-      console.log('📄 Adobe DC SDK ready, waiting for CLIENT_ID...');
+      console.log(' Adobe DC SDK ready, waiting for CLIENT_ID...');
     } else {
       globalThis.document.addEventListener("adobe_dc_view_sdk.ready", handleSDKReady);
       return () => {
@@ -291,7 +291,7 @@ const DocumentWorkbench = forwardRef(({
 
   useEffect(() => {
     if (document && window.AdobeDC && CLIENT_ID) {
-      console.log(`📄 Loading document: ${document.file_name}`);
+      console.log(` Loading document: ${document.file_name}`);
       initializeViewer();
     }
   }, [document, CLIENT_ID]); // Add CLIENT_ID as dependency
@@ -302,24 +302,24 @@ const DocumentWorkbench = forwardRef(({
   // OPTIMIZATION: Debounced, deduplicated, and cached for efficiency
   const detectCentralParagraph = async () => {
     if (!document || !document.id) {
-      console.log('🎯 No document loaded for central paragraph detection');
+      console.log(' No document loaded for central paragraph detection');
       return;
     }
 
     // PRIORITY CHECK: Don't override text selection context
     if (isTextSelectionActiveRef.current) {
-      console.log('🔒 Text selection active - skipping reading context detection to preserve selected text connections');
+      console.log(' Text selection active - skipping reading context detection to preserve selected text connections');
       return;
     }
 
     // OPTIMIZATION: Prevent concurrent detection calls
     if (isDetectingContext.current) {
-      console.log('🔄 Context detection already in progress, skipping...');
+      console.log(' Context detection already in progress, skipping...');
       return;
     }
 
     isDetectingContext.current = true;
-    console.log('🎯 STAGE 1 - Detecting central paragraph from PDF viewport (reading context)...');
+    console.log(' STAGE 1 - Detecting central paragraph from PDF viewport (reading context)...');
     
     try {
       let centralText = '';
@@ -332,7 +332,7 @@ const DocumentWorkbench = forwardRef(({
           // Try to get current page and visible text
           if (apis.getCurrentPage && apis.getPageBounds) {
             const currentPage = await apis.getCurrentPage();
-            console.log('📄 Current page:', currentPage);
+            console.log(' Current page:', currentPage);
             
             // If Adobe provides text extraction for current page
             if (apis.extractText) {
@@ -355,7 +355,7 @@ const DocumentWorkbench = forwardRef(({
             }
           }
         } catch (apiError) {
-          console.log('⚠️ Adobe API central paragraph detection failed:', apiError);
+          console.log(' Adobe API central paragraph detection failed:', apiError);
         }
       }
       
@@ -419,11 +419,11 @@ const DocumentWorkbench = forwardRef(({
               }
               
               centralText = fullParagraph.substring(0, 300);
-              console.log(`🎯 Found central paragraph via DOM analysis: "${centralText.substring(0, 50)}..."`);
+              console.log(` Found central paragraph via DOM analysis: "${centralText.substring(0, 50)}..."`);
             }
           }
         } catch (domError) {
-          console.log('⚠️ DOM central paragraph detection failed:', domError);
+          console.log(' DOM central paragraph detection failed:', domError);
         }
       }
       
@@ -444,25 +444,25 @@ const DocumentWorkbench = forwardRef(({
         ];
         
         centralText = contextualParagraphs[Math.floor(Math.random() * contextualParagraphs.length)];
-        console.log('🎯 Generated contextual central paragraph:', centralText.substring(0, 50) + '...');
+        console.log(' Generated contextual central paragraph:', centralText.substring(0, 50) + '...');
       }
       
       // OPTIMIZATION: Only proceed if we found substantial content and it's different from current context
       // This prevents duplicate API calls for the same content
       if (centralText.length > 50 && centralText !== lastDetectedContextRef.current) {
-        console.log(`🎯 STAGE 1 - NEW central paragraph detected: "${centralText.substring(0, 50)}..."`);
+        console.log(` STAGE 1 - NEW central paragraph detected: "${centralText.substring(0, 50)}..."`);
         
         // CRITICAL: Only switch to reading context if NO text selection is active
         if (textSelectionContext && textSelectionContext.length > 0) {
-          console.log('🔒 Text selection context active - preserving connections, ignoring reading context');
+          console.log(' Text selection context active - preserving connections, ignoring reading context');
           return; // Keep text selection connections
         }
         
-        console.log(`⚡ Triggering AUTOMATIC CONNECTIONS workflow (effortless & instant)`);
+        console.log(` Triggering AUTOMATIC CONNECTIONS workflow (effortless & instant)`);
         
         // Clear any previous text selection context when switching to reading
         if (textSelectionContext) {
-          console.log('🧹 Clearing previous text selection context - switching to reading mode');
+          console.log(' Clearing previous text selection context - switching to reading mode');
           setTextSelectionContext('');
         }
         
@@ -475,12 +475,12 @@ const DocumentWorkbench = forwardRef(({
           onContextChange(centralText);
         }
       } else if (centralText.length <= 50) {
-        console.log('⚠️ Could not detect meaningful central paragraph content');
+        console.log(' Could not detect meaningful central paragraph content');
       } else {
-        console.log('🔄 Central paragraph unchanged from last detection, skipping duplicate API call');
+        console.log(' Central paragraph unchanged from last detection, skipping duplicate API call');
       }
     } catch (error) {
-      console.warn('🚨 Central paragraph detection failed:', error);
+      console.warn(' Central paragraph detection failed:', error);
     } finally {
       // OPTIMIZATION: Reset the detection flag
       isDetectingContext.current = false;
@@ -491,7 +491,7 @@ const DocumentWorkbench = forwardRef(({
   const handleScrollForContextDetection = () => {
     // PRIORITY CHECK: Don't trigger reading context if text selection is active
     if (isTextSelectionActiveRef.current) {
-      console.log('🔒 Text selection active - ignoring scroll for context detection to preserve selected text connections');
+      console.log(' Text selection active - ignoring scroll for context detection to preserve selected text connections');
       return;
     }
     
@@ -499,7 +499,7 @@ const DocumentWorkbench = forwardRef(({
     
     // OPTIMIZATION: Minimal throttle to prevent excessive duplicate calls within same millisecond
     if (now - lastScrollTime.current < 50) {
-      console.log('🔄 Scroll event throttled (within 50ms), skipping...');
+      console.log(' Scroll event throttled (within 50ms), skipping...');
       return;
     }
     
@@ -511,7 +511,7 @@ const DocumentWorkbench = forwardRef(({
     }
     
     // INSTANT TRIGGER: No debounce delay for immediate response
-    console.log('🎯 Scroll detected, triggering IMMEDIATE central paragraph detection...');
+    console.log(' Scroll detected, triggering IMMEDIATE central paragraph detection...');
     detectCentralParagraph();
   };
 
@@ -519,7 +519,7 @@ const DocumentWorkbench = forwardRef(({
     try {
       // Check if document is available
       if (!document || !document.id) {
-        console.log('📄 No document provided or document missing ID, skipping viewer initialization');
+        console.log(' No document provided or document missing ID, skipping viewer initialization');
         return;
       }
 
@@ -561,7 +561,7 @@ const DocumentWorkbench = forwardRef(({
 
       // Get the PDF URL with proper error handling
       const pdfUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/documents/view/${document.id}`;
-      console.log(`🔗 Loading PDF from: ${pdfUrl}`);
+      console.log(` Loading PDF from: ${pdfUrl}`);
 
       // Configure preview options based on Adobe best practices
       const previewConfig = {
@@ -617,35 +617,35 @@ const DocumentWorkbench = forwardRef(({
       try {
         const adobeViewer = await previewFilePromise;
         adobeViewerRef.current = adobeViewer;
-        console.log('✅ Adobe PDF viewer initialized successfully');
+        console.log(' Adobe PDF viewer initialized successfully');
       } catch (previewError) {
-        console.error('❌ Failed to await previewFile promise:', previewError);
+        console.error(' Failed to await previewFile promise:', previewError);
         throw previewError;
       }
       
       setIsViewerReady(true);
 
     } catch (error) {
-      console.error('❌ Failed to initialize Adobe viewer:', error);
+      console.error(' Failed to initialize Adobe viewer:', error);
       setIsViewerReady(false);
     }
   };
 
   const handleAdobeEvents = (event) => {
-    console.log('📊 Adobe PDF Event:', event.type, event.data);
+    console.log(' Adobe PDF Event:', event.type, event.data);
     
     switch (event.type) {
       case 'APP_RENDERING_START':
-        console.log('🎬 PDF rendering started');
+        console.log(' PDF rendering started');
         break;
         
       case 'APP_RENDERING_DONE':
-        console.log('✅ PDF rendering completed');
+        console.log(' PDF rendering completed');
         setIsViewerReady(true);
         break;
         
       case 'PDF_VIEWER_READY':
-        console.log('🚀 PDF viewer is ready');
+        console.log(' PDF viewer is ready');
         setIsViewerReady(true);
         
         // Set up fallback scroll detection since Adobe scroll events might not work
@@ -655,25 +655,25 @@ const DocumentWorkbench = forwardRef(({
         break;
         
       case 'PREVIEW_PAGE_VIEW_SCROLLED':
-        console.log('📄 Adobe scroll event detected:', event.data);
+        console.log(' Adobe scroll event detected:', event.data);
         // Use Adobe's scroll events for context detection
         handleScrollForContextDetection();
         break;
         
       case 'PREVIEW_PAGE_RENDERED':
-        console.log('📄 Page rendered:', event.data);
+        console.log(' Page rendered:', event.data);
         // Also trigger context detection when a new page is rendered
         handleScrollForContextDetection();
         break;
         
       case 'PREVIEW_SELECTION_END':
-        console.log('📊 Selection end event data:', event.data);
-        console.log('📊 Full event object:', event);
+        console.log(' Selection end event data:', event.data);
+        console.log(' Full event object:', event);
         
         // Check if this is a deselection event (no new selection)
         if (!event.data || !event.data.newSelection || Object.keys(event.data.selections || {}).length === 0) {
           if (isTextSelectionActiveRef.current) {
-            console.log('🔄 Adobe PDF deselection detected - returning to reading context');
+            console.log(' Adobe PDF deselection detected - returning to reading context');
             setIsTextSelectionActive(false);
             setTextSelectionContext('');
             setSelectedText('');
@@ -692,29 +692,29 @@ const DocumentWorkbench = forwardRef(({
             let selectedText = '';
             
             // Log all available properties for debugging
-            console.log('🔍 Available event.data properties:', Object.keys(event.data));
+            console.log(' Available event.data properties:', Object.keys(event.data));
             if (event.data.page0) {
-              console.log('🔍 page0 properties:', Object.keys(event.data.page0));
+              console.log(' page0 properties:', Object.keys(event.data.page0));
             }
             if (event.data.selections) {
-              console.log('🔍 selections array:', event.data.selections);
-              console.log('🔍 selections type:', typeof event.data.selections);
-              console.log('🔍 selections keys:', Object.keys(event.data.selections));
+              console.log(' selections array:', event.data.selections);
+              console.log(' selections type:', typeof event.data.selections);
+              console.log(' selections keys:', Object.keys(event.data.selections));
               
               // Handle selections as object with page keys
               const selectionKeys = Object.keys(event.data.selections);
               if (selectionKeys.length > 0) {
-                console.log('🔍 first selection key:', selectionKeys[0]);
+                console.log(' first selection key:', selectionKeys[0]);
                 const firstSelection = event.data.selections[selectionKeys[0]];
-                console.log('🔍 first selection item:', firstSelection);
+                console.log(' first selection item:', firstSelection);
                 
                 // Try to extract text from the page selection
                 if (firstSelection && typeof firstSelection === 'object') {
-                  console.log('🔍 first selection properties:', Object.keys(firstSelection));
+                  console.log(' first selection properties:', Object.keys(firstSelection));
                   
                   // Log the actual values to understand the structure
                   Object.keys(firstSelection).forEach(key => {
-                    console.log(`🔍 ${key}:`, firstSelection[key]);
+                    console.log(` ${key}:`, firstSelection[key]);
                   });
                   
                   if (firstSelection.text) {
@@ -753,7 +753,7 @@ const DocumentWorkbench = forwardRef(({
               const selectionKeys = Object.keys(event.data.selections);
               const firstSelection = event.data.selections[selectionKeys[0]];
               
-              console.log('🎯 Adobe has bounding box data - attempting text extraction...');
+              console.log(' Adobe has bounding box data - attempting text extraction...');
               
               // Since Adobe doesn't provide text directly, use a fallback approach
               // Trigger a slight delay to allow Adobe's internal text extraction
@@ -763,30 +763,30 @@ const DocumentWorkbench = forwardRef(({
                   navigator.clipboard.readText()
                     .then(clipboardText => {
                       if (clipboardText && clipboardText.length > 10) {
-                        console.log('📋 Extracted text from clipboard:', clipboardText);
+                        console.log(' Extracted text from clipboard:', clipboardText);
                         handleTextSelectionEvent({ selection: clipboardText });
                       } else {
-                        console.log('📋 Clipboard empty, using fallback');
+                        console.log(' Clipboard empty, using fallback');
                         useFallbackTextSelection();
                       }
                     })
                     .catch(() => {
-                      console.log('📋 Clipboard access denied, using fallback');
+                      console.log(' Clipboard access denied, using fallback');
                       useFallbackTextSelection();
                     });
                 } else {
-                  console.log('📋 Clipboard API not available, using fallback');
+                  console.log(' Clipboard API not available, using fallback');
                   useFallbackTextSelection();
                 }
               }, 200);
             }
             
-            console.log('🎯 Adobe selection content:', selectedText);
+            console.log(' Adobe selection content:', selectedText);
             
             if (selectedText && selectedText.length > 10) {
               handleTextSelectionEvent({ selection: selectedText });
             } else {
-              console.log('⚠️ No valid selection content in Adobe event, trying browser fallback');
+              console.log(' No valid selection content in Adobe event, trying browser fallback');
               // Fallback to browser selection with a small delay to ensure selection is ready
               setTimeout(() => {
                 handleBrowserTextSelection();
@@ -799,7 +799,7 @@ const DocumentWorkbench = forwardRef(({
               }, 100);
             }
           } catch (e) {
-            console.log('⚠️ Failed to extract Adobe selection:', e);
+            console.log(' Failed to extract Adobe selection:', e);
             // Fallback to browser selection
             setTimeout(() => {
               handleBrowserTextSelection();
@@ -813,10 +813,10 @@ const DocumentWorkbench = forwardRef(({
       
       case 'PDF_VIEWER_CLICK':
       case 'PREVIEW_CLICK':
-        console.log('🖱️ PDF clicked - enabling test mode');
+        console.log(' PDF clicked - enabling test mode');
         // Since Adobe doesn't provide text selection reliably, use clicks to trigger workflows
         if (event.data) {
-          console.log('🧪 PDF click detected, triggering sample connections with realistic content');
+          console.log(' PDF click detected, triggering sample connections with realistic content');
           // Use content that would realistically be found in these PDFs
           const sampleContexts = [
             "Adobe Acrobat document management and PDF editing features",
@@ -826,7 +826,7 @@ const DocumentWorkbench = forwardRef(({
             "Advanced PDF security and digital signature workflows"
           ];
           const randomContext = sampleContexts[Math.floor(Math.random() * sampleContexts.length)];
-          console.log(`🎯 Using sample context: "${randomContext}"`);
+          console.log(` Using sample context: "${randomContext}"`);
           
           if (onContextChange) {
             onContextChange(randomContext);
@@ -845,7 +845,7 @@ const DocumentWorkbench = forwardRef(({
         break;
         
       default:
-        console.log('📝 Other PDF event:', event.type);
+        console.log(' Other PDF event:', event.type);
     }
   };
 
@@ -854,12 +854,12 @@ const DocumentWorkbench = forwardRef(({
       const selection = window.getSelection();
       const selectedText = selection.toString().trim();
       
-      console.log(`🔍 Browser selection: "${selectedText}"`);
+      console.log(` Browser selection: "${selectedText}"`);
       
       if (selectedText.length > 10) {
         handleTextSelectionEvent({ selection: selectedText });
       } else {
-        console.log('❌ Browser selection too short or empty');
+        console.log(' Browser selection too short or empty');
       }
     } catch (e) {
       console.warn('Failed to get browser selection:', e);
@@ -867,7 +867,7 @@ const DocumentWorkbench = forwardRef(({
   };
 
   const useFallbackTextSelection = () => {
-    console.log('🔄 Using fallback text selection strategy');
+    console.log(' Using fallback text selection strategy');
     
     // Strategy 1: Generate meaningful sample text based on document context
     const contextualSamples = [
@@ -879,14 +879,14 @@ const DocumentWorkbench = forwardRef(({
     ];
     
     const sampleText = contextualSamples[Math.floor(Math.random() * contextualSamples.length)];
-    console.log('🎯 Using contextual sample for demonstration:', sampleText);
+    console.log(' Using contextual sample for demonstration:', sampleText);
     
     // Trigger the workflow with sample text
     handleTextSelectionEvent({ selection: sampleText });
   };
 
   const setupFallbackScrollDetection = () => {
-    console.log('🔧 Setting up intelligent scroll detection for central paragraph...');
+    console.log(' Setting up intelligent scroll detection for central paragraph...');
     
     let scrollTimeout;
     let lastScrollTime = Date.now();
@@ -896,7 +896,7 @@ const DocumentWorkbench = forwardRef(({
     const handleScroll = () => {
       // PRIORITY CHECK: Don't trigger reading context if text selection is active
       if (isTextSelectionActiveRef.current) {
-        console.log('🔒 Text selection active - ignoring scroll events to preserve selected text connections');
+        console.log(' Text selection active - ignoring scroll events to preserve selected text connections');
         return;
       }
       
@@ -914,10 +914,10 @@ const DocumentWorkbench = forwardRef(({
         // Double-check text selection before triggering
         if (!isTextSelectionActiveRef.current) {
           isScrolling = false;
-          console.log('📚 User stopped scrolling - detecting central paragraph...');
+          console.log(' User stopped scrolling - detecting central paragraph...');
           detectCentralParagraph();
         } else {
-          console.log('🔒 Text selection still active - skipping reading context detection');
+          console.log(' Text selection still active - skipping reading context detection');
         }
       }, 1000); // Wait 1 second after scrolling stops
     };
@@ -926,41 +926,41 @@ const DocumentWorkbench = forwardRef(({
     const viewerElement = viewerRef.current;
     if (viewerElement) {
       const scrollListener = () => {
-        console.log('📄 Scroll detected on viewer container');
+        console.log(' Scroll detected on viewer container');
         handleScroll();
       };
       
       viewerElement.addEventListener('scroll', scrollListener, { passive: true });
-      console.log('✅ Added scroll listener to viewer container');
+      console.log(' Added scroll listener to viewer container');
     }
     
     // Method 2: Listen for scroll events on window (Adobe might scroll the whole page)
     const windowScrollListener = () => {
-      console.log('📄 Scroll detected on window');
+      console.log(' Scroll detected on window');
       handleScroll();
     };
     
     window.addEventListener('scroll', windowScrollListener, { passive: true });
-    console.log('✅ Added scroll listener to window');
+    console.log(' Added scroll listener to window');
     
     // Method 3: Listen for scroll events on Adobe's iframe with enhanced detection
     setTimeout(() => {
       const iframes = window.document.querySelectorAll('iframe');
-      console.log(`🔍 Found ${iframes.length} iframes, adding enhanced scroll detection...`);
+      console.log(` Found ${iframes.length} iframes, adding enhanced scroll detection...`);
       
       iframes.forEach((iframe, index) => {
         try {
           if (iframe.contentWindow) {
             const iframeScrollListener = () => {
-              console.log(`📄 Scroll detected on iframe ${index}`);
+              console.log(` Scroll detected on iframe ${index}`);
               handleScroll();
             };
             
             iframe.contentWindow.addEventListener('scroll', iframeScrollListener, { passive: true });
-            console.log(`✅ Added scroll listener to iframe ${index}`);
+            console.log(` Added scroll listener to iframe ${index}`);
           }
         } catch (e) {
-          console.log(`⚠️ Cross-origin iframe ${index} detected - using alternative detection:`, e.message);
+          console.log(` Cross-origin iframe ${index} detected - using alternative detection:`, e.message);
           
           // Use MutationObserver to detect visual changes that indicate scrolling
           const observer = new MutationObserver(() => {
@@ -980,25 +980,25 @@ const DocumentWorkbench = forwardRef(({
     const periodicCheck = () => {
       // PRIORITY CHECK: Don't trigger reading context if text selection is active
       if (isTextSelectionActiveRef.current) {
-        console.log('🔒 Text selection active - skipping periodic reading context detection');
+        console.log(' Text selection active - skipping periodic reading context detection');
         return;
       }
       
       const now = Date.now();
       // Only trigger if user hasn't scrolled recently (avoid interrupting active reading)
       if (!isScrolling && (now - lastScrollTime > 15000)) {
-        console.log('⏰ Periodic central paragraph detection (reading session timeout)');
+        console.log(' Periodic central paragraph detection (reading session timeout)');
         detectCentralParagraph();
         lastScrollTime = now;
       }
     };
     
     const periodicInterval = setInterval(periodicCheck, 10000); // Every 10 seconds
-    console.log('✅ Started periodic central paragraph detection');
+    console.log(' Started periodic central paragraph detection');
     
     // Initial detection after a brief delay
     setTimeout(() => {
-      console.log('🚀 Initial central paragraph detection...');
+      console.log(' Initial central paragraph detection...');
       detectCentralParagraph();
     }, 2000);
 
@@ -1012,12 +1012,12 @@ const DocumentWorkbench = forwardRef(({
         clearTimeout(scrollTimeout);
       }
       clearInterval(periodicInterval);
-      console.log('🧹 Cleaned up scroll detection listeners');
+      console.log(' Cleaned up scroll detection listeners');
     };
   };
 
   const handleTextSelectionEvent = (selectionData) => {
-    console.log(`📊 Raw selection event data:`, selectionData);
+    console.log(` Raw selection event data:`, selectionData);
     
     // Extract text from various possible Adobe selection formats
     let selectedText = '';
@@ -1041,12 +1041,12 @@ const DocumentWorkbench = forwardRef(({
       selectedText = selectionData.selectedText.trim();
     }
     
-    console.log(`📝 Extracted selected text: "${selectedText}"`);
+    console.log(` Extracted selected text: "${selectedText}"`);
     
     if (selectedText && selectedText.length > 10) {
-      console.log(`✅ Valid text selection: "${selectedText.substring(0, 50)}..."`);
-      console.log(`✨ UNIFIED WORKFLOW - Adobe PDF text selection detected: "${selectedText.substring(0, 50)}..."`);
-      console.log(`🎯 Step 1: Generating CONNECTIONS from selected text (overrides reading connections)`);
+      console.log(` Valid text selection: "${selectedText.substring(0, 50)}..."`);
+      console.log(` UNIFIED WORKFLOW - Adobe PDF text selection detected: "${selectedText.substring(0, 50)}..."`);
+      console.log(` Step 1: Generating CONNECTIONS from selected text (overrides reading connections)`);
       
       setSelectedText(selectedText);
       
@@ -1074,7 +1074,7 @@ const DocumentWorkbench = forwardRef(({
         setShowActionHalo(false);
       }, 3000);
     } else {
-      console.log(`❌ No valid text selection found in event data`);
+      console.log(` No valid text selection found in event data`);
     }
   };
 
@@ -1082,7 +1082,7 @@ const DocumentWorkbench = forwardRef(({
   const handleInsightsClick = async () => {
     if (!selectedText || isGeneratingInsights) return;
     
-    console.log(`🧠 UNIFIED WORKFLOW - Step 2: User clicked Insights for: "${selectedText.substring(0, 50)}..."`);
+    console.log(` UNIFIED WORKFLOW - Step 2: User clicked Insights for: "${selectedText.substring(0, 50)}..."`);
     setIsGeneratingInsights(true);
     setShowActionHalo(false);
     
@@ -1092,7 +1092,7 @@ const DocumentWorkbench = forwardRef(({
       
       // This triggers insights generation using the already-generated connections as context
       await onInsightsRequest(enrichedContext);
-      console.log(`✅ Generated insights successfully from selected text`);
+      console.log(` Generated insights successfully from selected text`);
     } catch (error) {
       console.error('Failed to generate insights:', error);
     } finally {
@@ -1103,7 +1103,7 @@ const DocumentWorkbench = forwardRef(({
   const handlePodcastClick = async () => {
     if (!selectedText || isGeneratingPodcast) return;
     
-    console.log(`🎧 UNIFIED WORKFLOW - Step 2: User clicked Podcast for: "${selectedText.substring(0, 50)}..."`);
+    console.log(` UNIFIED WORKFLOW - Step 2: User clicked Podcast for: "${selectedText.substring(0, 50)}..."`);
     setIsGeneratingPodcast(true);
     setShowActionHalo(false);
     
@@ -1112,7 +1112,7 @@ const DocumentWorkbench = forwardRef(({
       const enrichedContext = `[Selected Text from ${cleanFileName(document?.file_name) || 'document'}]\n${selectedText}`;
       
       await onPodcastRequest(enrichedContext);
-      console.log(`✅ Generated podcast successfully from selected text`);
+      console.log(` Generated podcast successfully from selected text`);
     } catch (error) {
       console.error('Failed to generate podcast:', error);
     } finally {
@@ -1140,7 +1140,7 @@ const DocumentWorkbench = forwardRef(({
   // Highlight search results in the PDF
   useEffect(() => {
     if (searchResults.length > 0 && isViewerReady) {
-      console.log('📍 Highlighting search results:', searchResults.length);
+      console.log(' Highlighting search results:', searchResults.length);
       // Future: Integrate with Adobe's annotation API to highlight search results
     }
   }, [searchResults, isViewerReady]);
@@ -1154,15 +1154,15 @@ const DocumentWorkbench = forwardRef(({
           <p>Choose a document from your library to start exploring connections and generating insights.</p>
           <div className="empty-features">
             <div className="feature-item">
-              <span className="feature-icon">🔗</span>
+              <span className="feature-icon"></span>
               <span>Discover related content as you read</span>
             </div>
             <div className="feature-item">
-              <span className="feature-icon">💡</span>
+              <span className="feature-icon"></span>
               <span>Get AI insights on selected text</span>
             </div>
             <div className="feature-item">
-              <span className="feature-icon">🎙️</span>
+              <span className="feature-icon"></span>
               <span>Generate podcasts from your content</span>
             </div>
           </div>
@@ -1178,7 +1178,7 @@ const DocumentWorkbench = forwardRef(({
         <div className="navigation-breadcrumb">
           <div className="breadcrumb-content">
             <div className="current-document">
-              <span className="document-icon">📄</span>
+              <span className="document-icon"></span>
               <span className="document-name">
                 {cleanFileName(document.file_name)}
               </span>
@@ -1209,7 +1209,7 @@ const DocumentWorkbench = forwardRef(({
             transform: 'translateY(-50%)'
           }}
           onClick={() => {
-            console.log('💡 Insights Bulb clicked - triggering Stage 2 workflow');
+            console.log(' Insights Bulb clicked - triggering Stage 2 workflow');
             if (currentContext && onInsightsRequest) {
               onInsightsRequest(currentContext);
             }
@@ -1217,7 +1217,7 @@ const DocumentWorkbench = forwardRef(({
           title={`Generate insights from ${connectionResults.length} connections found`}
         >
           <div className="bulb-container">
-            <div className="bulb-icon">💡</div>
+            <div className="bulb-icon"></div>
             <div className="bulb-badge">{connectionResults.length}</div>
             <div className="bulb-pulse"></div>
           </div>
@@ -1231,12 +1231,12 @@ const DocumentWorkbench = forwardRef(({
       {isTextSelectionActive && (
         <div className="text-selection-indicator">
           <div className="selection-status">
-            <span className="status-icon">✋</span>
+            <span className="status-icon"></span>
             <span className="status-text">Text Selection Active</span>
             <button 
               className="deselect-btn"
               onClick={() => {
-                console.log('🔄 Manual deselect button clicked - returning to reading context');
+                console.log(' Manual deselect button clicked - returning to reading context');
                 window.getSelection()?.removeAllRanges();
                 setIsTextSelectionActive(false);
                 setTextSelectionContext('');
@@ -1247,7 +1247,7 @@ const DocumentWorkbench = forwardRef(({
               }}
               title="Exit text selection mode and return to reading context"
             >
-              ✕ Exit
+               Exit
             </button>
           </div>
         </div>
@@ -1283,3 +1283,4 @@ const DocumentWorkbench = forwardRef(({
 });
 
 export default DocumentWorkbench;
+
