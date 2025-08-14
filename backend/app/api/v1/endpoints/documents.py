@@ -930,11 +930,19 @@ async def view_document(
         else:
             raise HTTPException(status_code=404, detail="PDF file not found on disk")
     
-    # Return the PDF file with proper content type
+    # Return the PDF file with proper content type and cleaned filename
+    # Extract original filename by removing the "doc_X_" prefix for display
+    display_filename = document.file_name
+    if document.file_name.startswith('doc_') and '_' in document.file_name:
+        # Remove "doc_X_" prefix: "doc_5_filename.pdf" -> "filename.pdf"
+        parts = document.file_name.split('_', 2)  # Split on first 2 underscores
+        if len(parts) >= 3:
+            display_filename = parts[2]  # Get everything after "doc_X_"
+    
     return FileResponse(
         path=file_path,
         media_type="application/pdf",
-        filename=document.file_name,
+        filename=display_filename,
         headers={
             "Cache-Control": "public, max-age=3600",
             "Access-Control-Allow-Origin": "*",
