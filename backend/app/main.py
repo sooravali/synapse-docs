@@ -73,15 +73,15 @@ async def startup_event():
         
         # Initialize embedding service (Challenge 1B)
         embedding_service = get_embedding_service()
-        logger.info("✓ Embedding service (Challenge 1B) initialized")
+        logger.info(" Embedding service (Challenge 1B) initialized")
         
         # Initialize document parser (Challenge 1A)
         document_parser = get_document_parser()
-        logger.info("✓ Document parser (Challenge 1A) initialized")
+        logger.info(" Document parser (Challenge 1A) initialized")
         
         # Initialize Faiss service
         faiss_service = get_faiss_service()
-        logger.info("✓ Faiss vector database initialized")
+        logger.info(" Faiss vector database initialized")
         
         logger.info("All services initialized successfully")
         
