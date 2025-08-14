@@ -591,12 +591,15 @@ const SynapsePanel = forwardRef(({
       // Add visual feedback for the jump action
       const startTime = performance.now();
       
+      // Check if it's same document (Go to page) vs different document (Open & Go)
+      const isCurrentDocument = selectedDocument && selectedDocument.id === connection.document_id;
+      
       onConnectionSelect(connection);
       
-      // Clear navigation state after a delay (enough time for navigation to complete)
+      // Clear navigation state based on navigation type
       setTimeout(() => {
         setNavigatingConnectionId(null);
-      }, 4000); // 4 seconds to account for document switching time
+      }, isCurrentDocument ? 400 : 1200); // 400ms for same doc, 1200ms for different doc
       
       // Log navigation performance (must be <2 seconds per requirements)
       const endTime = performance.now();
@@ -663,7 +666,6 @@ const SynapsePanel = forwardRef(({
             >
               {isNavigating ? (
                 <>
-                  <div className="button-spinner"></div>
                   <span className="jump-text">Going...</span>
                 </>
               ) : isCurrentDocument ? (
