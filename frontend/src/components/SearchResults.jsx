@@ -105,7 +105,7 @@ const SearchResults = ({ results = [], onResultClick, isLoading = false, query =
           margin: '0 auto 16px',
           fontSize: '24px'
         }}>
-          🔍
+          
         </div>
         <h4 style={{ margin: '0 0 8px', color: '#6c757d' }}>
           {query ? 'No results found' : 'No search performed'}
@@ -179,7 +179,7 @@ const SearchResults = ({ results = [], onResultClick, isLoading = false, query =
                     color: '#007bff',
                     textDecoration: 'none'
                   }}>
-                    📄 {cleanFileName(result.file_name) || `Document ${result.document_id}`}
+                     {cleanFileName(result.file_name) || `Document ${result.document_id}`}
                   </h4>
                   {(result.page_number !== undefined && result.page_number !== null) && (
                     <p style={{ 
@@ -309,3 +309,4 @@ const SearchResults = ({ results = [], onResultClick, isLoading = false, query =
 };
 
 export default SearchResults;
+
