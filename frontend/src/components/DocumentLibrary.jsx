@@ -54,28 +54,28 @@ const DocumentLibrary = ({
     
     if (processingDocs.length > 0 && !isPolling) {
       setIsPolling(true);
-      console.log(`📊 Found ${processingDocs.length} documents still processing, starting status polling...`);
+      console.log(`Found ${processingDocs.length} documents still processing, starting status polling...`);
       
       const pollInterval = setInterval(async () => {
         try {
-          console.log('🔄 Polling for document status updates...');
+          console.log('Polling for document status updates...');
           await onDocumentsUpdate();
           
           // Check if any documents are still processing
           const stillProcessing = documents.filter(doc => doc.status === 'processing');
           if (stillProcessing.length === 0) {
-            console.log('✅ All documents processing completed, stopping poll');
+            console.log(' All documents processing completed, stopping poll');
             clearInterval(pollInterval);
             setIsPolling(false);
           }
         } catch (error) {
-          console.error('❌ Error during status polling:', error);
+          console.error(' Error during status polling:', error);
         }
       }, 3000); // Poll every 3 seconds
 
       // Auto-stop polling after 5 minutes to prevent infinite polling
       const maxPollTime = setTimeout(() => {
-        console.log('⏰ Maximum polling time reached, stopping poll');
+        console.log(' Maximum polling time reached, stopping poll');
         clearInterval(pollInterval);
         setIsPolling(false);
       }, 300000); // 5 minutes
@@ -134,9 +134,9 @@ const DocumentLibrary = ({
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Refresh document list after ensuring DB is updated
-      console.log('🔄 Refreshing document list after upload...');
+      console.log('Refreshing document list after upload...');
       await onDocumentsUpdate();
-      console.log('✅ Document list refreshed, checking status...');
+      console.log('Document list refreshed, checking status...');
       
       // Show completion state briefly
       const completedTracker = {};
@@ -231,10 +231,10 @@ const DocumentLibrary = ({
     setShowClearConfirm(false);
     
     try {
-      console.log('🗑️ Starting clear all documents operation...');
+      console.log('Starting clear all documents operation...');
       
       const result = await documentAPI.clearAll();
-      console.log('✅ Clear all completed:', result);
+      console.log('Clear all completed:', result);
       
       // Refresh the document list
       onDocumentsUpdate();
@@ -250,7 +250,7 @@ const DocumentLibrary = ({
       alert(`Successfully cleared ${result.deleted_count} documents and reset the library!`);
       
     } catch (error) {
-      console.error('❌ Failed to clear all documents:', error);
+      console.error(' Failed to clear all documents:', error);
       alert('Failed to clear documents. Please try again.');
     } finally {
       setIsClearingAll(false);
@@ -347,8 +347,8 @@ const DocumentLibrary = ({
                 <span className="progress-status">
                   {progress.status === 'uploading' && `Uploading... ${progress.progress}%`}
                   {progress.status === 'processing' && `Processing... ${progress.progress}%`}
-                  {progress.status === 'completed' && `✅ Completed!`}
-                  {progress.status === 'error' && `❌ Error`}
+                  {progress.status === 'completed' && ` Completed!`}
+                  {progress.status === 'error' && ` Error`}
                 </span>
               </div>
               <div className="progress-bar">
