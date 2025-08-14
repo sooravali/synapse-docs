@@ -41,18 +41,31 @@ const FlowStatusBar = ({
     return 'pending';
   };
 
+  const getStepLabel = (step) => {
+    switch (step) {
+      case 'upload':
+        return 'Upload';
+      case 'scroll':
+        return 'Read';
+      case 'insights':
+        return 'Insights';
+      default:
+        return '';
+    }
+  };
+
   const getStepMessage = () => {
     switch (flowStep) {
       case 'upload':
-        return 'Upload your first PDF document to get started';
+        return 'Upload your PDF(s) to get started';
       case 'read':
-        return 'Start reading or select text - connections will generate automatically';
+        return 'Start reading or select text to find connections';
       case 'scroll':
-        return 'Connections found! Generate insights or podcasts for deeper analysis';
+        return 'Generate insights or podcasts for deeper analysis';
       case 'insights':
-        return 'Great! Try generating podcasts or continue exploring';
+        return 'Great! Try generating insights or podcasts';
       case 'complete':
-        return 'All features unlocked! Read more or select text for additional analysis';
+        return 'All features unlocked! Continue exploring documents';
       default:
         return '';
     }
@@ -62,21 +75,36 @@ const FlowStatusBar = ({
     <div className="flow-status-bar">
       <div className="status-content">
         <div className="status-steps">
-          <div className={`status-step ${getStepStatus('upload')}`}>
-            <FileText size={16} />
+          <div className="status-step-container">
+            <div className={`status-step ${getStepStatus('upload')}`}>
+              <FileText size={16} />
+            </div>
+            <div className={`status-label ${getStepStatus('upload')}`}>
+              {getStepLabel('upload')}
+            </div>
           </div>
           <div className="status-connector" />
-          <div className={`status-step ${getStepStatus('scroll')}`}>
-            <Network size={16} />
+          <div className="status-step-container">
+            <div className={`status-step ${getStepStatus('scroll')}`}>
+              <Network size={16} />
+            </div>
+            <div className={`status-label ${getStepStatus('scroll')}`}>
+              {getStepLabel('scroll')}
+            </div>
           </div>
           <div className="status-connector" />
-          <div className={`status-step ${getStepStatus('insights')}`}>
-            <Lightbulb size={16} />
+          <div className="status-step-container">
+            <div className={`status-step ${getStepStatus('insights')}`}>
+              <Lightbulb size={16} />
+            </div>
+            <div className={`status-label ${getStepStatus('insights')}`}>
+              {getStepLabel('insights')}
+            </div>
           </div>
         </div>
-        <div className="status-message">
-          {getStepMessage()}
-        </div>
+      </div>
+      <div className="status-message">
+        {getStepMessage()}
       </div>
     </div>
   );
