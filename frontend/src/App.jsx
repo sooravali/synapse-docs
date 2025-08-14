@@ -144,7 +144,9 @@ function App() {
     
     // Find the document for this connection
     const targetDoc = documents.find(doc => doc.id === connection.document_id);
-    if (targetDoc && targetDoc.id !== selectedDocument?.id) {
+    const isDocumentSwitch = targetDoc && targetDoc.id !== selectedDocument?.id;
+    
+    if (isDocumentSwitch) {
       setSelectedDocument(targetDoc);
     }
     
@@ -153,21 +155,37 @@ function App() {
       const targetPageNumber = connection.page_number + 1; // Convert from 0-based to 1-based for display
       console.log(`🚀 Attempting to navigate to page ${targetPageNumber}`);
       
-      // If switching documents, wait longer for the document to fully load and initialize
-      const navigationDelay = (targetDoc && targetDoc.id !== selectedDocument?.id) ? 3500 : 100;
+      // Smart timing based on operation type
+      let navigationDelay;
+      if (isDocumentSwitch) {
+        // Document switching: Wait for new document to load but not too long
+        navigationDelay = 1500; // Reduced from 3500ms to 1500ms
+        console.log('📄 Document switch detected, using 1500ms delay');
+      } else {
+        // Same document navigation: Very quick
+        navigationDelay = 50; // Reduced from 100ms to 50ms  
+        console.log('🔗 Same document navigation, using 50ms delay');
+      }
       
-      setTimeout(async () => {
+      // Enhanced navigation with retry logic
+      const attemptNavigation = async (attempt = 1) => {
         if (documentWorkbenchRef.current && documentWorkbenchRef.current.navigateToPage) {
           const success = await documentWorkbenchRef.current.navigateToPage(targetPageNumber);
           if (success) {
-            console.log(`✅ Successfully navigated to page ${targetPageNumber}`);
+            console.log(`✅ Successfully navigated to page ${targetPageNumber} (attempt ${attempt})`);
+          } else if (attempt < 3 && isDocumentSwitch) {
+            // Retry for document switches if first attempt fails
+            console.log(`⚠️ Navigation failed, retrying in 500ms (attempt ${attempt + 1})`);
+            setTimeout(() => attemptNavigation(attempt + 1), 500);
           } else {
-            console.error(`❌ Failed to navigate to page ${targetPageNumber}`);
+            console.error(`❌ Failed to navigate to page ${targetPageNumber} after ${attempt} attempts`);
           }
         } else {
           console.warn('⚠️ DocumentWorkbench ref not available for navigation');
         }
-      }, navigationDelay);
+      };
+      
+      setTimeout(() => attemptNavigation(), navigationDelay);
     } else {
       console.warn('⚠️ Connection does not have a valid page number for navigation');
     }

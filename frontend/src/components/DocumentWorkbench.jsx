@@ -65,21 +65,33 @@ const DocumentWorkbench = forwardRef(({
     navigateToPage: async (pageNumber) => {
       console.log(`🚀 DocumentWorkbench: Navigating to page ${pageNumber}`);
       
-      // Use the proper Adobe API pattern from documentation
-      if (!adobeViewerRef.current) {
-        console.warn('⚠️ Adobe viewer not ready for navigation');
-        return false;
+      // Check if viewer is ready
+      if (!isViewerReady || !adobeViewerRef.current) {
+        console.warn('⚠️ Adobe viewer not ready for navigation, waiting...');
+        
+        // Wait up to 2 seconds for viewer to be ready
+        let waitTime = 0;
+        const maxWaitTime = 2000;
+        const checkInterval = 100;
+        
+        while (waitTime < maxWaitTime && (!isViewerReady || !adobeViewerRef.current)) {
+          await new Promise(resolve => setTimeout(resolve, checkInterval));
+          waitTime += checkInterval;
+        }
+        
+        if (!isViewerReady || !adobeViewerRef.current) {
+          console.error('⚠️ Adobe viewer still not ready after waiting');
+          return false;
+        }
       }
 
       try {
-        // Use page number directly for Adobe API (pageNumber should match display page number)
-        console.log(`📄 Navigating to display page ${pageNumber} (Adobe API parameter: ${pageNumber - 1})`);
+        console.log(`📄 Navigating to display page ${pageNumber}`);
         
         // Use the official Adobe API pattern
         const apis = await adobeViewerRef.current.getAPIs();
         if (apis && typeof apis.gotoLocation === 'function') {
-          // Adobe gotoLocation parameter: pass the exact page number without conversion
-          // If user wants to see "Page 12", we pass 12 to gotoLocation
+          // Adobe gotoLocation: pass the page number (1-based)
           await apis.gotoLocation(pageNumber);
           console.log(`✅ Successfully navigated to display page ${pageNumber}`);
           return true;
