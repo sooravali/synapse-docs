@@ -224,7 +224,7 @@ const UploadForm = ({ onUploadSuccess, onUploadError }) => {
               fontSize: '24px',
               color: isDragging ? 'white' : '#6c757d'
             }}>
-              📁
+              [Folder]
             </div>
             <h3 style={{ 
               margin: '0 0 8px', 
@@ -291,7 +291,7 @@ const UploadForm = ({ onUploadSuccess, onUploadError }) => {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '16px' }}>
-              {lastUploadResult.success ? '✅' : '❌'}
+              {lastUploadResult.success ? '' : ''}
             </span>
             <span style={{ fontSize: '14px', fontWeight: '500' }}>
               {lastUploadResult.message}
@@ -310,7 +310,7 @@ const UploadForm = ({ onUploadSuccess, onUploadError }) => {
                   fontSize: '12px',
                   opacity: 0.9
                 }}>
-                  <span>{result.success ? '✓' : '✗'}</span>
+                  <span>{result.success ? '' : ''}</span>
                   <span style={{ fontWeight: '500' }}>{result.filename}:</span>
                   <span>{result.message}</span>
                   {result.document_id && (
