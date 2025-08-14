@@ -5,7 +5,7 @@
  * Connections and Insights, featuring structured display and actions.
  */
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { Network, Lightbulb, Play, Pause, Download, ExternalLink, Zap, Radio } from 'lucide-react';
+import { Network, Lightbulb, Play, Pause, Download, ExternalLink, Zap, Radio, FileText } from 'lucide-react';
 import { searchAPI, insightsAPI, podcastAPI } from '../api';
 import './SynapsePanel.css';
 
@@ -13,13 +13,30 @@ const SynapsePanel = forwardRef(({
   currentContext, 
   selectedDocument, 
   onConnectionSelect,
-  onConnectionsUpdate 
+  onConnectionsUpdate,
+  onInsightsGenerated 
 }, ref) => {
 
   // Helper function to clean filename display
   const cleanFileName = (fileName) => {
     if (!fileName) return '';
     return fileName.replace(/^doc_\d+_/, '').replace(/\.pdf$/, '');
+  };
+
+  // Helper function to truncate long filenames for display
+  const truncateFileName = (fileName, maxLength = 25) => {
+    const cleaned = cleanFileName(fileName);
+    if (cleaned.length <= maxLength) return cleaned;
+    
+    // Try to keep the file extension if it was originally there
+    const hasExtension = fileName && fileName.includes('.pdf');
+    if (hasExtension) {
+      const nameWithoutExt = cleaned;
+      const truncated = nameWithoutExt.substring(0, maxLength - 7); // Reserve space for "...pdf"
+      return `${truncated}...pdf`;
+    } else {
+      return `${cleaned.substring(0, maxLength - 3)}...`;
+    }
   };
   const [activeTab, setActiveTab] = useState('connections');
   const [connections, setConnections] = useState([]);
@@ -30,6 +47,10 @@ const SynapsePanel = forwardRef(({
   const [isGeneratingPodcast, setIsGeneratingPodcast] = useState(false);
   const [isPlayingPodcast, setIsPlayingPodcast] = useState(false);
   const [navigatingConnectionId, setNavigatingConnectionId] = useState(null);
+  const [expandedInsights, setExpandedInsights] = useState({});
+  const [expandedSnippets, setExpandedSnippets] = useState({}); // For snippet expansion
+  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
 
   // ENHANCED CACHING: Page-based cache with content similarity detection
   const connectionsCache = useRef(new Map()); // Cache: "docId:pageNum" -> {results, contentHash}
@@ -71,6 +92,75 @@ const SynapsePanel = forwardRef(({
       hash = hash & hash; // Convert to 32-bit integer
     }
     return hash.toString();
+  };
+
+  // Helper functions for audio time formatting
+  const formatTime = (seconds) => {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleAudioTimeUpdate = () => {
+    if (audioRef.current) {
+      setAudioCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleAudioLoadedMetadata = () => {
+    if (audioRef.current) {
+      setAudioDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleSeek = (event) => {
+    if (audioRef.current) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const percentage = x / rect.width;
+      const newTime = percentage * audioDuration;
+      audioRef.current.currentTime = newTime;
+      setAudioCurrentTime(newTime);
+    }
+  };
+
+  // Helper function to toggle snippet expansion
+  const toggleSnippetExpansion = (snippetId) => {
+    setExpandedSnippets(prev => ({
+      ...prev,
+      [snippetId]: !prev[snippetId]
+    }));
+  };
+
+  // Helper function to truncate filename for display
+  const getTruncatedFileName = (fileName, maxLength = 30) => {
+    if (!fileName || fileName.length <= maxLength) return fileName;
+    
+    const extension = fileName.substring(fileName.lastIndexOf('.'));
+    const nameWithoutExt = fileName.substring(0, fileName.lastIndexOf('.'));
+    const truncated = nameWithoutExt.substring(0, maxLength - 3 - extension.length);
+    
+    return `${truncated}...${extension}`;
+  };
+
+  // Helper function to toggle insight section expansion
+  const toggleInsightExpansion = (section) => {
+    setExpandedInsights(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  // Helper function to truncate insights list
+  const getTruncatedInsights = (insights, section, maxItems = 2) => {
+    if (!insights || insights.length === 0) return { visible: [], hasMore: false };
+    
+    const isExpanded = expandedInsights[section];
+    const visible = isExpanded ? insights : insights.slice(0, maxItems);
+    const hasMore = insights.length > maxItems;
+    
+    return { visible, hasMore, isExpanded };
   };
 
   // Extract page information from context or document viewer state
@@ -139,6 +229,15 @@ const SynapsePanel = forwardRef(({
     
     if (!currentContext || currentContext.length <= 10) {
       console.log(` SynapsePanel: Context too short or empty, not searching`);
+      // Clear insights when context becomes empty
+      if (insights) {
+        console.log(` SynapsePanel: Clearing insights due to empty context`);
+        setInsights(null);
+        setPodcastData(null);
+        if (onInsightsGenerated) {
+          onInsightsGenerated(false);
+        }
+      }
       return;
     }
 
@@ -150,6 +249,21 @@ const SynapsePanel = forwardRef(({
     }
 
     console.log(` SynapsePanel: Page context:`, pageContext);
+
+    // Check if this is a significant context change that should clear insights
+    const shouldClearInsights = lastPageContextRef.current && 
+      lastPageContextRef.current.identifier !== pageContext.identifier &&
+      !pageContext.isTextSelection; // Don't clear for text selections within the same page
+
+    if (shouldClearInsights && insights) {
+      console.log(` SynapsePanel: Significant context change detected - clearing previous insights`);
+      setInsights(null);
+      setPodcastData(null);
+      setExpandedInsights({});
+      if (onInsightsGenerated) {
+        onInsightsGenerated(false);
+      }
+    }
 
     // TEXT SELECTION: Always search immediately, don't use cache
     if (pageContext.isTextSelection) {
@@ -239,7 +353,7 @@ const SynapsePanel = forwardRef(({
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [currentContext, selectedDocument, activeTab, connections.length, onConnectionsUpdate]);
+  }, [currentContext, selectedDocument, activeTab, connections.length, onConnectionsUpdate, insights, onInsightsGenerated]);
 
   // Helper function to extract quoted strings from JSON-like text
   const extractQuotedStrings = (text) => {
@@ -273,10 +387,19 @@ const SynapsePanel = forwardRef(({
       setPodcastData(null);
       setActiveTab('connections');
       setNavigatingConnectionId(null);
+      setExpandedInsights({});
+      setExpandedSnippets({});
+      setAudioCurrentTime(0);
+      setAudioDuration(0);
       // Clear cache for clean slate
       connectionsCache.current.clear();
       lastQueryRef.current = '';
       lastPageContextRef.current = null;
+      
+      // Notify parent that insights are cleared
+      if (onInsightsGenerated) {
+        onInsightsGenerated(false);
+      }
     }
   }));
 
@@ -475,13 +598,30 @@ const SynapsePanel = forwardRef(({
         sourceType: text && text.includes('[Selected Text from') ? 'selection' : 'reading'
       });
       
+      // Notify parent component that insights were generated
+      if (onInsightsGenerated) {
+        onInsightsGenerated(true);
+      }
+      
       console.log(` STAGE 2 - Insights generation completed successfully`);
     } catch (error) {
       console.error(' STAGE 2 - Failed to generate insights:', error);
+      
+      // More user-friendly error messages
+      let errorMessage = 'Failed to generate insights';
+      if (error.message && error.message.includes('503')) {
+        errorMessage = 'AI service is temporarily busy. Please try again in a moment.';
+      } else if (error.message && error.message.includes('temporarily unavailable')) {
+        errorMessage = 'AI service is temporarily unavailable. Please try again shortly.';
+      } else if (error.message && error.message.includes('network')) {
+        errorMessage = 'Network connection issue. Please check your connection and try again.';
+      }
+      
       setInsights({
         status: 'error',
-        error: 'Failed to generate insights',
-        parsed: null
+        error: errorMessage,
+        parsed: null,
+        canRetry: true
       });
     } finally {
       setIsLoadingInsights(false);
@@ -507,6 +647,7 @@ const SynapsePanel = forwardRef(({
     
     setIsGeneratingPodcast(true);
     setIsPlayingPodcast(false); // Reset playing state for new podcast
+    setPodcastData(null); // Clear previous podcast data
     
     try {
       // Get related content from connections if available
@@ -514,14 +655,20 @@ const SynapsePanel = forwardRef(({
         ? connections.map(conn => conn.content).join('\n\n')
         : "";
       
+      console.log(` STAGE 2 - Generating podcast with ${connections.length} context connections from Stage 1`);
       const result = await podcastAPI.generate(content, relatedContent);
-      setPodcastData(result);
-      console.log(` STAGE 2 - Podcast generation completed successfully`);
+      
+      if (result && result.status !== 'error') {
+        setPodcastData(result);
+        console.log(` STAGE 2 - Podcast generation completed successfully`);
+      } else {
+        throw new Error(result?.error || 'Unknown error occurred during podcast generation');
+      }
     } catch (error) {
       console.error(' STAGE 2 - Failed to generate podcast:', error);
       setPodcastData({
         status: 'error',
-        error: 'Failed to generate podcast'
+        error: error.message || 'Failed to generate podcast. Please try again.'
       });
     } finally {
       setIsGeneratingPodcast(false);
@@ -627,15 +774,53 @@ const SynapsePanel = forwardRef(({
     const isCurrentDocument = selectedDocument && selectedDocument.id === connection.document_id;
     const documentName = cleanFileName(connection.document_name);
     const isNavigating = navigatingConnectionId === connection.chunk_id;
+    const isSnippetExpanded = expandedSnippets[connection.chunk_id];
+    
+    // Determine if snippet needs truncation
+    const snippetText = connection.text_chunk;
+    const needsTruncation = snippetText.length > 150;
+    const displayText = needsTruncation && !isSnippetExpanded 
+      ? snippetText.substring(0, 150) + '...' 
+      : snippetText;
     
     return (
       <div 
         key={connection.chunk_id} 
         className={`connection-card ${isCurrentDocument ? 'same-document' : 'different-document'} ${isNavigating ? 'navigating' : ''}`}
         onClick={() => handleConnectionClick(connection)}
-      >        
+      >
+        <div className="connection-header">
+          <div className="connection-source-header">
+            <div className="source-document-header">
+              <div className="document-icon">
+                <FileText size={14} />
+              </div>
+              <span 
+                className="document-name-header"
+                title={isCurrentDocument ? "In this document" : `From: ${documentName}`}
+              >
+                {isCurrentDocument ? "In this document" : `From: ${truncateFileName(connection.document_name)}`}
+              </span>
+            </div>
+            <div className="source-context">
+              Page {connection.page_number + 1}
+            </div>
+          </div>
+        </div>
+        
         <div className="connection-content">
-          <p className="connection-snippet">{connection.text_chunk}</p>
+          <p className="connection-snippet">{displayText}</p>
+          {needsTruncation && (
+            <button 
+              className="snippet-expand-toggle"
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent card click
+                toggleSnippetExpansion(connection.chunk_id);
+              }}
+            >
+              {isSnippetExpanded ? 'Show less' : 'Show more'}
+            </button>
+          )}
           {isNavigating && (
             <div className="navigation-feedback">
               <div className="navigation-progress">
@@ -647,35 +832,23 @@ const SynapsePanel = forwardRef(({
         </div>
         
         <div className="connection-footer">
-          <div className="connection-source">
-            <div className="source-document">
-              {!isCurrentDocument && <span className="document-indicator"></span>}
-              <span className="document-name">{documentName}</span>
-            </div>
-            <div className="source-page">Page {connection.page_number + 1}</div>
-          </div>
-          
-          <div className="connection-actions">
+          <div className="connection-actions-full">
             <div className="similarity-indicator" title={`${similarity.percentage}% relevance`}>
-              {similarity.percentage}%
+              {similarity.percentage}% match
             </div>
             <button 
-              className={`jump-button ${isNavigating ? 'loading' : ''}`} 
-              title={isCurrentDocument ? 'Go to page' : 'Open document and go to page'}
+              className={`jump-section-button ${isNavigating ? 'loading' : ''}`} 
+              title={isCurrentDocument ? 'Jump to Section' : 'Open & Jump to Section'}
               disabled={isNavigating}
             >
               {isNavigating ? (
                 <>
                   <span className="jump-text">Going...</span>
                 </>
-              ) : isCurrentDocument ? (
-                <>
-                  <span className="jump-text">Go to Page</span>
-                </>
               ) : (
                 <>
                   <ExternalLink size={14} />
-                  <span className="jump-text">Open & Go</span>
+                  <span className="jump-text">Jump to Section</span>
                 </>
               )}
             </button>
@@ -724,7 +897,24 @@ const SynapsePanel = forwardRef(({
     if (insights.status === 'error') {
       return (
         <div className="insights-error">
-          <p>Error: {insights.error}</p>
+          <p>{insights.error}</p>
+          {insights.canRetry && (
+            <button 
+              className="retry-insights-btn"
+              onClick={() => {
+                setInsights(null);
+                if (onInsightsGenerated) {
+                  onInsightsGenerated(false);
+                }
+                if (currentContext) {
+                  generateInsights(currentContext, connections);
+                }
+              }}
+              disabled={isLoadingInsights}
+            >
+              Try Again
+            </button>
+          )}
         </div>
       );
     }
@@ -735,10 +925,10 @@ const SynapsePanel = forwardRef(({
     return (
       <div className="insights-content">
         <div className="insights-header">
-          <h4>AI Insights</h4>
+          <h4>AI-Generated Insights</h4>
           <p className="insights-context">
             {insights.context && insights.context.includes('[Selected Text from') 
-              ? ' Generated through your selected text'
+              ? ' Generated from your selected text'
               : ' Generated from your reading context'
             }
           </p>
@@ -749,65 +939,126 @@ const SynapsePanel = forwardRef(({
           )}
         </div>
         
-        {parsed.key_insights && parsed.key_insights.length > 0 && (
-          <div className="insight-section">
-            <h4>Key Insights</h4>
-            <ul>
-              {parsed.key_insights.map((insight, index) => (
-                <li key={index}>{insight}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <div className="insights-cards">
+          {parsed.key_insights && parsed.key_insights.length > 0 && (
+            <div className="insight-card compact">
+              <h4 className="insight-card-title">Key Insights</h4>
+              {(() => {
+                const { visible, hasMore, isExpanded } = getTruncatedInsights(parsed.key_insights, 'key_insights', 2);
+                return (
+                  <>
+                    <ul className="insight-list compact">
+                      {visible.map((insight, index) => (
+                        <li key={index}>{insight}</li>
+                      ))}
+                    </ul>
+                    {hasMore && (
+                      <button 
+                        className="expand-toggle"
+                        onClick={() => toggleInsightExpansion('key_insights')}
+                      >
+                        {isExpanded ? 'Show less' : `Show ${parsed.key_insights.length - 2} more`}
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
 
-        {parsed.did_you_know && parsed.did_you_know.length > 0 && (
-          <div className="insight-section">
-            <h4>Did You Know?</h4>
-            <ul>
-              {parsed.did_you_know.map((fact, index) => (
-                <li key={index}>{fact}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+          {parsed.did_you_know && parsed.did_you_know.length > 0 && (
+            <div className="insight-card compact">
+              <h4 className="insight-card-title">Did You Know?</h4>
+              {(() => {
+                const { visible, hasMore, isExpanded } = getTruncatedInsights(parsed.did_you_know, 'did_you_know', 2);
+                return (
+                  <>
+                    <ul className="insight-list compact">
+                      {visible.map((fact, index) => (
+                        <li key={index}>{fact}</li>
+                      ))}
+                    </ul>
+                    {hasMore && (
+                      <button 
+                        className="expand-toggle"
+                        onClick={() => toggleInsightExpansion('did_you_know')}
+                      >
+                        {isExpanded ? 'Show less' : `Show ${parsed.did_you_know.length - 2} more`}
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
 
-        {parsed.contradictions && parsed.contradictions.length > 0 && (
-          <div className="insight-section">
-            <h4>Contradictions & Nuances</h4>
-            <ul>
-              {parsed.contradictions.map((contradiction, index) => (
-                <li key={index}>{contradiction}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+          {parsed.contradictions && parsed.contradictions.length > 0 && (
+            <div className="insight-card compact">
+              <h4 className="insight-card-title">Contradictions & Nuances</h4>
+              {(() => {
+                const { visible, hasMore, isExpanded } = getTruncatedInsights(parsed.contradictions, 'contradictions', 2);
+                return (
+                  <>
+                    <ul className="insight-list compact">
+                      {visible.map((contradiction, index) => (
+                        <li key={index}>{contradiction}</li>
+                      ))}
+                    </ul>
+                    {hasMore && (
+                      <button 
+                        className="expand-toggle"
+                        onClick={() => toggleInsightExpansion('contradictions')}
+                      >
+                        {isExpanded ? 'Show less' : `Show ${parsed.contradictions.length - 2} more`}
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
 
-        {parsed.connections && parsed.connections.length > 0 && (
-          <div className="insight-section">
-            <h4>Cross-Document Connections</h4>
-            <ul>
-              {parsed.connections.map((connection, index) => (
-                <li key={index}>{connection}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+          {parsed.connections && parsed.connections.length > 0 && (
+            <div className="insight-card compact">
+              <h4 className="insight-card-title">Cross-Document Connections</h4>
+              {(() => {
+                const { visible, hasMore, isExpanded } = getTruncatedInsights(parsed.connections, 'connections', 2);
+                return (
+                  <>
+                    <ul className="insight-list compact">
+                      {visible.map((connection, index) => (
+                        <li key={index}>{connection}</li>
+                      ))}
+                    </ul>
+                    {hasMore && (
+                      <button 
+                        className="expand-toggle"
+                        onClick={() => toggleInsightExpansion('connections')}
+                      >
+                        {isExpanded ? 'Show less' : `Show ${parsed.connections.length - 2} more`}
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+        </div>
 
-        {/* Podcast Mode Section */}
-        <div className="podcast-section">
-          <h4>Podcast Mode</h4>
-          <p>Generate an audio summary of these insights</p>
+        {/* Integrated Podcast Mode within the panel */}
+        <div className="integrated-podcast-section">
+          <h4 className="podcast-section-title">Generate Audio Summary</h4>
           
           {!podcastData ? (
             <button 
-              className={`podcast-generate-btn ${isGeneratingPodcast ? 'loading' : ''}`}
+              className={`integrated-podcast-btn ${isGeneratingPodcast ? 'loading' : ''}`}
               onClick={() => generatePodcast(currentContext)}
               disabled={isGeneratingPodcast}
             >
               {isGeneratingPodcast ? (
                 <>
-                  <div className="button-spinner" />
-                  Generating...
+                  <div className="podcast-spinner" />
+                  Generating Audio...
                 </>
               ) : (
                 <>
@@ -818,54 +1069,90 @@ const SynapsePanel = forwardRef(({
             </button>
           ) : podcastData.status === 'error' ? (
             <div className="podcast-error">
-               Failed to generate podcast: {podcastData.error}
-              <br />
-              <small>Try again or check if the backend is running.</small>
+              <strong>🎧 Audio generation failed</strong>
+              <p>We encountered an issue creating your audio summary. This might be due to:</p>
+              <ul>
+                <li>Server connectivity issues</li>
+                <li>Text content formatting problems</li>
+                <li>Audio service temporary unavailability</li>
+              </ul>
+              <button 
+                className="retry-podcast-btn"
+                onClick={() => {
+                  setPodcastData(null);
+                  generatePodcast(currentContext);
+                }}
+              >
+                Try Again
+              </button>
             </div>
           ) : (
-            <div className="podcast-player">
+            <div className="integrated-podcast-player">
               <div className="podcast-status">
                 {podcastData.audio_url ? (
-                  <span className="status-ready"> Audio ready</span>
+                  <span className="status-ready"> Audio ready - Play below</span>
                 ) : (
-                  <span className="status-script"> Script generated, audio processing...</span>
+                  <span className="status-script"> Audio is being processed...</span>
                 )}
               </div>
-              <div className="podcast-controls">
-                <button 
-                  className="play-button"
-                  onClick={handlePlayPause}
-                  title={isPlayingPodcast ? "Pause audio" : "Play audio"}
-                >
-                  {isPlayingPodcast ? <Pause size={16} /> : <Play size={16} />}
-                </button>
-                {podcastData.audio_url && (
+              
+              {podcastData.audio_url && (
+                <div className="minimalist-player">
                   <button 
-                    className="download-button"
+                    className="integrated-play-button"
+                    onClick={handlePlayPause}
+                    title={isPlayingPodcast ? "Pause audio" : "Play audio"}
+                  >
+                    {isPlayingPodcast ? <Pause size={18} /> : <Play size={18} />}
+                    <span className="play-text">
+                      {isPlayingPodcast ? 'Pause Audio' : 'Play Audio Summary'}
+                    </span>
+                  </button>
+                  
+                  <audio 
+                    ref={audioRef}
+                    src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}${podcastData.audio_url}`}
+                    onPlay={() => setIsPlayingPodcast(true)}
+                    onPause={() => setIsPlayingPodcast(false)}
+                    onEnded={() => setIsPlayingPodcast(false)}
+                    onTimeUpdate={handleAudioTimeUpdate}
+                    onLoadedMetadata={handleAudioLoadedMetadata}
+                    onError={(e) => {
+                      console.error('Audio playback error:', e);
+                      setIsPlayingPodcast(false);
+                      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+                      e.target.src = `${API_BASE_URL}${podcastData.audio_url}?t=${Date.now()}`;
+                    }}
+                  />
+                  
+                  <div className="audio-controls">
+                    <div className="audio-time-display">
+                      <span className="current-time">{formatTime(audioCurrentTime)}</span>
+                      <span className="duration">{formatTime(audioDuration)}</span>
+                    </div>
+                    
+                    <div 
+                      className="audio-progress-bar"
+                      onClick={handleSeek}
+                    >
+                      <div 
+                        className={`progress-indicator ${isPlayingPodcast ? 'playing' : ''}`}
+                        style={{ 
+                          width: audioDuration > 0 ? `${(audioCurrentTime / audioDuration) * 100}%` : '0%' 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  <button 
+                    className="download-audio-btn"
                     onClick={() => handleAudioDownload(podcastData.audio_url)}
                     title="Download Audio"
                   >
-                    <Download size={16} />
+                    <Download size={14} />
+                    <span>Download</span>
                   </button>
-                )}
-              </div>
-              {podcastData.audio_url && (
-                <audio 
-                  ref={audioRef}
-                  controls 
-                  className="audio-player"
-                  src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}${podcastData.audio_url}`}
-                  onPlay={() => setIsPlayingPodcast(true)}
-                  onPause={() => setIsPlayingPodcast(false)}
-                  onEnded={() => setIsPlayingPodcast(false)}
-                  onError={(e) => {
-                    console.error('Audio playback error:', e);
-                    setIsPlayingPodcast(false);
-                    // Fallback: try direct file access
-                    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
-                    e.target.src = `${API_BASE_URL}${podcastData.audio_url}?t=${Date.now()}`;
-                  }}
-                />
+                </div>
               )}
             </div>
           )}
@@ -883,18 +1170,42 @@ const SynapsePanel = forwardRef(({
             onClick={() => setActiveTab('connections')}
           >
             <Network size={16} />
-            Related Content
+            Related Snippets
             {connections.length > 0 && (
               <span className="tab-badge">{connections.length}</span>
             )}
           </button>
           
           <button 
-            className={`tab-button ${activeTab === 'insights' ? 'active' : ''}`}
-            onClick={() => setActiveTab('insights')}
+            className={`tab-button insights-bulb-button ${activeTab === 'insights' ? 'active' : ''} ${isLoadingInsights ? 'loading' : ''}`}
+            onClick={() => {
+              setActiveTab('insights');
+              if (!insights && !isLoadingInsights && currentContext && connections.length > 0) {
+                generateInsightsFromContext();
+              }
+            }}
+            disabled={!currentContext || connections.length === 0}
+            title={
+              !currentContext 
+                ? 'Read document first to generate insights'
+                : connections.length === 0 
+                  ? 'No connections found yet - scroll through document'
+                  : `Generate AI insights from ${connections.length} connections`
+            }
           >
-            <Lightbulb size={16} />
-            AI Insights
+            <div className="insights-button-content">
+              {isLoadingInsights ? (
+                <>
+                  <div className="bulb-spinner"></div>
+                  <span>Generating...</span>
+                </>
+              ) : (
+                <>
+                  <Lightbulb size={16} className="insights-bulb-icon" />
+                  <span>AI Insights</span>
+                </>
+              )}
+            </div>
           </button>
         </div>
       </div>
@@ -919,10 +1230,10 @@ const SynapsePanel = forwardRef(({
               <div className="connections-empty">
                 <Network size={48} className="empty-icon" />
                 <div className="empty-content">
-                  <h3>Discover Related Content</h3>
-                  <p>Start reading or select text - connections will automatically appear from your other documents.</p>
+                  <h3>Discover Related Snippets</h3>
+                  <p>Start reading or select text - related snippets will automatically appear from your other documents.</p>
                   <div className="empty-tip">
-                    <span className="tip-icon"></span>
+                    <span className="tip-icon">💡</span>
                     <span>Both reading and text selection trigger the same unified workflow!</span>
                   </div>
                 </div>
@@ -931,11 +1242,11 @@ const SynapsePanel = forwardRef(({
               <div className="connections-list">
                 <div className="connections-header">
                   <div className="header-content">
-                    <h4>Related Content</h4>
+                    <h4>Related Snippets</h4>
                     <p className="header-subtitle">
-                      Found {connections.length} relevant {connections.length === 1 ? 'section' : 'sections'} 
+                      Found {connections.length} relevant {connections.length === 1 ? 'snippet' : 'snippets'} 
                       {currentContext?.includes('[Selected Text from') 
-                        ? ' through your selected text'
+                        ? ' from your selected text'
                         : ' from your reading context'
                       }
                     </p>
@@ -944,32 +1255,6 @@ const SynapsePanel = forwardRef(({
                          From: {cleanFileName(selectedDocument?.file_name) || 'document'}
                       </p>
                     )}
-                  </div>
-                  
-                  {/* UNIFIED WORKFLOW: Next Step Actions (available after connections) */}
-                  <div className="next-step-actions">
-                    <p className="next-step-label">Generate additional analysis:</p>
-                    <div className="action-buttons-row">
-                      <button 
-                        className={`next-step-btn insights-btn ${isLoadingInsights ? 'loading' : ''}`}
-                        onClick={() => generateInsightsFromContext()}
-                        disabled={isLoadingInsights}
-                        title="Generate AI insights from the current context"
-                      >
-                        <Lightbulb size={16} />
-                        {isLoadingInsights ? 'Generating...' : 'Generate Insights'}
-                      </button>
-                      
-                      <button 
-                        className={`next-step-btn podcast-btn ${isGeneratingPodcast ? 'loading' : ''}`}
-                        onClick={() => generatePodcastFromContext()}
-                        disabled={isGeneratingPodcast}
-                        title="Generate audio podcast from the current context"
-                      >
-                        <Radio size={16} />
-                        {isGeneratingPodcast ? 'Creating...' : 'Generate Podcast'}
-                      </button>
-                    </div>
                   </div>
                 </div>
                 {connections.map(renderConnectionCard)}
