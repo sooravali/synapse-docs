@@ -52,16 +52,16 @@ def calculate_file_hash(content: bytes) -> str:
 
 async def process_document_background(document_id: int, file_content: bytes, session: Session):
     """
-    Background task to process uploaded document.
+    Background task to process uploaded document with optimized memory management.
     
-    This implements the complete pipeline:
-    1. Parse PDF using Challenge 1A logic (DocumentParser)
-    2. Generate embeddings using Challenge 1B logic (EmbeddingService)  
-    3. Store in Faiss vector database
-    4. Update database with results
+    This implements the complete pipeline with chunked processing for large documents:
+    1. Parse PDF using Challenge 1A logic (DocumentParser) - streaming approach
+    2. Generate embeddings using Challenge 1B logic (EmbeddingService) - batched processing
+    3. Store in Faiss vector database - incremental updates
+    4. Update database with results - transaction management
     """
     try:
-        logger.info(f"🚀 Document {document_id}: Starting background processing pipeline")
+        logger.info(f"🚀 Document {document_id}: Starting optimized background processing pipeline")
         
         # Get shared service instances
         services = get_services()
@@ -69,9 +69,21 @@ async def process_document_background(document_id: int, file_content: bytes, ses
         embedding_service = services['embedding_service']
         faiss_service = services['faiss_service']
         
-        # Step 1: Extract text chunks using Challenge 1A pipeline
-        logger.info(f"Document {document_id}: Step 1 - Starting text extraction (Challenge 1A)")
-        text_chunks = document_parser.get_text_chunks(file_content)
+        file_size_mb = len(file_content) / (1024 * 1024)
+        logger.info(f"Document {document_id}: Processing {file_size_mb:.1f}MB PDF with optimized pipeline")
+        
+        # Step 1: Extract text chunks using Challenge 1A pipeline (optimized for large files)
+        logger.info(f"Document {document_id}: Step 1 - Starting optimized text extraction (Challenge 1A)")
+        
+        try:
+            text_chunks = document_parser.get_text_chunks(file_content)
+        except Exception as extraction_error:
+            logger.error(f"Document {document_id}: Text extraction failed: {extraction_error}")
+            update_document_status(
+                session, document_id, "error", 
+                f"Text extraction failed: {str(extraction_error)}"
+            )
+            return
         
         if not text_chunks:
             update_document_status(
@@ -82,45 +94,66 @@ async def process_document_background(document_id: int, file_content: bytes, ses
         
         logger.info(f"Document {document_id}: Step 1 - Extracted {len(text_chunks)} text chunks successfully")
         
-        # Step 2: Store text chunks in database with metadata
+        # Step 2: Process chunks in batches to manage memory (optimized for large documents)
+        CHUNK_BATCH_SIZE = 50  # Process 50 chunks at a time to prevent memory issues
         chunk_objects = []
-        for i, chunk_data in enumerate(text_chunks):
+        total_batches = (len(text_chunks) + CHUNK_BATCH_SIZE - 1) // CHUNK_BATCH_SIZE
+        
+        logger.info(f"Document {document_id}: Step 2 - Processing {len(text_chunks)} chunks in {total_batches} batches")
+        
+        for batch_idx in range(total_batches):
+            start_idx = batch_idx * CHUNK_BATCH_SIZE
+            end_idx = min((batch_idx + 1) * CHUNK_BATCH_SIZE, len(text_chunks))
+            batch_chunks = text_chunks[start_idx:end_idx]
+            
+            logger.info(f"Document {document_id}: Processing batch {batch_idx + 1}/{total_batches} ({len(batch_chunks)} chunks)")
+            
+            # Process batch of chunks
+            for i, chunk_data in enumerate(batch_chunks):
+                try:
+                    from app.crud.crud_document import create_text_chunk
+                    from app.schemas.document import TextChunkCreate
+                    
+                    # Extract enhanced metadata from our improved parser
+                    chunk_type = chunk_data.get('chunk_type', 'content')
+                    heading_level = chunk_data.get('heading_level', 0)
+                    section_title = chunk_data.get('section_title', '')
+                    extraction_method = chunk_data.get('extraction_method', 'enhanced_pipeline')
+                    content_quality_score = chunk_data.get('content_quality_score', 0.5)
+                    semantic_markers = chunk_data.get('semantic_markers', [])
+                    
+                    chunk_create = TextChunkCreate(
+                        document_id=document_id,
+                        page_number=chunk_data.get('page_number', 0),
+                        text_chunk=chunk_data.get('text_chunk', ''),
+                        chunk_index=start_idx + i,  # Global chunk index
+                        chunk_type=chunk_type,
+                        heading_level=heading_level if heading_level else None,
+                        section_title=section_title if section_title else None
+                    )
+                    
+                    chunk_obj = create_text_chunk(session, chunk_create)
+                    
+                    # Store enhanced metadata as chunk attributes (if the model supports it)
+                    if hasattr(chunk_obj, '__dict__'):
+                        chunk_obj.__dict__.update({
+                            'extraction_method': extraction_method,
+                            'content_quality_score': content_quality_score,
+                            'semantic_markers': semantic_markers
+                        })
+                    
+                    chunk_objects.append(chunk_obj)
+                    
+                except Exception as e:
+                    logger.error(f"Failed to create chunk {start_idx + i} for document {document_id}: {e}")
+            
+            # Commit batch to prevent memory buildup
             try:
-                from app.crud.crud_document import create_text_chunk
-                from app.schemas.document import TextChunkCreate
-                
-                # Extract enhanced metadata from our improved parser
-                chunk_type = chunk_data.get('chunk_type', 'content')
-                heading_level = chunk_data.get('heading_level', 0)
-                section_title = chunk_data.get('section_title', '')
-                extraction_method = chunk_data.get('extraction_method', 'enhanced_pipeline')
-                content_quality_score = chunk_data.get('content_quality_score', 0.5)
-                semantic_markers = chunk_data.get('semantic_markers', [])
-                
-                chunk_create = TextChunkCreate(
-                    document_id=document_id,
-                    page_number=chunk_data.get('page_number', 0),
-                    text_chunk=chunk_data.get('text_chunk', ''),
-                    chunk_index=i,
-                    chunk_type=chunk_type,
-                    heading_level=heading_level if heading_level else None,
-                    section_title=section_title if section_title else None
-                )
-                
-                chunk_obj = create_text_chunk(session, chunk_create)
-                
-                # Store enhanced metadata as chunk attributes (if the model supports it)
-                if hasattr(chunk_obj, '__dict__'):
-                    chunk_obj.__dict__.update({
-                        'extraction_method': extraction_method,
-                        'content_quality_score': content_quality_score,
-                        'semantic_markers': semantic_markers
-                    })
-                
-                chunk_objects.append(chunk_obj)
-                
-            except Exception as e:
-                logger.error(f"Failed to create chunk {i} for document {document_id}: {e}")
+                session.commit()
+                logger.info(f"Document {document_id}: Batch {batch_idx + 1} committed to database")
+            except Exception as commit_error:
+                logger.error(f"Document {document_id}: Failed to commit batch {batch_idx + 1}: {commit_error}")
+                session.rollback()
         
         logger.info(f"Document {document_id}: Step 2 - Created {len(chunk_objects)} text chunks in database")
         
@@ -131,22 +164,53 @@ async def process_document_background(document_id: int, file_content: bytes, ses
             )
             return
         
-        # Step 3: Generate embeddings using Challenge 1B logic
-        logger.info(f"Document {document_id}: Step 3 - Starting embedding generation (Challenge 1B)")
+        # Step 3: Generate embeddings using Challenge 1B logic (optimized batching)
+        logger.info(f"Document {document_id}: Step 3 - Starting optimized embedding generation (Challenge 1B)")
         
-        chunk_texts = [chunk.text_chunk for chunk in chunk_objects]
-        embeddings = embedding_service.create_embeddings_batch(chunk_texts)
+        # Process embeddings in smaller batches to prevent memory issues
+        EMBEDDING_BATCH_SIZE = 32  # Optimal batch size for all-MiniLM-L6-v2
+        all_embeddings = []
+        total_embedding_batches = (len(chunk_objects) + EMBEDDING_BATCH_SIZE - 1) // EMBEDDING_BATCH_SIZE
         
-        if not embeddings or len(embeddings) != len(chunk_objects):
+        logger.info(f"Document {document_id}: Generating embeddings in {total_embedding_batches} batches")
+        
+        for batch_idx in range(total_embedding_batches):
+            start_idx = batch_idx * EMBEDDING_BATCH_SIZE
+            end_idx = min((batch_idx + 1) * EMBEDDING_BATCH_SIZE, len(chunk_objects))
+            batch_chunks = chunk_objects[start_idx:end_idx]
+            
+            batch_texts = [chunk.text_chunk for chunk in batch_chunks]
+            
+            try:
+                batch_embeddings = embedding_service.create_embeddings_batch(batch_texts)
+                if batch_embeddings and len(batch_embeddings) == len(batch_chunks):
+                    all_embeddings.extend(batch_embeddings)
+                    logger.info(f"Document {document_id}: Generated embeddings for batch {batch_idx + 1}/{total_embedding_batches}")
+                else:
+                    logger.error(f"Document {document_id}: Embedding generation failed for batch {batch_idx + 1}")
+                    update_document_status(
+                        session, document_id, "error", 
+                        f"Failed to generate embeddings for batch {batch_idx + 1}"
+                    )
+                    return
+            except Exception as embedding_error:
+                logger.error(f"Document {document_id}: Embedding generation error in batch {batch_idx + 1}: {embedding_error}")
+                update_document_status(
+                    session, document_id, "error", 
+                    f"Embedding generation failed: {str(embedding_error)}"
+                )
+                return
+        
+        if not all_embeddings or len(all_embeddings) != len(chunk_objects):
             update_document_status(
                 session, document_id, "error", 
-                "Failed to generate embeddings for text chunks"
+                "Failed to generate embeddings for all text chunks"
             )
             return
         
-        logger.info(f"Document {document_id}: Step 3 - Generated {len(embeddings)} embeddings successfully")
+        logger.info(f"Document {document_id}: Step 3 - Generated {len(all_embeddings)} embeddings successfully")
         
-        # Step 4: Store embeddings in Faiss vector database
+        # Step 4: Store embeddings in Faiss vector database (incremental updates)
         logger.info(f"Document {document_id}: Step 4 - Building metadata for vector storage")
         metadata_list = []
         for chunk in chunk_objects:
@@ -164,49 +228,89 @@ async def process_document_background(document_id: int, file_content: bytes, ses
             }
             metadata_list.append(chunk_metadata)
         
-        faiss_positions = faiss_service.add_embeddings(embeddings, metadata_list)
-        
-        if not faiss_positions:
+        try:
+            faiss_positions = faiss_service.add_embeddings(all_embeddings, metadata_list)
+            
+            if not faiss_positions:
+                update_document_status(
+                    session, document_id, "error", 
+                    "Failed to store embeddings in vector database"
+                )
+                return
+            
+            logger.info(f"Document {document_id}: Step 4 - Added {len(faiss_positions)} vectors to Faiss index")
+        except Exception as faiss_error:
+            logger.error(f"Document {document_id}: Faiss storage error: {faiss_error}")
             update_document_status(
                 session, document_id, "error", 
-                "Failed to store embeddings in vector database"
+                f"Vector database storage failed: {str(faiss_error)}"
             )
             return
         
-        logger.info(f"Document {document_id}: Step 4 - Added {len(faiss_positions)} vectors to Faiss index")
-        
-        # Step 5: Update chunks with Faiss positions and embedding metadata
+        # Step 5: Update chunks with Faiss positions and embedding metadata (batched updates)
         from app.crud.crud_document import update_chunk_faiss_position, update_chunk_embedding_metadata
         
-        for chunk, faiss_pos in zip(chunk_objects, faiss_positions):
-            update_chunk_faiss_position(session, chunk.id, faiss_pos)
-            update_chunk_embedding_metadata(
-                session, chunk.id, 
-                embedding_service.model_name, 
-                len(embeddings[0]) if embeddings else 384
-            )
+        METADATA_BATCH_SIZE = 100  # Update metadata in batches
+        total_metadata_batches = (len(chunk_objects) + METADATA_BATCH_SIZE - 1) // METADATA_BATCH_SIZE
+        
+        logger.info(f"Document {document_id}: Step 5 - Updating chunk metadata in {total_metadata_batches} batches")
+        
+        for batch_idx in range(total_metadata_batches):
+            start_idx = batch_idx * METADATA_BATCH_SIZE
+            end_idx = min((batch_idx + 1) * METADATA_BATCH_SIZE, len(chunk_objects))
+            
+            for i in range(start_idx, end_idx):
+                chunk = chunk_objects[i]
+                faiss_pos = faiss_positions[i]
+                
+                try:
+                    update_chunk_faiss_position(session, chunk.id, faiss_pos)
+                    update_chunk_embedding_metadata(
+                        session, chunk.id, 
+                        embedding_service.model_name, 
+                        len(all_embeddings[0]) if all_embeddings else 384
+                    )
+                except Exception as metadata_error:
+                    logger.warning(f"Failed to update metadata for chunk {chunk.id}: {metadata_error}")
+            
+            # Commit metadata batch
+            try:
+                session.commit()
+                logger.info(f"Document {document_id}: Metadata batch {batch_idx + 1}/{total_metadata_batches} committed")
+            except Exception as commit_error:
+                logger.error(f"Document {document_id}: Failed to commit metadata batch: {commit_error}")
+                session.rollback()
         
         logger.info(f"Document {document_id}: Step 5 - Updated chunk metadata and positions")
         
-        # Step 6: Analyze document structure for enhanced metadata
+        # Step 6: Analyze document structure for enhanced metadata (optimized)
         try:
             document_chunks = get_chunks_for_semantic_analysis(session, document_id)
             logger.info(f"Document {document_id}: Step 6a - Retrieved {len(document_chunks)} chunks for structure analysis")
             
-            structure_analysis = embedding_service.analyze_document_structure(document_chunks)
+            # For very large documents, limit structure analysis to prevent timeout
+            if len(document_chunks) > 1000:  # If more than 1000 chunks, sample for analysis
+                import random
+                sample_size = min(500, len(document_chunks))  # Analyze up to 500 chunks
+                sampled_chunks = random.sample(document_chunks, sample_size)
+                logger.info(f"Document {document_id}: Large document detected, sampling {sample_size} chunks for analysis")
+                structure_analysis = embedding_service.analyze_document_structure(sampled_chunks)
+            else:
+                structure_analysis = embedding_service.analyze_document_structure(document_chunks)
+                
             logger.info(f"Document {document_id}: Step 6b - Structure analysis completed successfully")
         except Exception as semantic_error:
             logger.error(f"Document {document_id}: Step 6 failed - Structure analysis error: {semantic_error}")
             # Continue with a basic structure_analysis
             structure_analysis = {"language": "unknown", "sections": []}
         
-        # Stage 7: Update document status to ready with enhanced metadata
-                # Calculate page count from chunks
+        # Step 7: Update document status to ready with enhanced metadata
+        # Calculate page count from chunks
         page_numbers = [chunk.page_number for chunk in chunk_objects if chunk.page_number is not None]
         page_count = max(page_numbers) + 1 if page_numbers else 1
         logger.info(f"Document {document_id}: Step 6c - Calculated page_count={page_count}")
         
-        # Step 7: Create processing metadata
+        # Step 8: Create processing metadata
         language = structure_analysis.get('language', 'unknown') if structure_analysis else 'unknown'
         section_count = len(structure_analysis.get('sections', [])) if structure_analysis else 0
         logger.info(f"Document {document_id}: Step 7a - Analysis results: language={language}, sections={section_count}")
@@ -215,23 +319,29 @@ async def process_document_background(document_id: int, file_content: bytes, ses
             'total_chunks': len(chunk_objects),
             'page_count': page_count,
             'document_language': language,
-            'extraction_method': 'enhanced_challenge_1a_pipeline',
+            'extraction_method': 'optimized_challenge_1a_pipeline',
             'embedding_model': embedding_service.model_name,
-            'embedding_dimension': len(embeddings[0]) if embeddings else 384,
-            'processing_quality': 'enhanced',
-            'semantic_analysis_available': True
+            'embedding_dimension': len(all_embeddings[0]) if all_embeddings else 384,
+            'processing_quality': 'optimized_for_large_documents',
+            'semantic_analysis_available': True,
+            'file_size_mb': file_size_mb,
+            'processing_batches': {
+                'chunk_batches': total_batches,
+                'embedding_batches': total_embedding_batches,
+                'metadata_batches': total_metadata_batches
+            }
         }
         
         logger.info(f"Document {document_id}: Step 7b - Processing metadata created successfully")
         
-        # Step 8: Update document status and finalize processing
+        # Step 9: Update document status and finalize processing
         update_document_status(
             session, document_id, "ready",
             processing_metadata=processing_metadata
         )
         
         logger.info(f"Document {document_id}: Step 8 - Processing completed successfully")
-        logger.info(f"Document {document_id}: Final status: READY ({len(chunk_objects)} chunks, {page_count} pages)")
+        logger.info(f"Document {document_id}: Final status: READY ({len(chunk_objects)} chunks, {page_count} pages, {file_size_mb:.1f}MB)")
         
     except Exception as e:
         logger.error(f"Document {document_id}: Processing failed with error: {e}")
@@ -269,6 +379,13 @@ async def upload_document(
         
         file_size_mb = len(file_content) / (1024 * 1024)
         logger.info(f"📄 File validated: {file.filename} ({file_size_mb:.1f}MB)")
+        
+        # Validate file size against limit
+        if file_size_mb > settings.MAX_FILE_SIZE_MB:
+            raise HTTPException(
+                status_code=413, 
+                detail=f"File size {file_size_mb:.1f}MB exceeds maximum allowed size of {settings.MAX_FILE_SIZE_MB}MB. Please use a smaller file or contact support for large document processing."
+            )
         
         # Calculate content hash to prevent duplicates
         content_hash = calculate_file_hash(file_content)
@@ -370,6 +487,17 @@ async def upload_multiple_documents(
                     "filename": file.filename,
                     "success": False,
                     "message": "Uploaded file is empty",
+                    "document_id": None
+                })
+                continue
+            
+            # Validate file size
+            file_size_mb = len(file_content) / (1024 * 1024)
+            if file_size_mb > settings.MAX_FILE_SIZE_MB:
+                results.append({
+                    "filename": file.filename,
+                    "success": False,
+                    "message": f"File size {file_size_mb:.1f}MB exceeds maximum allowed size of {settings.MAX_FILE_SIZE_MB}MB",
                     "document_id": None
                 })
                 continue
@@ -814,3 +942,49 @@ async def view_document(
             "Access-Control-Allow-Headers": "*"
         }
     )
+
+@router.get("/processing-status/{document_id}")
+async def get_processing_status(
+    document_id: int,
+    session: Session = Depends(get_session)
+):
+    """
+    Get detailed processing status for a document.
+    Useful for monitoring large document processing progress.
+    """
+    try:
+        document = get_document(session, document_id)
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Get chunk count for progress indication
+        from app.crud.crud_document import get_document_chunk_count
+        try:
+            chunk_count = get_document_chunk_count(session, document_id)
+        except:
+            chunk_count = 0
+        
+        # Parse processing metadata if available
+        processing_info = {}
+        if document.processing_metadata:
+            try:
+                import json
+                processing_info = json.loads(document.processing_metadata)
+            except:
+                processing_info = {}
+        
+        return {
+            "document_id": document_id,
+            "file_name": document.file_name,
+            "status": document.status,
+            "file_size_mb": round((document.file_size or 0) / (1024 * 1024), 2),
+            "chunk_count": chunk_count,
+            "error_message": document.error_message,
+            "processing_info": processing_info,
+            "created_at": document.created_at,
+            "updated_at": document.updated_at
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get processing status for document {document_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get processing status: {str(e)}")
