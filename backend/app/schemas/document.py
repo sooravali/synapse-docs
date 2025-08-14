@@ -29,6 +29,16 @@ class DocumentPublic(DocumentBase):
     class Config:
         from_attributes = True
 
+    @validator('file_name')
+    def clean_filename(cls, v):
+        """Remove doc_X_ prefix from filename for frontend display."""
+        if isinstance(v, str) and v.startswith('doc_') and '_' in v:
+            # Remove "doc_X_" prefix: "doc_5_filename.pdf" -> "filename.pdf"
+            parts = v.split('_', 2)  # Split on first 2 underscores
+            if len(parts) >= 3:
+                return parts[2]  # Return everything after "doc_X_"
+        return v
+
 class DocumentUploadResponse(BaseModel):
     """Response schema for document upload."""
     message: str = Field(..., description="Upload status message")
@@ -105,6 +115,16 @@ class SearchResultItem(BaseModel):
     chunk_type: Optional[str] = None
     heading_level: Optional[str] = None
     semantic_cluster: Optional[int] = None
+
+    @validator('document_name')
+    def clean_document_name(cls, v):
+        """Remove doc_X_ prefix from document name for frontend display."""
+        if isinstance(v, str) and v.startswith('doc_') and '_' in v:
+            # Remove "doc_X_" prefix: "doc_5_filename.pdf" -> "filename.pdf"
+            parts = v.split('_', 2)  # Split on first 2 underscores
+            if len(parts) >= 3:
+                return parts[2]  # Return everything after "doc_X_"
+        return v
 
 class SearchResponse(BaseModel):
     """Response schema for search queries."""
