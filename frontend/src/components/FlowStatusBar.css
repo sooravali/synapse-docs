@@ -36,15 +36,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   transition: all 0.3s ease;
 }
 
 .status-step svg {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
 }
 
 .status-label {
@@ -87,11 +87,11 @@
 }
 
 .status-connector {
-  width: 18px;
+  width: 20px;
   height: 2px;
   background: rgba(255, 255, 255, 0.3);
   border-radius: 1px;
-  margin-top: 16px; /* Align with the center of the larger icons */
+  margin-top: 20px; /* Align with the center of the larger icons */
 }
 
 .status-message {

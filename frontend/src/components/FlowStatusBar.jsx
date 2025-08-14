@@ -20,19 +20,17 @@ const FlowStatusBar = ({
   useEffect(() => {
     if (!document) {
       setFlowStep('upload');
-    } else if (!currentContext) {
-      setFlowStep('read');
     } else if (connectionsCount === 0 && !isLoadingConnections) {
-      setFlowStep('scroll');
+      setFlowStep('connect');
     } else if (connectionsCount > 0 && !hasInsights) {
-      setFlowStep('insights');
+      setFlowStep('generate');
     } else {
       setFlowStep('complete');
     }
   }, [document, connectionsCount, hasInsights, isLoadingConnections, currentContext]);
 
   const getStepStatus = (step) => {
-    const steps = ['upload', 'read', 'scroll', 'insights', 'complete'];
+    const steps = ['upload', 'connect', 'generate', 'complete'];
     const currentIndex = steps.indexOf(flowStep);
     const stepIndex = steps.indexOf(step);
     
@@ -45,10 +43,10 @@ const FlowStatusBar = ({
     switch (step) {
       case 'upload':
         return 'Upload';
-      case 'scroll':
-        return 'Read';
-      case 'insights':
-        return 'Insights';
+      case 'connect':
+        return 'Connect';
+      case 'generate':
+        return 'Generate';
       default:
         return '';
     }
@@ -58,12 +56,10 @@ const FlowStatusBar = ({
     switch (flowStep) {
       case 'upload':
         return 'Upload your PDF(s) to get started';
-      case 'read':
+      case 'connect':
         return 'Start reading or select text to find connections';
-      case 'scroll':
+      case 'generate':
         return 'Generate insights or podcasts for deeper analysis';
-      case 'insights':
-        return 'Great! Try generating insights or podcasts';
       case 'complete':
         return 'All features unlocked! Continue exploring documents';
       default:
@@ -77,7 +73,7 @@ const FlowStatusBar = ({
         <div className="status-steps">
           <div className="status-step-container">
             <div className={`status-step ${getStepStatus('upload')}`}>
-              <FileText size={16} />
+              <FileText size={20} />
             </div>
             <div className={`status-label ${getStepStatus('upload')}`}>
               {getStepLabel('upload')}
@@ -85,20 +81,20 @@ const FlowStatusBar = ({
           </div>
           <div className="status-connector" />
           <div className="status-step-container">
-            <div className={`status-step ${getStepStatus('scroll')}`}>
-              <Network size={16} />
+            <div className={`status-step ${getStepStatus('connect')}`}>
+              <Network size={20} />
             </div>
-            <div className={`status-label ${getStepStatus('scroll')}`}>
-              {getStepLabel('scroll')}
+            <div className={`status-label ${getStepStatus('connect')}`}>
+              {getStepLabel('connect')}
             </div>
           </div>
           <div className="status-connector" />
           <div className="status-step-container">
-            <div className={`status-step ${getStepStatus('insights')}`}>
-              <Lightbulb size={16} />
+            <div className={`status-step ${getStepStatus('generate')}`}>
+              <Lightbulb size={20} />
             </div>
-            <div className={`status-label ${getStepStatus('insights')}`}>
-              {getStepLabel('insights')}
+            <div className={`status-label ${getStepStatus('generate')}`}>
+              {getStepLabel('generate')}
             </div>
           </div>
         </div>
