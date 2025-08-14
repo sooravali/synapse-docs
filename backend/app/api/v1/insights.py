@@ -4,7 +4,7 @@ Implements the "Insights Bulb" and "Podcast Mode" features
 """
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.responses import FileResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import Dict, Any, Optional, List
 import logging
 import os
@@ -46,6 +46,16 @@ class DocumentInsightsResponse(BaseModel):
     processing_quality: str
     status: str
     error: Optional[str] = None
+
+    @validator('document_name')
+    def clean_document_name(cls, v):
+        """Remove doc_X_ prefix from document name for frontend display."""
+        if isinstance(v, str) and v.startswith('doc_') and '_' in v:
+            # Remove "doc_X_" prefix: "doc_5_filename.pdf" -> "filename.pdf"
+            parts = v.split('_', 2)  # Split on first 2 underscores
+            if len(parts) >= 3:
+                return parts[2]  # Return everything after "doc_X_"
+        return v
 
 class PodcastResponse(BaseModel):
     script: str
