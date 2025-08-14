@@ -17,8 +17,8 @@ loglevel = "info"
 accesslog = "-"  # Log to stdout
 errorlog = "-"   # Log to stderr
 
-# Timeout settings
-timeout = 120
+# Timeout settings - Increased for large document processing
+timeout = 300  # Increased from 120 to 300 seconds (5 minutes) for large PDFs
 keepalive = 2
 
 # Performance settings - Optimized for ML workloads
