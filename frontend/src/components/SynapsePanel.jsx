@@ -706,7 +706,8 @@ const SynapsePanel = forwardRef(({
 
   const handleAudioDownload = async (audioUrl) => {
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+        (import.meta.env.PROD ? '' : 'http://localhost:8080');
       const fullUrl = `${API_BASE_URL}${audioUrl}`;
       console.log(` Downloading audio from: ${fullUrl}`);
       
@@ -726,7 +727,8 @@ const SynapsePanel = forwardRef(({
       console.error(' Audio download failed:', error);
       
       // Fallback: open in new tab
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+        (import.meta.env.PROD ? '' : 'http://localhost:8080');
       const fullUrl = `${API_BASE_URL}${audioUrl}`;
       window.open(fullUrl, '_blank');
     }
@@ -1140,7 +1142,7 @@ const SynapsePanel = forwardRef(({
                   
                   <audio 
                     ref={audioRef}
-                    src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}${podcastData.audio_url}`}
+                    src={`${import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:8080')}${podcastData.audio_url}`}
                     onPlay={() => setIsPlayingPodcast(true)}
                     onPause={() => setIsPlayingPodcast(false)}
                     onEnded={() => setIsPlayingPodcast(false)}
@@ -1149,7 +1151,8 @@ const SynapsePanel = forwardRef(({
                     onError={(e) => {
                       console.error('Audio playback error:', e);
                       setIsPlayingPodcast(false);
-                      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+                      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+                        (import.meta.env.PROD ? '' : 'http://localhost:8080');
                       e.target.src = `${API_BASE_URL}${podcastData.audio_url}?t=${Date.now()}`;
                     }}
                   />

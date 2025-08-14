@@ -15,7 +15,12 @@ class Settings(BaseSettings):
     ADOBE_CLIENT_ID: Optional[str] = None
     
     # CORS Configuration
-    CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:8000", "http://localhost:8080"]
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:5173", 
+        "http://localhost:8000", 
+        "http://localhost:8080",
+        "https://synapse-docs-833062842245.us-central1.run.app"  # Cloud Run production URL
+    ]
     
     # Vector Search Configuration (configurable for different scenarios)
     FAISS_INDEX_PATH: str = "./data/faiss_index/index.faiss"

@@ -559,8 +559,10 @@ const DocumentWorkbench = forwardRef(({
 
       adobeViewRef.current = adobeDCView;
 
-      // Get the PDF URL with proper error handling
-      const pdfUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/documents/view/${document.id}`;
+      // Get the PDF URL with proper error handling - use relative path in production
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+        (import.meta.env.PROD ? '' : 'http://localhost:8080');
+      const pdfUrl = `${API_BASE_URL}/api/v1/documents/view/${document.id}`;
       console.log(` Loading PDF from: ${pdfUrl}`);
 
       // Configure preview options based on Adobe best practices
