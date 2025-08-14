@@ -61,7 +61,7 @@ async def process_document_background(document_id: int, file_content: bytes, ses
     4. Update database with results - transaction management
     """
     try:
-        logger.info(f"🚀 Document {document_id}: Starting optimized background processing pipeline")
+        logger.info(f"Document {document_id}: Starting optimized background processing pipeline")
         
         # Get shared service instances
         services = get_services()
@@ -369,7 +369,7 @@ async def upload_document(
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
     
     try:
-        logger.info(f"📄 Upload initiated: {file.filename}")
+        logger.info(f"Upload initiated: {file.filename}")
         
         # Read file content
         file_content = await file.read()
@@ -378,7 +378,7 @@ async def upload_document(
             raise HTTPException(status_code=400, detail="Uploaded file is empty")
         
         file_size_mb = len(file_content) / (1024 * 1024)
-        logger.info(f"📄 File validated: {file.filename} ({file_size_mb:.1f}MB)")
+        logger.info(f"File validated: {file.filename} ({file_size_mb:.1f}MB)")
         
         # Validate file size against limit
         if file_size_mb > settings.MAX_FILE_SIZE_MB:
@@ -393,7 +393,7 @@ async def upload_document(
         # Check if document already exists
         existing_doc = get_document_by_hash(session, content_hash)
         if existing_doc:
-            logger.info(f"📄 Duplicate detected: {file.filename} (returning existing document {existing_doc.id})")
+            logger.info(f"Duplicate detected: {file.filename} (returning existing document {existing_doc.id})")
             return DocumentUploadResponse(
                 message="Document already exists",
                 document_id=existing_doc.id,
@@ -408,7 +408,7 @@ async def upload_document(
         )
         
         document = create_document(session, document_create)
-        logger.info(f"📄 Document created: {file.filename} (ID: {document.id})")
+        logger.info(f"Document created: {file.filename} (ID: {document.id})")
         
         # Create uploads directory if it doesn't exist (use environment-configurable path)
         uploads_dir = os.environ.get("UPLOADS_DIR", "uploads")
@@ -462,12 +462,12 @@ async def upload_multiple_documents(
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
     
-    logger.info(f"📄 Batch upload initiated: {len(files)} files")
+    logger.info(f"Batch upload initiated: {len(files)} files")
     results = []
     
     for i, file in enumerate(files, 1):
         try:
-            logger.info(f"📄 Processing file {i}/{len(files)}: {file.filename}")
+            logger.info(f"Processing file {i}/{len(files)}: {file.filename}")
             
             # Validate file type
             if not file.filename.lower().endswith('.pdf'):
@@ -573,7 +573,7 @@ async def upload_multiple_documents(
     successful_uploads = sum(1 for r in results if r["success"])
     failed_uploads = sum(1 for r in results if not r["success"])
     
-    logger.info(f"📄 Batch upload completed: {successful_uploads} successful, {failed_uploads} failed")
+    logger.info(f"Batch upload completed: {successful_uploads} successful, {failed_uploads} failed")
     
     return {
         "message": f"Processed {len(files)} files",
@@ -722,12 +722,12 @@ async def clear_all_documents(
     Use with caution - this operation cannot be undone!
     """
     try:
-        logger.info("🗑️ Starting clear all documents operation...")
+        logger.info("Starting clear all documents operation...")
         
         # Get all documents first
         documents = get_all_documents(session)
         document_count = len(documents)
-        logger.info(f"📊 Found {document_count} documents to delete")
+        logger.info(f"Found {document_count} documents to delete")
         
         if document_count == 0:
             return JSONResponse(
@@ -745,7 +745,7 @@ async def clear_all_documents(
                 # Delete from database
                 delete_document(session, document.id)
                 deleted_count += 1
-                logger.info(f"✅ Deleted document: {document.file_name}")
+                logger.info(f" Deleted document: {document.file_name}")
                 
                 # Clean up physical file if it exists
                 # Files are stored in uploads/ directory with the document's file_name
@@ -753,12 +753,12 @@ async def clear_all_documents(
                 if os.path.exists(file_path):
                     try:
                         os.remove(file_path)
-                        logger.info(f"🗂️ Removed file: {file_path}")
+                        logger.info(f"Removed file: {file_path}")
                     except Exception as file_error:
-                        logger.warning(f"⚠️ Could not remove file {file_path}: {file_error}")
+                        logger.warning(f"Could not remove file {file_path}: {file_error}")
                         
             except Exception as doc_error:
-                logger.error(f"❌ Failed to delete document {document.id}: {doc_error}")
+                logger.error(f" Failed to delete document {document.id}: {doc_error}")
                 continue
         
         # Clear Faiss vector index
@@ -766,13 +766,13 @@ async def clear_all_documents(
             services = get_services()
             faiss_service = services['faiss_service']
             faiss_service.clear_index()
-            logger.info("🧹 Cleared Faiss vector index")
+            logger.info("Cleared Faiss vector index")
             
             # Reload the index to ensure clean state
             faiss_service.reload_index()
-            logger.info("🔄 Reloaded Faiss index after clear")
+            logger.info("Reloaded Faiss index after clear")
         except Exception as faiss_error:
-            logger.error(f"❌ Failed to clear/reload Faiss index: {faiss_error}")
+            logger.error(f"Failed to clear/reload Faiss index: {faiss_error}")
         
         # Clear uploads directory
         uploads_dir = "uploads"
@@ -783,12 +783,12 @@ async def clear_all_documents(
                     file_path = os.path.join(uploads_dir, filename)
                     if os.path.isfile(file_path):
                         os.remove(file_path)
-                        logger.info(f"🗂️ Removed upload file: {filename}")
-                logger.info("🧹 Cleared uploads directory")
+                        logger.info(f"Removed upload file: {filename}")
+                logger.info("Cleared uploads directory")
             except Exception as upload_error:
-                logger.warning(f"⚠️ Could not clear uploads directory: {upload_error}")
+                logger.warning(f"Could not clear uploads directory: {upload_error}")
         
-        logger.info(f"✅ Clear all operation completed: {deleted_count}/{document_count} documents deleted")
+        logger.info(f" Clear all operation completed: {deleted_count}/{document_count} documents deleted")
         
         return JSONResponse(
             content={
@@ -800,7 +800,7 @@ async def clear_all_documents(
         )
         
     except Exception as e:
-        logger.error(f"❌ Clear all documents failed: {str(e)}")
+        logger.error(f" Clear all documents failed: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to clear all documents: {str(e)}"
@@ -816,7 +816,7 @@ async def reload_faiss_index():
     and uploading new ones.
     """
     try:
-        logger.info("🔄 Reloading Faiss index from disk...")
+        logger.info("Reloading Faiss index from disk...")
         
         services = get_services()
         faiss_service = services['faiss_service']
@@ -824,7 +824,7 @@ async def reload_faiss_index():
         index_size = faiss_service.get_index_size()
         
         if success:
-            logger.info(f"✅ Successfully reloaded Faiss index with {index_size} vectors")
+            logger.info(f" Successfully reloaded Faiss index with {index_size} vectors")
             return JSONResponse(
                 content={
                     "message": f"Successfully reloaded Faiss index",
@@ -833,7 +833,7 @@ async def reload_faiss_index():
                 }
             )
         else:
-            logger.error("❌ Failed to reload Faiss index")
+            logger.error(" Failed to reload Faiss index")
             raise HTTPException(status_code=500, detail="Failed to reload Faiss index")
             
     except Exception as e:
