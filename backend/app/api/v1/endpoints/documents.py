@@ -61,7 +61,7 @@ async def process_document_background(document_id: int, file_content: bytes, ses
     4. Update database with results
     """
     try:
-        logger.info(f"Starting background processing for document {document_id}")
+        logger.info(f"🚀 Document {document_id}: Starting background processing pipeline")
         
         # Get shared service instances
         services = get_services()
@@ -69,8 +69,8 @@ async def process_document_background(document_id: int, file_content: bytes, ses
         embedding_service = services['embedding_service']
         faiss_service = services['faiss_service']
         
-        # Stage 1: Extract text chunks using Challenge 1A pipeline
-        logger.info(f"Document {document_id}: Starting Challenge 1A text extraction")
+        # Step 1: Extract text chunks using Challenge 1A pipeline
+        logger.info(f"Document {document_id}: Step 1 - Starting text extraction (Challenge 1A)")
         text_chunks = document_parser.get_text_chunks(file_content)
         
         if not text_chunks:
@@ -80,9 +80,9 @@ async def process_document_background(document_id: int, file_content: bytes, ses
             )
             return
         
-        logger.info(f"Document {document_id}: Extracted {len(text_chunks)} text chunks")
+        logger.info(f"Document {document_id}: Step 1 - Extracted {len(text_chunks)} text chunks successfully")
         
-        # Stage 2: Store text chunks in database with enhanced metadata
+        # Step 2: Store text chunks in database with metadata
         chunk_objects = []
         for i, chunk_data in enumerate(text_chunks):
             try:
@@ -122,7 +122,7 @@ async def process_document_background(document_id: int, file_content: bytes, ses
             except Exception as e:
                 logger.error(f"Failed to create chunk {i} for document {document_id}: {e}")
         
-        logger.info(f"Document {document_id}: Created {len(chunk_objects)} enhanced text chunks")
+        logger.info(f"Document {document_id}: Step 2 - Created {len(chunk_objects)} text chunks in database")
         
         if not chunk_objects:
             update_document_status(
@@ -131,8 +131,8 @@ async def process_document_background(document_id: int, file_content: bytes, ses
             )
             return
         
-        # Stage 3: Generate embeddings using Challenge 1B logic
-        logger.info(f"Document {document_id}: Starting Challenge 1B embedding generation")
+        # Step 3: Generate embeddings using Challenge 1B logic
+        logger.info(f"Document {document_id}: Step 3 - Starting embedding generation (Challenge 1B)")
         
         chunk_texts = [chunk.text_chunk for chunk in chunk_objects]
         embeddings = embedding_service.create_embeddings_batch(chunk_texts)
@@ -144,9 +144,10 @@ async def process_document_background(document_id: int, file_content: bytes, ses
             )
             return
         
-        logger.info(f"Document {document_id}: Generated {len(embeddings)} embeddings")
+        logger.info(f"Document {document_id}: Step 3 - Generated {len(embeddings)} embeddings successfully")
         
-        # Stage 4: Store embeddings in Faiss vector database with enhanced metadata
+        # Step 4: Store embeddings in Faiss vector database
+        logger.info(f"Document {document_id}: Step 4 - Building metadata for vector storage")
         metadata_list = []
         for chunk in chunk_objects:
             chunk_metadata = {
@@ -172,7 +173,9 @@ async def process_document_background(document_id: int, file_content: bytes, ses
             )
             return
         
-        # Stage 5: Update chunks with Faiss positions
+        logger.info(f"Document {document_id}: Step 4 - Added {len(faiss_positions)} vectors to Faiss index")
+        
+        # Step 5: Update chunks with Faiss positions and embedding metadata
         from app.crud.crud_document import update_chunk_faiss_position, update_chunk_embedding_metadata
         
         for chunk, faiss_pos in zip(chunk_objects, faiss_positions):
@@ -183,37 +186,35 @@ async def process_document_background(document_id: int, file_content: bytes, ses
                 len(embeddings[0]) if embeddings else 384
             )
         
-        # Stage 6: Perform semantic analysis using Challenge 1B logic
-        logger.info(f"Document {document_id}: Running semantic analysis")
+        logger.info(f"Document {document_id}: Step 5 - Updated chunk metadata and positions")
         
+        # Step 6: Analyze document structure for enhanced metadata
         try:
             document_chunks = get_chunks_for_semantic_analysis(session, document_id)
-            logger.info(f"Document {document_id}: Retrieved {len(document_chunks)} chunks for analysis")
-            
-            # Debug: check chunk data
-            for i, chunk in enumerate(document_chunks):
-                logger.info(f"Document {document_id}: Chunk {i}: page_number={chunk.get('page_number')}, type={type(chunk.get('page_number'))}")
+            logger.info(f"Document {document_id}: Step 6a - Retrieved {len(document_chunks)} chunks for structure analysis")
             
             structure_analysis = embedding_service.analyze_document_structure(document_chunks)
+            logger.info(f"Document {document_id}: Step 6b - Structure analysis completed successfully")
         except Exception as semantic_error:
-            logger.error(f"Document {document_id}: Semantic analysis failed: {semantic_error}")
+            logger.error(f"Document {document_id}: Step 6 failed - Structure analysis error: {semantic_error}")
             # Continue with a basic structure_analysis
             structure_analysis = {"language": "unknown", "sections": []}
         
         # Stage 7: Update document status to ready with enhanced metadata
-        # Calculate page count safely, handling None values
+                # Calculate page count from chunks
         page_numbers = [chunk.page_number for chunk in chunk_objects if chunk.page_number is not None]
         page_count = max(page_numbers) + 1 if page_numbers else 1
-        logger.info(f"Document {document_id}: Calculated page_count={page_count} from page_numbers={page_numbers}")
+        logger.info(f"Document {document_id}: Step 6c - Calculated page_count={page_count}")
         
-        # Debug structure_analysis
-        logger.info(f"Document {document_id}: structure_analysis={structure_analysis}")
-        logger.info(f"Document {document_id}: structure_analysis type={type(structure_analysis)}")
+        # Step 7: Create processing metadata
+        language = structure_analysis.get('language', 'unknown') if structure_analysis else 'unknown'
+        section_count = len(structure_analysis.get('sections', [])) if structure_analysis else 0
+        logger.info(f"Document {document_id}: Step 7a - Analysis results: language={language}, sections={section_count}")
         
         processing_metadata = {
             'total_chunks': len(chunk_objects),
             'page_count': page_count,
-            'document_language': structure_analysis.get('language', 'unknown') if structure_analysis else 'unknown',
+            'document_language': language,
             'extraction_method': 'enhanced_challenge_1a_pipeline',
             'embedding_model': embedding_service.model_name,
             'embedding_dimension': len(embeddings[0]) if embeddings else 384,
@@ -221,23 +222,23 @@ async def process_document_background(document_id: int, file_content: bytes, ses
             'semantic_analysis_available': True
         }
         
-        logger.info(f"Document {document_id}: Created processing_metadata successfully")
+        logger.info(f"Document {document_id}: Step 7b - Processing metadata created successfully")
         
+        # Step 8: Update document status and finalize processing
         update_document_status(
-            session, document_id, "ready", 
+            session, document_id, "ready",
             processing_metadata=processing_metadata
         )
         
-        logger.info(f"Document {document_id}: Processing completed successfully")
+        logger.info(f"Document {document_id}: Step 8 - Processing completed successfully")
+        logger.info(f"Document {document_id}: Final status: READY ({len(chunk_objects)} chunks, {page_count} pages)")
         
     except Exception as e:
-        logger.error(f"Document {document_id}: Processing failed: {e}")
+        logger.error(f"Document {document_id}: Processing failed with error: {e}")
         update_document_status(
             session, document_id, "error", 
             f"Processing failed: {str(e)}"
-        )
-
-# Document Management Endpoints
+        )# Document Management Endpoints
 
 @router.post("/upload", response_model=DocumentUploadResponse)
 async def upload_document(
@@ -258,11 +259,16 @@ async def upload_document(
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
     
     try:
+        logger.info(f"📄 Upload initiated: {file.filename}")
+        
         # Read file content
         file_content = await file.read()
         
         if len(file_content) == 0:
             raise HTTPException(status_code=400, detail="Uploaded file is empty")
+        
+        file_size_mb = len(file_content) / (1024 * 1024)
+        logger.info(f"📄 File validated: {file.filename} ({file_size_mb:.1f}MB)")
         
         # Calculate content hash to prevent duplicates
         content_hash = calculate_file_hash(file_content)
@@ -270,6 +276,7 @@ async def upload_document(
         # Check if document already exists
         existing_doc = get_document_by_hash(session, content_hash)
         if existing_doc:
+            logger.info(f"📄 Duplicate detected: {file.filename} (returning existing document {existing_doc.id})")
             return DocumentUploadResponse(
                 message="Document already exists",
                 document_id=existing_doc.id,
@@ -284,6 +291,7 @@ async def upload_document(
         )
         
         document = create_document(session, document_create)
+        logger.info(f"📄 Document created: {file.filename} (ID: {document.id})")
         
         # Create uploads directory if it doesn't exist (use environment-configurable path)
         uploads_dir = os.environ.get("UPLOADS_DIR", "uploads")
@@ -337,10 +345,13 @@ async def upload_multiple_documents(
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
     
+    logger.info(f"📄 Batch upload initiated: {len(files)} files")
     results = []
     
-    for file in files:
+    for i, file in enumerate(files, 1):
         try:
+            logger.info(f"📄 Processing file {i}/{len(files)}: {file.filename}")
+            
             # Validate file type
             if not file.filename.lower().endswith('.pdf'):
                 results.append({
@@ -431,12 +442,17 @@ async def upload_multiple_documents(
                 "document_id": None
             })
     
+    successful_uploads = sum(1 for r in results if r["success"])
+    failed_uploads = sum(1 for r in results if not r["success"])
+    
+    logger.info(f"📄 Batch upload completed: {successful_uploads} successful, {failed_uploads} failed")
+    
     return {
         "message": f"Processed {len(files)} files",
         "results": results,
         "total_files": len(files),
-        "successful_uploads": sum(1 for r in results if r["success"]),
-        "failed_uploads": sum(1 for r in results if not r["success"])
+        "successful_uploads": successful_uploads,
+        "failed_uploads": failed_uploads
     }
 
 @router.get("/", response_model=List[DocumentPublic])
