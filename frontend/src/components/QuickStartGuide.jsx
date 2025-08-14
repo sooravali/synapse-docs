@@ -81,7 +81,7 @@ const QuickStartGuide = ({ onDismiss }) => {
             <h3>{currentStepData.title}</h3>
             <p>{currentStepData.description}</p>
             <div className="step-highlight">
-              <span className="highlight-icon">✨</span>
+              <span className="highlight-icon"></span>
               <span>{currentStepData.highlight}</span>
             </div>
           </div>
