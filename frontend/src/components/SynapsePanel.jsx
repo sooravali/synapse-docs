@@ -42,7 +42,7 @@ const SynapsePanel = forwardRef(({
   const generateInsightsFromContext = async () => {
     if (!currentContext || isLoadingInsights) return;
     
-    console.log(`🧠 UNIFIED WORKFLOW - Generating insights from current context: "${currentContext.substring(0, 50)}..."`);
+    console.log(` UNIFIED WORKFLOW - Generating insights from current context: "${currentContext.substring(0, 50)}..."`);
     setActiveTab('insights'); // Switch to insights tab
     await generateInsights(currentContext, connections);
   };
@@ -50,7 +50,7 @@ const SynapsePanel = forwardRef(({
   const generatePodcastFromContext = async () => {
     if (!currentContext || isGeneratingPodcast) return;
     
-    console.log(`🎧 UNIFIED WORKFLOW - Generating podcast from current context: "${currentContext.substring(0, 50)}..."`);
+    console.log(` UNIFIED WORKFLOW - Generating podcast from current context: "${currentContext.substring(0, 50)}..."`);
     await generatePodcast(currentContext);
   };
 
@@ -135,25 +135,25 @@ const SynapsePanel = forwardRef(({
 
   // STAGE 1: Auto-search for connections when context changes (ENHANCED CACHING)
   useEffect(() => {
-    console.log(`🔄 SynapsePanel: STAGE 1 - Context changed to: "${currentContext?.substring(0, 50)}..."`);
+    console.log(` SynapsePanel: STAGE 1 - Context changed to: "${currentContext?.substring(0, 50)}..."`);
     
     if (!currentContext || currentContext.length <= 10) {
-      console.log(`❌ SynapsePanel: Context too short or empty, not searching`);
+      console.log(` SynapsePanel: Context too short or empty, not searching`);
       return;
     }
 
     // Extract page context for intelligent caching
     const pageContext = extractPageContext(currentContext, selectedDocument);
     if (!pageContext) {
-      console.log(`❌ SynapsePanel: Could not extract page context, skipping search`);
+      console.log(` SynapsePanel: Could not extract page context, skipping search`);
       return;
     }
 
-    console.log(`📄 SynapsePanel: Page context:`, pageContext);
+    console.log(` SynapsePanel: Page context:`, pageContext);
 
     // TEXT SELECTION: Always search immediately, don't use cache
     if (pageContext.isTextSelection) {
-      console.log(`✨ SynapsePanel: TEXT SELECTION detected - bypassing cache and searching immediately`);
+      console.log(` SynapsePanel: TEXT SELECTION detected - bypassing cache and searching immediately`);
       searchForConnections(currentContext, pageContext);
       lastQueryRef.current = currentContext;
       lastPageContextRef.current = pageContext;
@@ -165,7 +165,7 @@ const SynapsePanel = forwardRef(({
     if (lastPageContextRef.current && 
         lastPageContextRef.current.identifier === pageContext.identifier &&
         connections.length > 0) {
-      console.log(`🔄 SynapsePanel: Same page context as last time with existing connections, skipping duplicate API call`);
+      console.log(` SynapsePanel: Same page context as last time with existing connections, skipping duplicate API call`);
       return;
     }
 
@@ -174,26 +174,26 @@ const SynapsePanel = forwardRef(({
     const cachedEntry = connectionsCache.current.get(cacheKey);
     
     if (cachedEntry) {
-      console.log(`⚡ SynapsePanel: Found cached results for page ${pageContext.identifier}`);
+      console.log(` SynapsePanel: Found cached results for page ${pageContext.identifier}`);
       
       // For content-based caching, verify content similarity
       if (pageContext.isContentBased && cachedEntry.contentHash !== pageContext.contentHash) {
-        console.log(`🔍 SynapsePanel: Content hash mismatch, checking similarity...`);
+        console.log(` SynapsePanel: Content hash mismatch, checking similarity...`);
         
         // Simple similarity check - if hashes are different but close, still use cache
         const hashDiff = Math.abs(parseInt(cachedEntry.contentHash) - parseInt(pageContext.contentHash));
         const similarityThreshold = 1000; // Adjust as needed
         
         if (hashDiff > similarityThreshold) {
-          console.log(`📊 SynapsePanel: Content significantly different (hash diff: ${hashDiff}), will search again`);
+          console.log(` SynapsePanel: Content significantly different (hash diff: ${hashDiff}), will search again`);
         } else {
-          console.log(`✅ SynapsePanel: Content similar enough (hash diff: ${hashDiff}), using cache`);
+          console.log(` SynapsePanel: Content similar enough (hash diff: ${hashDiff}), using cache`);
           setConnections(cachedEntry.results);
           lastPageContextRef.current = pageContext;
           
           // SMART TAB MANAGEMENT: Don't auto-switch if user is actively viewing insights
           if (activeTab !== 'insights') {
-            console.log(`📋 SynapsePanel: Auto-switching to connections tab (user not viewing insights)`);
+            console.log(` SynapsePanel: Auto-switching to connections tab (user not viewing insights)`);
             setActiveTab('connections');
           }
           
@@ -204,7 +204,7 @@ const SynapsePanel = forwardRef(({
         }
       } else {
         // Page-based cache hit
-        console.log(`✅ SynapsePanel: Using cached results for page ${pageContext.identifier}`);
+        console.log(` SynapsePanel: Using cached results for page ${pageContext.identifier}`);
         setConnections(cachedEntry.results);
         lastPageContextRef.current = pageContext;
         
@@ -226,7 +226,7 @@ const SynapsePanel = forwardRef(({
     }
 
     // INSTANT SEARCH: No debounce delay for immediate response
-    console.log(`🔍 SynapsePanel: IMMEDIATE search triggered for page: ${pageContext.identifier}`);
+    console.log(` SynapsePanel: IMMEDIATE search triggered for page: ${pageContext.identifier}`);
     searchForConnections(currentContext, pageContext);
 
     // Update last query and page context references
@@ -259,15 +259,15 @@ const SynapsePanel = forwardRef(({
   // STAGE 2: Expose methods to parent component for explicit insights generation
   useImperativeHandle(ref, () => ({
     generateInsights: (text, contextConnections = []) => {
-      console.log(`💡 SynapsePanel: STAGE 2 - Explicit insights request for: "${text?.substring(0, 50)}..."`);
+      console.log(` SynapsePanel: STAGE 2 - Explicit insights request for: "${text?.substring(0, 50)}..."`);
       return generateInsights(text, contextConnections);
     },
     generatePodcast: (text) => {
-      console.log(`🎧 SynapsePanel: STAGE 2 - Explicit podcast request for: "${text?.substring(0, 50)}..."`);
+      console.log(` SynapsePanel: STAGE 2 - Explicit podcast request for: "${text?.substring(0, 50)}..."`);
       return generatePodcast(text);
     },
     resetPanelState: () => {
-      console.log('🔄 SynapsePanel: Resetting panel state for new document');
+      console.log(' SynapsePanel: Resetting panel state for new document');
       setConnections([]);
       setInsights(null);
       setPodcastData(null);
@@ -281,19 +281,19 @@ const SynapsePanel = forwardRef(({
   }));
 
   const searchForConnections = async (query, pageContext) => {
-    console.log(`🔎 SynapsePanel: STAGE 1 - Starting enhanced connections search for page: ${pageContext?.identifier || 'unknown'}`);
-    console.log(`🔍 Full query text being sent:`, query.substring(0, 100) + '...');
+    console.log(` SynapsePanel: STAGE 1 - Starting enhanced connections search for page: ${pageContext?.identifier || 'unknown'}`);
+    console.log(` Full query text being sent:`, query.substring(0, 100) + '...');
     
     // OPTIMIZATION: Prevent concurrent requests
     if (isLoadingConnections) {
-      console.log(`⏳ SynapsePanel: Already loading connections, skipping...`);
+      console.log(` SynapsePanel: Already loading connections, skipping...`);
       return;
     }
     
     setIsLoadingConnections(true);
     
     try {
-      console.log(`📡 SynapsePanel: Making API call to semantic search...`);
+      console.log(` SynapsePanel: Making API call to semantic search...`);
       
       // Request at least 5 results to ensure we get 3+ relevant sections (hackathon requirement)
       const results = await searchAPI.semantic({
@@ -302,10 +302,10 @@ const SynapsePanel = forwardRef(({
         similarity_threshold: 0.1  // Very low threshold to ensure we get results
       });
       
-      console.log(`📥 SynapsePanel: API response received:`, results);
+      console.log(` SynapsePanel: API response received:`, results);
       
       const connections = results.results || [];
-      console.log(`📊 SynapsePanel: Found ${connections.length} raw connections`);
+      console.log(` SynapsePanel: Found ${connections.length} raw connections`);
       
       // Filter for >80% accuracy where possible, but show at least 3 results
       const highAccuracyConnections = connections.filter(conn => conn.similarity_score > 0.8);
@@ -313,8 +313,8 @@ const SynapsePanel = forwardRef(({
         ? highAccuracyConnections.slice(0, 3)
         : connections.slice(0, Math.max(3, connections.length));
       
-      console.log(`🎯 STAGE 1 - Found ${finalConnections.length} connections (requirement: ≥3 with >80% accuracy)`);
-      console.log(`📊 Accuracy distribution:`, finalConnections.map(c => `${Math.round(c.similarity_score * 100)}%`));
+      console.log(` STAGE 1 - Found ${finalConnections.length} connections (requirement: ≥3 with >80% accuracy)`);
+      console.log(` Accuracy distribution:`, finalConnections.map(c => `${Math.round(c.similarity_score * 100)}%`));
       
       // ENHANCED CACHING: Cache by page context with content hash
       if (pageContext) {
@@ -325,44 +325,44 @@ const SynapsePanel = forwardRef(({
           timestamp: Date.now()
         };
         connectionsCache.current.set(cacheKey, cacheEntry);
-        console.log(`💾 SynapsePanel: Cached results for page ${pageContext.identifier} (cache size: ${connectionsCache.current.size})`);
+        console.log(` SynapsePanel: Cached results for page ${pageContext.identifier} (cache size: ${connectionsCache.current.size})`);
       } else {
         // Fallback to query-based caching
         connectionsCache.current.set(query, finalConnections);
-        console.log(`💾 SynapsePanel: Cached results with query fallback (cache size: ${connectionsCache.current.size})`);
+        console.log(` SynapsePanel: Cached results with query fallback (cache size: ${connectionsCache.current.size})`);
       }
       
       setConnections(finalConnections);
-      console.log(`✅ SynapsePanel: Updated connections state with ${finalConnections.length} items`);
+      console.log(` SynapsePanel: Updated connections state with ${finalConnections.length} items`);
       
       // SMART TAB MANAGEMENT: Don't auto-switch if user is actively viewing insights
       if (activeTab !== 'insights') {
-        console.log(`📋 SynapsePanel: Auto-switching to connections tab (user not viewing insights)`);
+        console.log(` SynapsePanel: Auto-switching to connections tab (user not viewing insights)`);
         setActiveTab('connections');
       } else {
-        console.log(`�️ SynapsePanel: User is viewing insights, preserving current tab`);
+        console.log(`� SynapsePanel: User is viewing insights, preserving current tab`);
       }
-      console.log(`📋 SynapsePanel: Stage 1 completed with smart tab management`);
+      console.log(` SynapsePanel: Stage 1 completed with smart tab management`);
       
       // Notify parent about connections update for potential insights context
       if (onConnectionsUpdate) {
         onConnectionsUpdate(finalConnections);
-        console.log(`📤 SynapsePanel: Notified parent of connections update`);
+        console.log(` SynapsePanel: Notified parent of connections update`);
       }
     } catch (error) {
-      console.error('❌ SynapsePanel: STAGE 1 - Failed to search for connections:', error);
+      console.error(' SynapsePanel: STAGE 1 - Failed to search for connections:', error);
       setConnections([]);
     } finally {
       setIsLoadingConnections(false);
-      console.log(`✅ SynapsePanel: STAGE 1 - Connections search completed`);
+      console.log(` SynapsePanel: STAGE 1 - Connections search completed`);
     }
   };
 
   const generateInsights = async (text, contextConnections = []) => {
-    console.log(`🧠 SynapsePanel: STAGE 2 - Starting explicit insights generation for: "${text?.substring(0, 50)}..."`);
+    console.log(` SynapsePanel: STAGE 2 - Starting explicit insights generation for: "${text?.substring(0, 50)}..."`);
     
     if (isLoadingInsights) {
-      console.log(`⏳ SynapsePanel: Already generating insights, skipping...`);
+      console.log(` SynapsePanel: Already generating insights, skipping...`);
       return;
     }
     
@@ -377,15 +377,15 @@ const SynapsePanel = forwardRef(({
           ).join('\n\n')}`
         : "";
       
-      console.log(`🧠 STAGE 2 - Generating insights with ${contextConnections.length} context connections from Stage 1`);
+      console.log(` STAGE 2 - Generating insights with ${contextConnections.length} context connections from Stage 1`);
       
       const result = await insightsAPI.generate(text, enrichedContext);
       
       // Parse the insights JSON string
       let parsedInsights;
       
-      console.log('🔍 DEBUG - Raw insights type:', typeof result.insights);
-      console.log('🔍 DEBUG - Raw insights value:', result.insights);
+      console.log(' DEBUG - Raw insights type:', typeof result.insights);
+      console.log(' DEBUG - Raw insights value:', result.insights);
       
       try {
         let insightsData = result.insights;
@@ -398,7 +398,7 @@ const SynapsePanel = forwardRef(({
           // Remove any surrounding markdown
           insightsData = insightsData.replace(/^```json\s*/, '').replace(/\s*```$/, '');
           
-          console.log('🔍 DEBUG - Cleaned insights:', insightsData.substring(0, 100) + '...');
+          console.log(' DEBUG - Cleaned insights:', insightsData.substring(0, 100) + '...');
           
           // Parse the JSON
           parsedInsights = JSON.parse(insightsData);
@@ -407,7 +407,7 @@ const SynapsePanel = forwardRef(({
           parsedInsights = insightsData;
         }
         
-        console.log('✅ DEBUG - Parsed insights:', parsedInsights);
+        console.log(' DEBUG - Parsed insights:', parsedInsights);
         
         // SPECIAL CASE: Check if the real insights are nested inside key_insights[0]
         if (parsedInsights.key_insights && 
@@ -415,22 +415,22 @@ const SynapsePanel = forwardRef(({
             typeof parsedInsights.key_insights[0] === 'string' &&
             parsedInsights.key_insights[0].includes('```json')) {
           
-          console.log('🔍 DEBUG - Found nested JSON in key_insights[0], extracting...');
+          console.log(' DEBUG - Found nested JSON in key_insights[0], extracting...');
           
           // Extract the nested JSON
           let nestedJson = parsedInsights.key_insights[0];
           nestedJson = nestedJson.replace(/```json\s*/g, '').replace(/```\s*/g, '');
           nestedJson = nestedJson.trim();
           
-          console.log('🔍 DEBUG - Nested JSON before fixing:', nestedJson.substring(0, 200) + '...');
+          console.log(' DEBUG - Nested JSON before fixing:', nestedJson.substring(0, 200) + '...');
           
           // More aggressive cleaning for escaped characters
           try {
             // First, try to parse it as-is (in case it's already properly formatted)
             parsedInsights = JSON.parse(nestedJson);
-            console.log('✅ DEBUG - Successfully parsed without fixing:', parsedInsights);
+            console.log(' DEBUG - Successfully parsed without fixing:', parsedInsights);
           } catch (firstAttempt) {
-            console.log('🔄 DEBUG - First parse failed, trying to fix escaping...');
+            console.log(' DEBUG - First parse failed, trying to fix escaping...');
             
             // Fix escaped quotes and other JSON issues step by step
             let fixedJson = nestedJson;
@@ -446,17 +446,17 @@ const SynapsePanel = forwardRef(({
             fixedJson = fixedJson.replace(/\\n/g, ' ');
             fixedJson = fixedJson.replace(/\n/g, ' ');
             
-            console.log('🔍 DEBUG - Nested JSON after fixing:', fixedJson.substring(0, 200) + '...');
+            console.log(' DEBUG - Nested JSON after fixing:', fixedJson.substring(0, 200) + '...');
             
             // Try parsing the fixed version
             parsedInsights = JSON.parse(fixedJson);
-            console.log('✅ DEBUG - Successfully parsed after fixing:', parsedInsights);
+            console.log(' DEBUG - Successfully parsed after fixing:', parsedInsights);
           }
         }
         
       } catch (parseError) {
-        console.error('❌ DEBUG - JSON parse failed:', parseError);
-        console.log('📝 DEBUG - Failed on text:', result.insights);
+        console.error(' DEBUG - JSON parse failed:', parseError);
+        console.log(' DEBUG - Failed on text:', result.insights);
         
         // Simple fallback: just show the raw text for now to identify the issue
         parsedInsights = {
@@ -475,9 +475,9 @@ const SynapsePanel = forwardRef(({
         sourceType: text && text.includes('[Selected Text from') ? 'selection' : 'reading'
       });
       
-      console.log(`✅ STAGE 2 - Insights generation completed successfully`);
+      console.log(` STAGE 2 - Insights generation completed successfully`);
     } catch (error) {
-      console.error('❌ STAGE 2 - Failed to generate insights:', error);
+      console.error(' STAGE 2 - Failed to generate insights:', error);
       setInsights({
         status: 'error',
         error: 'Failed to generate insights',
@@ -489,15 +489,15 @@ const SynapsePanel = forwardRef(({
   };
 
   const generatePodcast = async (content) => {
-    console.log(`🎧 SynapsePanel: STAGE 2 - Starting explicit podcast generation for: "${content?.substring(0, 50)}..."`);
+    console.log(` SynapsePanel: STAGE 2 - Starting explicit podcast generation for: "${content?.substring(0, 50)}..."`);
     
     if (isGeneratingPodcast) {
-      console.log(`⏳ SynapsePanel: Already generating podcast, skipping...`);
+      console.log(` SynapsePanel: Already generating podcast, skipping...`);
       return;
     }
 
     if (!content || typeof content !== 'string' || content.trim().length === 0) {
-      console.error('❌ SynapsePanel: Invalid content for podcast generation');
+      console.error(' SynapsePanel: Invalid content for podcast generation');
       setPodcastData({
         status: 'error',
         error: 'No content available for podcast generation'
@@ -516,9 +516,9 @@ const SynapsePanel = forwardRef(({
       
       const result = await podcastAPI.generate(content, relatedContent);
       setPodcastData(result);
-      console.log(`✅ STAGE 2 - Podcast generation completed successfully`);
+      console.log(` STAGE 2 - Podcast generation completed successfully`);
     } catch (error) {
-      console.error('❌ STAGE 2 - Failed to generate podcast:', error);
+      console.error(' STAGE 2 - Failed to generate podcast:', error);
       setPodcastData({
         status: 'error',
         error: 'Failed to generate podcast'
@@ -532,7 +532,7 @@ const SynapsePanel = forwardRef(({
     try {
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
       const fullUrl = `${API_BASE_URL}${audioUrl}`;
-      console.log(`🔽 Downloading audio from: ${fullUrl}`);
+      console.log(` Downloading audio from: ${fullUrl}`);
       
       // Create a temporary anchor element for download
       const link = document.createElement('a');
@@ -545,9 +545,9 @@ const SynapsePanel = forwardRef(({
       link.click();
       document.body.removeChild(link);
       
-      console.log(`✅ Audio download initiated successfully`);
+      console.log(` Audio download initiated successfully`);
     } catch (error) {
-      console.error('❌ Audio download failed:', error);
+      console.error(' Audio download failed:', error);
       
       // Fallback: open in new tab
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
@@ -567,15 +567,15 @@ const SynapsePanel = forwardRef(({
         // Pause the audio
         audioRef.current.pause();
         setIsPlayingPodcast(false);
-        console.log('🔇 Audio paused');
+        console.log(' Audio paused');
       } else {
         // Play the audio
         await audioRef.current.play();
         setIsPlayingPodcast(true);
-        console.log('🔊 Audio playing');
+        console.log(' Audio playing');
       }
     } catch (error) {
-      console.error('❌ Audio play/pause error:', error);
+      console.error(' Audio play/pause error:', error);
       setIsPlayingPodcast(false);
       
       // Show user-friendly error message
@@ -605,11 +605,11 @@ const SynapsePanel = forwardRef(({
       const endTime = performance.now();
       const navigationTime = endTime - startTime;
       
-      console.log(`🚀 Navigation completed in ${navigationTime.toFixed(2)}ms (requirement: <2000ms)`);
+      console.log(` Navigation completed in ${navigationTime.toFixed(2)}ms (requirement: <2000ms)`);
       
       // Show success feedback
       if (navigationTime < 2000) {
-        console.log('✅ Navigation performance meets hackathon requirements');
+        console.log(' Navigation performance meets hackathon requirements');
       }
     }
   };
@@ -649,7 +649,7 @@ const SynapsePanel = forwardRef(({
         <div className="connection-footer">
           <div className="connection-source">
             <div className="source-document">
-              {!isCurrentDocument && <span className="document-indicator">📄</span>}
+              {!isCurrentDocument && <span className="document-indicator"></span>}
               <span className="document-name">{documentName}</span>
             </div>
             <div className="source-page">Page {connection.page_number + 1}</div>
@@ -738,13 +738,13 @@ const SynapsePanel = forwardRef(({
           <h4>AI Insights</h4>
           <p className="insights-context">
             {insights.context && insights.context.includes('[Selected Text from') 
-              ? '🎯 Generated through your selected text'
-              : '📖 Generated from your reading context'
+              ? ' Generated through your selected text'
+              : ' Generated from your reading context'
             }
           </p>
           {insights.context && insights.context.includes('[Selected Text from') && (
             <p className="context-source">
-              📄 From: {cleanFileName(selectedDocument?.file_name) || 'document'}
+               From: {cleanFileName(selectedDocument?.file_name) || 'document'}
             </p>
           )}
         </div>
@@ -818,7 +818,7 @@ const SynapsePanel = forwardRef(({
             </button>
           ) : podcastData.status === 'error' ? (
             <div className="podcast-error">
-              ❌ Failed to generate podcast: {podcastData.error}
+               Failed to generate podcast: {podcastData.error}
               <br />
               <small>Try again or check if the backend is running.</small>
             </div>
@@ -826,9 +826,9 @@ const SynapsePanel = forwardRef(({
             <div className="podcast-player">
               <div className="podcast-status">
                 {podcastData.audio_url ? (
-                  <span className="status-ready">🎧 Audio ready</span>
+                  <span className="status-ready"> Audio ready</span>
                 ) : (
-                  <span className="status-script">📄 Script generated, audio processing...</span>
+                  <span className="status-script"> Script generated, audio processing...</span>
                 )}
               </div>
               <div className="podcast-controls">
@@ -922,7 +922,7 @@ const SynapsePanel = forwardRef(({
                   <h3>Discover Related Content</h3>
                   <p>Start reading or select text - connections will automatically appear from your other documents.</p>
                   <div className="empty-tip">
-                    <span className="tip-icon">🎯</span>
+                    <span className="tip-icon"></span>
                     <span>Both reading and text selection trigger the same unified workflow!</span>
                   </div>
                 </div>
@@ -941,7 +941,7 @@ const SynapsePanel = forwardRef(({
                     </p>
                     {currentContext?.includes('[Selected Text from') && (
                       <p className="context-source">
-                        📄 From: {cleanFileName(selectedDocument?.file_name) || 'document'}
+                         From: {cleanFileName(selectedDocument?.file_name) || 'document'}
                       </p>
                     )}
                   </div>
@@ -985,3 +985,4 @@ const SynapsePanel = forwardRef(({
 });
 
 export default SynapsePanel;
+
