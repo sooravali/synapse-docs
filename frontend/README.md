@@ -2,7 +2,7 @@
 
 A sophisticated React frontend application for document management with AI-powered semantic search and Adobe PDF viewing capabilities.
 
-## 🚀 Features
+##  Features
 
 ### Core Functionality
 - **Document Upload**: Drag-and-drop interface with progress tracking
@@ -19,7 +19,7 @@ A sophisticated React frontend application for document management with AI-power
 - **Accessibility** features and keyboard navigation
 - **Error Boundaries** and graceful degradation
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 frontend/
@@ -41,7 +41,7 @@ frontend/
 └── README.md                 # This file
 ```
 
-## 🛠️ Installation
+##  Installation
 
 ### Prerequisites
 - Node.js 18+ and npm
@@ -70,7 +70,7 @@ frontend/
    - Navigate to `http://localhost:3000`
    - The application should load with the two-panel interface
 
-## 🎯 Usage Guide
+##  Usage Guide
 
 ### Document Upload
 1. **Drag and Drop**: Drag PDF files onto the upload area
@@ -90,7 +90,7 @@ frontend/
 3. **Search Integration**: Automatic page jumping from search results
 4. **Page Management**: Programmatic navigation via search results
 
-## 🔧 Development
+##  Development
 
 ### Available Scripts
 
@@ -197,7 +197,7 @@ await getDocumentContent(documentId);
 await searchDocuments(query);
 ```
 
-## 🎨 Styling
+##  Styling
 
 ### CSS Architecture
 - **Component-scoped styles** in App.css
@@ -223,7 +223,7 @@ await searchDocuments(query);
 }
 ```
 
-## 🔒 Security
+##  Security
 
 ### Environment Variables
 - Adobe Client ID is safe to expose (client-side)
@@ -236,7 +236,7 @@ await searchDocuments(query);
 - CORS configuration handled by backend
 - Error messages don't expose sensitive information
 
-## 🧪 Testing
+##  Testing
 
 ### Manual Testing Checklist
 - [ ] File upload works with drag-and-drop
@@ -253,7 +253,7 @@ await searchDocuments(query);
 - Safari 14+
 - Edge 90+
 
-## 🚀 Deployment
+##  Deployment
 
 ### Environment Configuration
 ```bash
@@ -272,7 +272,7 @@ npm run build
 ### Domain Configuration
 Remember to update Adobe Developer Console with production domains.
 
-## 🛠️ Troubleshooting
+##  Troubleshooting
 
 ### Common Issues
 
@@ -294,14 +294,14 @@ Remember to update Adobe Developer Console with production domains.
 ### Debug Mode
 Set `VITE_DEBUG=true` for additional logging.
 
-## 📚 Additional Resources
+##  Additional Resources
 
 - [Adobe PDF Embed API Documentation](https://developer.adobe.com/document-services/docs/overview/pdf-embed-api/)
 - [React Documentation](https://react.dev/)
 - [Vite Documentation](https://vitejs.dev/)
 - [Adobe Setup Guide](../ADOBE_SETUP.md)
 
-## 🤝 Contributing
+##  Contributing
 
 1. Follow React best practices
 2. Maintain accessibility standards
@@ -309,6 +309,7 @@ Set `VITE_DEBUG=true` for additional logging.
 4. Update documentation for new features
 5. Follow the existing code style
 
-## 📄 License
+##  License
 
 This project is part of the Synapse Docs application. See the main project README for licensing information.
+
