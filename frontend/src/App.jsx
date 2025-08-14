@@ -239,6 +239,7 @@ function App() {
             selectedDocument={selectedDocument}
             onConnectionSelect={handleConnectionSelect}
             onConnectionsUpdate={setConnectionResults}
+            onInsightsGenerated={setHasInsights}
           />
         </div>
       </div>
