@@ -58,7 +58,10 @@ class Settings(BaseSettings):
     DEFAULT_DOCUMENT_LANGUAGE: str = "unknown"
     
     # Processing Configuration
-    MAX_FILE_SIZE_MB: int = 100
+    MAX_FILE_SIZE_MB: int = 500  # Increased from 100MB to 500MB for large documents
+    CHUNK_BATCH_SIZE: int = 50   # Number of chunks to process in each batch
+    EMBEDDING_BATCH_SIZE: int = 32  # Optimal batch size for embedding generation
+    METADATA_BATCH_SIZE: int = 100  # Number of metadata updates per batch
     
     # LLM Content Generation Configuration  
     INSIGHTS_SYSTEM_PROMPT: Optional[str] = None
