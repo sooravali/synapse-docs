@@ -105,18 +105,30 @@ const DocumentLibrary = ({
     setUploadProgress(progressTracker);
 
     try {
-      // Upload files
-      const response = await documentAPI.uploadMultiple(fileArray);
+      // Upload files with real-time progress tracking
+      const response = await documentAPI.uploadMultiple(fileArray, (percentCompleted) => {
+        // Update all files with the same upload progress since it's a batch upload
+        const updatedTracker = { ...progressTracker };
+        Object.keys(updatedTracker).forEach(key => {
+          updatedTracker[key] = {
+            ...updatedTracker[key],
+            status: percentCompleted < 100 ? 'uploading' : 'processing',
+            progress: percentCompleted < 100 ? percentCompleted : 75 // Switch to processing at 75%
+          };
+        });
+        setUploadProgress(updatedTracker);
+      });
       
-      // Update progress to processing
+      // Upload completed, now show processing state
+      const processingTracker = {};
       Object.keys(progressTracker).forEach(key => {
-        progressTracker[key] = {
+        processingTracker[key] = {
           ...progressTracker[key],
           status: 'processing',
-          progress: 50
+          progress: 85 // Show 85% while documents are being processed
         };
       });
-      setUploadProgress({ ...progressTracker });
+      setUploadProgress(processingTracker);
 
       // Small delay to ensure database transaction is committed
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -126,12 +138,23 @@ const DocumentLibrary = ({
       await onDocumentsUpdate();
       console.log('✅ Document list refreshed, checking status...');
       
+      // Show completion state briefly
+      const completedTracker = {};
+      Object.keys(progressTracker).forEach(key => {
+        completedTracker[key] = {
+          ...progressTracker[key],
+          status: 'completed',
+          progress: 100
+        };
+      });
+      setUploadProgress(completedTracker);
+      
       // Note: Documents will start as "processing" - polling effect will handle status updates
       
       // Clear progress after successful upload
       setTimeout(() => {
         setUploadProgress({});
-      }, 2000);
+      }, 3000); // Longer delay to show completion
 
     } catch (error) {
       console.error('Upload failed:', error);
@@ -321,11 +344,16 @@ const DocumentLibrary = ({
             <div key={key} className="progress-item">
               <div className="progress-info">
                 <span className="progress-name">{progress.name}</span>
-                <span className="progress-status">{progress.status}</span>
+                <span className="progress-status">
+                  {progress.status === 'uploading' && `Uploading... ${progress.progress}%`}
+                  {progress.status === 'processing' && `Processing... ${progress.progress}%`}
+                  {progress.status === 'completed' && `✅ Completed!`}
+                  {progress.status === 'error' && `❌ Error`}
+                </span>
               </div>
               <div className="progress-bar">
                 <div 
-                  className="progress-fill" 
+                  className={`progress-fill ${progress.status === 'completed' ? 'completed' : ''} ${progress.status === 'error' ? 'error' : ''}`}
                   style={{ width: `${progress.progress}%` }}
                 />
               </div>

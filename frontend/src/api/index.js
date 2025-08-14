@@ -21,7 +21,7 @@ const api = axios.create({
 // API functions for document operations
 export const documentAPI = {
   // Upload a PDF document
-  upload: async (file) => {
+  upload: async (file, onUploadProgress = null) => {
     const formData = new FormData();
     formData.append('file', file);
     
@@ -30,12 +30,16 @@ export const documentAPI = {
         'Content-Type': 'multipart/form-data',
       },
       timeout: 300000, // 5 minute timeout for single file upload
+      onUploadProgress: onUploadProgress ? (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onUploadProgress(percentCompleted, progressEvent);
+      } : undefined,
     });
     return response.data;
   },
 
   // Upload multiple PDF documents
-  uploadMultiple: async (files) => {
+  uploadMultiple: async (files, onUploadProgress = null) => {
     const formData = new FormData();
     files.forEach(file => {
       formData.append('files', file);
@@ -46,6 +50,10 @@ export const documentAPI = {
         'Content-Type': 'multipart/form-data',
       },
       timeout: 600000, // 10 minute timeout for multiple file upload
+      onUploadProgress: onUploadProgress ? (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onUploadProgress(percentCompleted, progressEvent);
+      } : undefined,
     });
     return response.data;
   },
