@@ -1197,36 +1197,6 @@ const DocumentWorkbench = forwardRef(({
         className={`pdf-viewer-container ${isViewerReady ? 'ready' : 'loading'}`}
       />
 
-      {/* Insights Bulb - Appears when connections are available for Stage 2 */}
-      {connectionResults.length > 0 && !showActionHalo && (
-        <div 
-          className="insights-bulb"
-          style={{
-            position: 'fixed',
-            top: '50%',
-            right: '20px',
-            zIndex: 999,
-            transform: 'translateY(-50%)'
-          }}
-          onClick={() => {
-            console.log(' Insights Bulb clicked - triggering Stage 2 workflow');
-            if (currentContext && onInsightsRequest) {
-              onInsightsRequest(currentContext);
-            }
-          }}
-          title={`Generate insights from ${connectionResults.length} connections found`}
-        >
-          <div className="bulb-container">
-            <div className="bulb-icon"></div>
-            <div className="bulb-badge">{connectionResults.length}</div>
-            <div className="bulb-pulse"></div>
-          </div>
-          <div className="bulb-tooltip">
-            Click for AI insights
-          </div>
-        </div>
-      )}
-
       {/* Text Selection Mode Indicator & Manual Deselect */}
       {isTextSelectionActive && (
         <div className="text-selection-indicator">
