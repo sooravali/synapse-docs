@@ -222,11 +222,35 @@
   gap: 4px;
 }
 
+.document-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.document-icon {
+  flex-shrink: 0;
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.document-details {
+  flex: 1;
+  min-width: 0;
+}
+
 .document-name {
   font-weight: 500;
   color: #1a1a1a;
   font-size: 14px;
   line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .document-meta {
@@ -235,6 +259,7 @@
   gap: 6px;
   font-size: 12px;
   color: #6b7280;
+  margin-top: 2px;
 }
 
 .status-icon {
@@ -381,9 +406,9 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  background: #ef4444;
-  color: white;
-  border: none;
+  background: transparent;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
@@ -392,12 +417,15 @@
 }
 
 .clear-all-button:hover:not(:disabled) {
-  background: #dc2626;
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
   transform: translateY(-1px);
 }
 
 .clear-all-button:disabled {
-  background: #9ca3af;
+  background: #f9fafb;
+  color: #9ca3af;
   cursor: not-allowed;
   transform: none;
 }

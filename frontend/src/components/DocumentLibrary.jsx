@@ -209,7 +209,7 @@ const DocumentLibrary = ({
 
   const getStatusText = (doc) => {
     if (doc.status === 'ready') {
-      return `${doc.total_chunks || 0} chunks indexed • Ready to explore!`;
+      return ''; // Remove status text for ready documents to keep it clean
     }
     if (doc.status === 'processing') {
       return isPolling ? 'Processing (auto-updating...)' : 'Processing...';
@@ -408,10 +408,19 @@ const DocumentLibrary = ({
               onClick={() => onDocumentSelect(doc)}
             >
               <div className="document-info">
-                <div className="document-name">{cleanFileName(doc.file_name)}</div>
-                <div className="document-meta">
-                  {getStatusIcon(doc.status)}
-                  <span className="document-status">{getStatusText(doc)}</span>
+                <div className="document-main">
+                  <div className="document-icon">
+                    <FileText size={16} />
+                  </div>
+                  <div className="document-details">
+                    <div className="document-name">{cleanFileName(doc.file_name)}</div>
+                    {doc.status !== 'ready' && (
+                      <div className="document-meta">
+                        {getStatusIcon(doc.status)}
+                        <span className="document-status">{getStatusText(doc)}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
