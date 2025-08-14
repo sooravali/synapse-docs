@@ -142,10 +142,14 @@ class TTSService:
             voice_lang = voice_name.split('-')[0:2]  # Extract language from voice name
             voice_lang_str = '-'.join(voice_lang) if len(voice_lang) >= 2 else 'en-US'
             
+            # Escape XML entities in the text to prevent parsing errors
+            import html
+            escaped_text = html.escape(text, quote=True)
+            
             ssml = f"""
             <speak version='1.0' xml:lang='{voice_lang_str}'>
                 <voice xml:lang='{voice_lang_str}' name='{voice_name}'>
-                    {text}
+                    {escaped_text}
                 </voice>
             </speak>
             """
