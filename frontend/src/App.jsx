@@ -61,9 +61,9 @@ function App() {
     
     setIsLoadingDocuments(true);
     try {
-      console.log('📥 Loading documents from API...');
+      console.log('Loading documents from API...');
       const docs = await documentAPI.list();
-      console.log('📋 Loaded documents:', docs);
+      console.log('Loaded documents:', docs);
       
       setDocuments(docs);
       
@@ -84,14 +84,14 @@ function App() {
         }
       }
     } catch (error) {
-      console.error('❌ Failed to load documents:', error);
+      console.error('Failed to load documents:', error);
     } finally {
       setIsLoadingDocuments(false);
     }
   };
 
   const handleDocumentSelect = (document) => {
-    console.log('📄 Selected document:', document);
+    console.log('Selected document:', document);
     setSelectedDocument(document);
     setCurrentContext(''); // Clear context when switching documents
     setSearchResults([]); // Clear search results
@@ -107,7 +107,7 @@ function App() {
   // STAGE 1: Connections Workflow (Real-time & Automatic)
   // Triggered by scroll-based reading detection in DocumentWorkbench
   const handleContextChange = (context) => {
-    console.log('🔄 STAGE 1 - Automatic Connections Workflow triggered:', context);
+    console.log('STAGE 1 - Automatic Connections Workflow triggered:', context);
     setCurrentContext(context);
     // This will automatically trigger connections search in SynapsePanel
     // NO insights generation - that's Stage 2
@@ -116,7 +116,7 @@ function App() {
   // STAGE 2: Insights Workflow (On-Demand & Explicit)  
   // Triggered by explicit user actions (text selection + button clicks)
   const handleInsightsRequest = async (context) => {
-    console.log('💡 STAGE 2 - Explicit Insights Workflow triggered:', context);
+    console.log('STAGE 2 - Explicit Insights Workflow triggered:', context);
     if (synapsePanelRef.current) {
       try {
         // Generate insights using the selected text + current connections as context
@@ -129,7 +129,7 @@ function App() {
   };
 
   const handlePodcastRequest = async (context) => {
-    console.log('🎙️ Generating podcast for:', context);
+    console.log('Generating podcast for:', context);
     if (synapsePanelRef.current) {
       try {
         await synapsePanelRef.current.generatePodcast(context);
@@ -140,7 +140,7 @@ function App() {
   };
 
   const handleConnectionSelect = (connection) => {
-    console.log('🔗 Connection selected:', connection);
+    console.log('Connection selected:', connection);
     
     // Find the document for this connection
     const targetDoc = documents.find(doc => doc.id === connection.document_id);
@@ -153,18 +153,18 @@ function App() {
     // Navigate to specific page in the PDF using the exposed DocumentWorkbench method
     if (connection.page_number !== undefined && connection.page_number !== null) {
       const targetPageNumber = connection.page_number + 1; // Convert from 0-based to 1-based for display
-      console.log(`🚀 Attempting to navigate to page ${targetPageNumber}`);
+      console.log(`Attempting to navigate to page ${targetPageNumber}`);
       
       // Smart timing based on operation type
       let navigationDelay;
       if (isDocumentSwitch) {
         // Document switching: Wait for new document to load but not too long
         navigationDelay = 1500; // Reduced from 3500ms to 1500ms
-        console.log('📄 Document switch detected, using 1500ms delay');
+        console.log('Document switch detected, using 1500ms delay');
       } else {
         // Same document navigation: Very quick
         navigationDelay = 50; // Reduced from 100ms to 50ms  
-        console.log('🔗 Same document navigation, using 50ms delay');
+        console.log('Same document navigation, using 50ms delay');
       }
       
       // Enhanced navigation with retry logic
@@ -172,22 +172,22 @@ function App() {
         if (documentWorkbenchRef.current && documentWorkbenchRef.current.navigateToPage) {
           const success = await documentWorkbenchRef.current.navigateToPage(targetPageNumber);
           if (success) {
-            console.log(`✅ Successfully navigated to page ${targetPageNumber} (attempt ${attempt})`);
+            console.log(` Successfully navigated to page ${targetPageNumber} (attempt ${attempt})`);
           } else if (attempt < 3 && isDocumentSwitch) {
             // Retry for document switches if first attempt fails
-            console.log(`⚠️ Navigation failed, retrying in 500ms (attempt ${attempt + 1})`);
+            console.log(` Navigation failed, retrying in 500ms (attempt ${attempt + 1})`);
             setTimeout(() => attemptNavigation(attempt + 1), 500);
           } else {
-            console.error(`❌ Failed to navigate to page ${targetPageNumber} after ${attempt} attempts`);
+            console.error(` Failed to navigate to page ${targetPageNumber} after ${attempt} attempts`);
           }
         } else {
-          console.warn('⚠️ DocumentWorkbench ref not available for navigation');
+          console.warn(' DocumentWorkbench ref not available for navigation');
         }
       };
       
       setTimeout(() => attemptNavigation(), navigationDelay);
     } else {
-      console.warn('⚠️ Connection does not have a valid page number for navigation');
+      console.warn(' Connection does not have a valid page number for navigation');
     }
   };
 
