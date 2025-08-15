@@ -17,6 +17,7 @@ services:
       - AZURE_TTS_KEY=${AZURE_TTS_KEY}
       - AZURE_TTS_ENDPOINT=${AZURE_TTS_ENDPOINT}
       - ADOBE_CLIENT_ID=${ADOBE_CLIENT_ID}
+      - ADOBE_EMBED_API_KEY=${ADOBE_EMBED_API_KEY}  # Alternative name
     volumes:
       # Optional: persist data between container restarts
       - ./data:/app/data
