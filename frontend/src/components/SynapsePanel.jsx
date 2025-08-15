@@ -58,6 +58,9 @@ const SynapsePanel = forwardRef(({
   const [expandedSnippets, setExpandedSnippets] = useState({}); // For snippet expansion
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  
+  // INSIGHTS STABILITY: Track insights generation metadata for intelligent clearing
+  const [insightsMetadata, setInsightsMetadata] = useState(null);
 
   // ENHANCED CACHING: Page-based cache with content similarity detection
   const connectionsCache = useRef(new Map()); // Cache: "docId:pageNum" -> {results, contentHash}
@@ -241,6 +244,7 @@ const SynapsePanel = forwardRef(({
         console.log(` SynapsePanel: Clearing insights due to empty context`);
         setInsights(null);
         setPodcastData(null);
+        setInsightsMetadata(null);
         if (onInsightsGenerated) {
           onInsightsGenerated(false);
         }
@@ -257,16 +261,62 @@ const SynapsePanel = forwardRef(({
 
     console.log(` SynapsePanel: Page context:`, pageContext);
 
-    // Check if this is a significant context change that should clear insights
-    const shouldClearInsights = lastPageContextRef.current && 
-      lastPageContextRef.current.identifier !== pageContext.identifier &&
-      !pageContext.isTextSelection; // Don't clear for text selections within the same page
+    // ENHANCED INSIGHTS STABILITY: Intelligent insights clearing logic
+    const shouldClearInsights = (() => {
+      // Never clear if no insights exist
+      if (!insights) return false;
+      
+      // Never clear if no previous page context
+      if (!lastPageContextRef.current) return false;
+      
+      // Check if context identifiers are different
+      const contextChanged = lastPageContextRef.current.identifier !== pageContext.identifier;
+      if (!contextChanged) return false;
+      
+      // STABILITY RULE 1: Never clear insights from text selections (explicit user actions)
+      if (insightsMetadata && insightsMetadata.sourceType === 'selection') {
+        console.log(` SynapsePanel: Preserving insights from text selection - not clearing`);
+        return false;
+      }
+      
+      // STABILITY RULE 2: Don't clear insights too quickly after generation (stability period)
+      if (insightsMetadata && insightsMetadata.generatedAt) {
+        const timeSinceGeneration = Date.now() - insightsMetadata.generatedAt;
+        const stabilityPeriod = 10000; // 10 seconds stability period
+        
+        if (timeSinceGeneration < stabilityPeriod) {
+          console.log(` SynapsePanel: Insights still in stability period (${Math.round(timeSinceGeneration/1000)}s < 10s) - not clearing`);
+          return false;
+        }
+      }
+      
+      // STABILITY RULE 3: Don't clear for text selections within the same general context
+      if (pageContext.isTextSelection) {
+        console.log(` SynapsePanel: New text selection detected - not clearing previous insights`);
+        return false;
+      }
+      
+      // STABILITY RULE 4: Only clear for significant document/page changes
+      const isSignificantChange = lastPageContextRef.current.documentId !== pageContext.documentId ||
+        (lastPageContextRef.current.pageNumber !== undefined && 
+         pageContext.pageNumber !== undefined && 
+         Math.abs(lastPageContextRef.current.pageNumber - pageContext.pageNumber) > 2);
+      
+      if (!isSignificantChange) {
+        console.log(` SynapsePanel: Context change not significant enough - preserving insights`);
+        return false;
+      }
+      
+      console.log(` SynapsePanel: Significant context change detected - clearing insights`);
+      return true;
+    })();
 
-    if (shouldClearInsights && insights) {
-      console.log(` SynapsePanel: Significant context change detected - clearing previous insights`);
+    if (shouldClearInsights) {
+      console.log(` SynapsePanel: Clearing insights due to significant context change`);
       setInsights(null);
       setPodcastData(null);
       setExpandedInsights({});
+      setInsightsMetadata(null);
       if (onInsightsGenerated) {
         onInsightsGenerated(false);
       }
@@ -398,6 +448,7 @@ const SynapsePanel = forwardRef(({
       setExpandedSnippets({});
       setAudioCurrentTime(0);
       setAudioDuration(0);
+      setInsightsMetadata(null);
       // Clear cache for clean slate
       connectionsCache.current.clear();
       lastQueryRef.current = '';
@@ -619,12 +670,22 @@ const SynapsePanel = forwardRef(({
         }
       }
       
+      const sourceType = text && text.includes('[Selected Text from') ? 'selection' : 'reading';
+      
       setInsights({
         ...result,
         parsed: parsedInsights,
         contextConnections: contextConnections,
         context: text, // Store the original context for "from/through" display
-        sourceType: text && text.includes('[Selected Text from') ? 'selection' : 'reading'
+        sourceType: sourceType
+      });
+      
+      // INSIGHTS STABILITY: Track metadata for intelligent clearing decisions
+      setInsightsMetadata({
+        sourceType: sourceType,
+        generatedAt: Date.now(),
+        contextLength: text ? text.length : 0,
+        hasConnections: contextConnections.length > 0
       });
       
       // Notify parent component that insights were generated
@@ -652,6 +713,9 @@ const SynapsePanel = forwardRef(({
         parsed: null,
         canRetry: true
       });
+      
+      // INSIGHTS STABILITY: Clear metadata on error
+      setInsightsMetadata(null);
     } finally {
       setIsLoadingInsights(false);
     }
@@ -934,6 +998,7 @@ const SynapsePanel = forwardRef(({
               className="retry-insights-btn"
               onClick={() => {
                 setInsights(null);
+                setInsightsMetadata(null);
                 if (onInsightsGenerated) {
                   onInsightsGenerated(false);
                 }
