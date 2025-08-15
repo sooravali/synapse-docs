@@ -21,11 +21,11 @@ async def get_config():
     This allows the frontend to get Adobe Client ID at runtime instead of build time.
     """
     try:
-        if not settings.ADOBE_CLIENT_ID:
-            logger.warning("ADOBE_CLIENT_ID not configured")
+        if not settings.adobe_client_id:
+            logger.warning("Adobe Client ID not configured (checked both ADOBE_CLIENT_ID and ADOBE_EMBED_API_KEY)")
             return ConfigResponse(adobe_client_id="")
         
-        return ConfigResponse(adobe_client_id=settings.ADOBE_CLIENT_ID)
+        return ConfigResponse(adobe_client_id=settings.adobe_client_id)
     except Exception as e:
         logger.error(f"Error getting configuration: {e}")
         return ConfigResponse(adobe_client_id="")
