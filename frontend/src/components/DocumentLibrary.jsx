@@ -27,6 +27,45 @@ const DocumentLibrary = ({
   const [isClearingAll, setIsClearingAll] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
+  
+  // Session-based state for "Recently Added" feature
+  const [recentDocuments, setRecentDocuments] = useState([]);
+  const [knowledgeBaseDocuments, setKnowledgeBaseDocuments] = useState([]);
+
+  // SessionStorage utilities for tracking new files in current session
+  const SESSION_STORAGE_KEY = 'synapse_docs_newFileIDs';
+
+  const getSessionNewFileIDs = () => {
+    try {
+      const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch (error) {
+      console.warn('Error reading session storage:', error);
+      return [];
+    }
+  };
+
+  const addToSessionNewFiles = (documentId) => {
+    try {
+      const currentIDs = getSessionNewFileIDs();
+      if (!currentIDs.includes(documentId)) {
+        const updatedIDs = [...currentIDs, documentId];
+        sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updatedIDs));
+        console.log(`Added document ${documentId} to session new files:`, updatedIDs);
+      }
+    } catch (error) {
+      console.warn('Error updating session storage:', error);
+    }
+  };
+
+  const getMostRecentSessionDocument = (documents) => {
+    const sessionIDs = getSessionNewFileIDs();
+    if (sessionIDs.length === 0) return null;
+    
+    // Get the most recently added ID (last in array)
+    const mostRecentID = sessionIDs[sessionIDs.length - 1];
+    return documents.find(doc => doc.id === mostRecentID) || null;
+  };
 
   // Helper function to clean filename display
   const cleanFileName = (fileName) => {
@@ -34,7 +73,28 @@ const DocumentLibrary = ({
     return fileName.replace(/^doc_\d+_/, '').replace(/\.pdf$/, '');
   };
 
-  // Filter documents based on search term
+  // Categorize documents into Recent vs Knowledge Base based on session storage
+  useEffect(() => {
+    const sessionIDs = getSessionNewFileIDs();
+    
+    const recent = [];
+    const knowledgeBase = [];
+    
+    documents.forEach(doc => {
+      if (sessionIDs.includes(doc.id)) {
+        recent.push(doc);
+      } else {
+        knowledgeBase.push(doc);
+      }
+    });
+    
+    setRecentDocuments(recent);
+    setKnowledgeBaseDocuments(knowledgeBase);
+    
+    console.log(`Categorized documents: ${recent.length} recent, ${knowledgeBase.length} knowledge base`);
+  }, [documents]);
+
+  // Filter documents based on search term (global search across both sections)
   useEffect(() => {
     if (!searchTerm.trim()) {
       setFilteredDocuments(documents);
@@ -47,6 +107,26 @@ const DocumentLibrary = ({
       setFilteredDocuments(filtered);
     }
   }, [documents, searchTerm]);
+
+  // Enhanced auto-selection logic with priority for recently added documents
+  useEffect(() => {
+    if (!selectedDocument && documents.length > 0) {
+      // Priority 1: Most recent document in "Recently Added" section (if any)
+      const mostRecentDoc = getMostRecentSessionDocument(documents);
+      if (mostRecentDoc && mostRecentDoc.status === 'ready') {
+        console.log('Auto-selecting most recent session document:', mostRecentDoc.file_name);
+        onDocumentSelect(mostRecentDoc);
+        return;
+      }
+      
+      // Priority 2: Fallback to original logic - first ready document in knowledge base
+      const readyDoc = documents.find(doc => doc.status === 'ready');
+      if (readyDoc) {
+        console.log('Auto-selecting first ready document:', readyDoc.file_name);
+        onDocumentSelect(readyDoc);
+      }
+    }
+  }, [documents, selectedDocument, onDocumentSelect]);
 
   // Poll for status updates when documents are processing
   useEffect(() => {
@@ -129,6 +209,16 @@ const DocumentLibrary = ({
         };
       });
       setUploadProgress(processingTracker);
+
+      // Track newly uploaded documents in session storage
+      if (response && response.results) {
+        response.results.forEach(result => {
+          if (result.success && result.document_id) {
+            addToSessionNewFiles(result.document_id);
+            console.log(`Added newly uploaded document ${result.document_id} to session tracking`);
+          }
+        });
+      }
 
       // Small delay to ensure database transaction is committed
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -362,7 +452,7 @@ const DocumentLibrary = ({
         </div>
       )}
 
-      {/* Document List */}
+      {/* Document List with Recently Added and Knowledge Base sections */}
       <div className="document-list">
         {filteredDocuments.length === 0 ? (
           <div className="empty-state">
@@ -401,30 +491,91 @@ const DocumentLibrary = ({
             )}
           </div>
         ) : (
-          filteredDocuments.map((doc) => (
-            <div
-              key={doc.id}
-              className={`document-item ${selectedDocument?.id === doc.id ? 'selected' : ''}`}
-              onClick={() => onDocumentSelect(doc)}
-            >
-              <div className="document-info">
-                <div className="document-main">
-                  <div className="document-icon">
-                    <FileText size={16} />
-                  </div>
-                  <div className="document-details">
-                    <div className="document-name">{cleanFileName(doc.file_name)}</div>
-                    {doc.status !== 'ready' && (
-                      <div className="document-meta">
-                        {getStatusIcon(doc.status)}
-                        <span className="document-status">{getStatusText(doc)}</span>
+          <div className="document-sections">
+            {/* Recently Added Section - Only show if there are recent documents and no search */}
+            {!searchTerm && recentDocuments.length > 0 && (
+              <div className="document-section">
+                <h4 className="section-heading">RECENTLY ADDED</h4>
+                <div className="section-documents">
+                  {recentDocuments
+                    .filter(doc => !searchTerm || cleanFileName(doc.file_name).toLowerCase().includes(searchTerm.toLowerCase()))
+                    .map((doc) => (
+                    <div
+                      key={doc.id}
+                      className={`document-item ${selectedDocument?.id === doc.id ? 'selected' : ''}`}
+                      onClick={() => onDocumentSelect(doc)}
+                    >
+                      <div className="document-info">
+                        <div className="document-main">
+                          <div className="document-icon">
+                            <FileText size={16} />
+                          </div>
+                          <div className="document-details">
+                            <div className="document-name">
+                              {cleanFileName(doc.file_name)}
+                              <span className="new-badge">✨ NEW</span>
+                            </div>
+                            {doc.status !== 'ready' && (
+                              <div className="document-meta">
+                                {getStatusIcon(doc.status)}
+                                <span className="document-status">{getStatusText(doc)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-          ))
+            )}
+
+            {/* Visual separator between sections */}
+            {!searchTerm && recentDocuments.length > 0 && knowledgeBaseDocuments.length > 0 && (
+              <hr className="section-separator" />
+            )}
+
+            {/* Knowledge Base Section - Always show if there are any documents */}
+            {(knowledgeBaseDocuments.length > 0 || searchTerm) && (
+              <div className="document-section">
+                <h4 className="section-heading">
+                  {searchTerm ? 'SEARCH RESULTS' : 'KNOWLEDGE BASE'}
+                </h4>
+                <div className="section-documents">
+                  {(searchTerm ? filteredDocuments : knowledgeBaseDocuments).map((doc) => (
+                    <div
+                      key={doc.id}
+                      className={`document-item ${selectedDocument?.id === doc.id ? 'selected' : ''}`}
+                      onClick={() => onDocumentSelect(doc)}
+                    >
+                      <div className="document-info">
+                        <div className="document-main">
+                          <div className="document-icon">
+                            <FileText size={16} />
+                          </div>
+                          <div className="document-details">
+                            <div className="document-name">
+                              {cleanFileName(doc.file_name)}
+                              {/* Show NEW badge for recent documents even in search results */}
+                              {searchTerm && recentDocuments.some(recentDoc => recentDoc.id === doc.id) && (
+                                <span className="new-badge">✨ NEW</span>
+                              )}
+                            </div>
+                            {doc.status !== 'ready' && (
+                              <div className="document-meta">
+                                {getStatusIcon(doc.status)}
+                                <span className="document-status">{getStatusText(doc)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

@@ -471,6 +471,68 @@
   background: #e5e7eb;
 }
 
+/* Document Sections - Recently Added & Knowledge Base */
+.document-sections {
+  display: flex;
+  flex-direction: column;
+}
+
+.document-section {
+  margin-bottom: 8px;
+}
+
+.section-heading {
+  margin: 0 0 12px 0;
+  padding: 0 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #6b7280;
+  border: none;
+}
+
+.section-documents {
+  display: flex;
+  flex-direction: column;
+}
+
+.section-separator {
+  margin: 16px 20px;
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  opacity: 0.6;
+}
+
+/* NEW badge styling */
+.new-badge {
+  margin-left: 8px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #059669;
+  background: #d1fae5;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+/* Enhanced document item styling for sections */
+.document-section .document-item {
+  position: relative;
+}
+
+.document-section .document-item:first-child {
+  border-top: none;
+}
+
+/* Ensure proper spacing in sections */
+.document-section .document-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 /* Scrollbar Styling */
 .document-list::-webkit-scrollbar {
   width: 6px;
