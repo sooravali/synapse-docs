@@ -184,14 +184,16 @@ async def generate_podcast(request: PodcastRequest, background_tasks: Background
         message = "Podcast script generated successfully."
         
         try:
-            audio_result = await generate_podcast_audio(script, "latest_podcast.mp3")
+            audio_result = await generate_podcast_audio(script)
             audio_path, is_real_audio = audio_result
             
             if audio_path and is_real_audio:
                 # Real audio was generated successfully
-                audio_url = "/api/v1/insights/audio/latest_podcast.mp3"
+                import os
+                filename = os.path.basename(audio_path)
+                audio_url = f"/api/v1/insights/audio/{filename}"
                 message = "Podcast script and high-quality audio generated successfully."
-                logger.info("Real audio generated successfully, enabling audio URL")
+                logger.info(f"Real audio generated successfully: {filename}")
             elif audio_path and not is_real_audio:
                 # Mock audio was generated (Azure TTS failed)
                 audio_url = None  # Don't serve mock audio to prevent confusion
