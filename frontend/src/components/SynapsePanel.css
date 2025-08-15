@@ -1009,7 +1009,15 @@
   opacity: 1;
 }
 
-.download-audio-btn {
+.audio-action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.download-audio-btn,
+.generate-new-audio-btn {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1022,13 +1030,33 @@
   transition: all 0.2s ease;
   font-size: 12px;
   font-weight: 500;
-  align-self: flex-start;
+  flex: 1;
+  justify-content: center;
 }
 
-.download-audio-btn:hover {
+.download-audio-btn:hover,
+.generate-new-audio-btn:hover {
   background: #f3f4f6;
   color: #1a1a1a;
   border-color: #cbd5e1;
+}
+
+.generate-new-audio-btn {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  border-color: #f59e0b;
+}
+
+.generate-new-audio-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  border-color: #d97706;
+}
+
+.generate-new-audio-btn:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  border-color: #e5e7eb;
+  cursor: not-allowed;
 }
 
 /* Error States */

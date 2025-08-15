@@ -448,6 +448,7 @@ const SynapsePanel = forwardRef(({
       setExpandedSnippets({});
       setAudioCurrentTime(0);
       setAudioDuration(0);
+      setIsPlayingPodcast(false);
       setInsightsMetadata(null);
       // Clear cache for clean slate
       connectionsCache.current.clear();
@@ -545,6 +546,33 @@ const SynapsePanel = forwardRef(({
     if (isLoadingInsights) {
       console.log(` SynapsePanel: Already generating insights, skipping...`);
       return;
+    }
+
+    // Check if we already have insights and show confirmation dialog
+    if (insights && insights.parsed) {
+      const shouldProceed = window.confirm(
+        "This will clear your current insights and audio content to generate new analysis. Continue?"
+      );
+      
+      if (!shouldProceed) {
+        console.log(` User cancelled insights generation to preserve existing content`);
+        return;
+      }
+    }
+
+    // Clear all previous state before generating new insights
+    console.log(` Clearing previous insights and audio state for fresh generation`);
+    setInsights(null);
+    setPodcastData(null);
+    setInsightsMetadata(null);
+    setExpandedInsights({});
+    setAudioCurrentTime(0);
+    setAudioDuration(0);
+    setIsPlayingPodcast(false);
+    
+    // Notify parent that insights are being cleared
+    if (onInsightsGenerated) {
+      onInsightsGenerated(false);
     }
     
     setIsLoadingInsights(true);
@@ -737,10 +765,27 @@ const SynapsePanel = forwardRef(({
       });
       return;
     }
+
+    // Check if we already have podcast data and show confirmation dialog
+    if (podcastData && podcastData.audio_url) {
+      const shouldProceed = window.confirm(
+        "This will replace your current audio content with new audio. Continue?"
+      );
+      
+      if (!shouldProceed) {
+        console.log(` User cancelled podcast generation to preserve existing audio`);
+        return;
+      }
+    }
+
+    // Clear previous podcast state before generating new audio
+    console.log(` Clearing previous podcast state for fresh generation`);
+    setPodcastData(null);
+    setAudioCurrentTime(0);
+    setAudioDuration(0);
+    setIsPlayingPodcast(false);
     
     setIsGeneratingPodcast(true);
-    setIsPlayingPodcast(false); // Reset playing state for new podcast
-    setPodcastData(null); // Clear previous podcast data
     
     try {
       // Get related content from connections if available
@@ -1174,12 +1219,10 @@ const SynapsePanel = forwardRef(({
               </ul>
               <button 
                 className="retry-podcast-btn"
-                onClick={() => {
-                  setPodcastData(null);
-                  generatePodcast(currentContext);
-                }}
+                onClick={() => generatePodcast(currentContext)}
+                disabled={isGeneratingPodcast}
               >
-                Try Again
+                {isGeneratingPodcast ? 'Generating...' : 'Try Again'}
               </button>
             </div>
           ) : (
@@ -1241,14 +1284,26 @@ const SynapsePanel = forwardRef(({
                     </div>
                   </div>
                   
-                  <button 
-                    className="download-audio-btn"
-                    onClick={() => handleAudioDownload(podcastData.audio_url)}
-                    title="Download Audio"
-                  >
-                    <Download size={14} />
-                    <span>Download</span>
-                  </button>
+                  <div className="audio-action-buttons">
+                    <button 
+                      className="download-audio-btn"
+                      onClick={() => handleAudioDownload(podcastData.audio_url)}
+                      title="Download Audio"
+                    >
+                      <Download size={14} />
+                      <span>Download</span>
+                    </button>
+                    
+                    <button 
+                      className="generate-new-audio-btn"
+                      onClick={() => generatePodcast(currentContext)}
+                      disabled={isGeneratingPodcast}
+                      title="Generate new audio (will replace current audio)"
+                    >
+                      <Zap size={14} />
+                      <span>{isGeneratingPodcast ? 'Generating...' : 'Generate New'}</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1277,17 +1332,21 @@ const SynapsePanel = forwardRef(({
             className={`tab-button insights-bulb-button ${activeTab === 'insights' ? 'active' : ''} ${isLoadingInsights ? 'loading' : ''}`}
             onClick={() => {
               setActiveTab('insights');
-              if (!insights && !isLoadingInsights && currentContext && connections.length > 0) {
+              // Always attempt to generate insights when button is clicked, even if insights already exist
+              // The generateInsights function will handle confirmation if previous insights exist
+              if (!isLoadingInsights && currentContext && connections.length > 0) {
                 generateInsightsFromContext();
               }
             }}
-            disabled={!currentContext || connections.length === 0}
+            disabled={!currentContext || connections.length === 0 || isLoadingInsights}
             title={
               !currentContext 
                 ? 'Read document first to generate insights'
                 : connections.length === 0 
                   ? 'No connections found yet - scroll through document'
-                  : `Generate AI insights from ${connections.length} connections`
+                  : insights && insights.parsed
+                    ? 'Generate new insights (will clear current insights)'
+                    : `Generate AI insights from ${connections.length} connections`
             }
           >
             <div className="insights-button-content">

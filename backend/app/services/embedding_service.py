@@ -138,7 +138,6 @@ class EmbeddingService:
     def create_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
         """
         Create embeddings for multiple texts efficiently.
-        Enhanced for large document processing with memory optimization.
         
         Args:
             texts: List of text strings to embed
@@ -152,41 +151,6 @@ class EmbeddingService:
             # Return mock embeddings with correct dimensions (384 for all-MiniLM-L6-v2)
             return [[0.0] * 384 for _ in texts]
         
-        try:
-            # For very large batches, process in smaller sub-batches to prevent memory issues
-            if len(texts) > 100:
-                logger.info(f"Large batch detected ({len(texts)} texts), processing in sub-batches for memory optimization")
-                all_embeddings = []
-                sub_batch_size = 50  # Smaller sub-batches for memory efficiency
-                
-                for i in range(0, len(texts), sub_batch_size):
-                    sub_batch = texts[i:i + sub_batch_size]
-                    sub_embeddings = self._process_embedding_batch(sub_batch)
-                    if sub_embeddings:
-                        all_embeddings.extend(sub_embeddings)
-                    else:
-                        # If sub-batch fails, add zero vectors to maintain alignment
-                        all_embeddings.extend([[0.0] * 384 for _ in sub_batch])
-                
-                return all_embeddings
-            else:
-                # For smaller batches, process normally
-                return self._process_embedding_batch(texts)
-            
-        except Exception as e:
-            logger.error(f"Failed to create batch embeddings: {e}")
-            return []
-    
-    def _process_embedding_batch(self, texts: List[str]) -> List[List[float]]:
-        """
-        Process a single batch of embeddings with caching.
-        
-        Args:
-            texts: List of text strings to embed
-            
-        Returns:
-            List of embedding vectors
-        """
         try:
             # Check cache and prepare uncached texts
             embeddings = []
@@ -204,15 +168,8 @@ class EmbeddingService:
             
             # Generate embeddings for uncached texts
             if uncached_texts:
-                logger.info(f"Generating embeddings for {len(uncached_texts)} uncached texts")
-                # Use smaller batch size for memory efficiency with large documents
-                model_batch_size = min(16, len(uncached_texts))  # Reduced from 32 to 16
-                batch_embeddings = self.model.encode(
-                    uncached_texts, 
-                    convert_to_tensor=False, 
-                    batch_size=model_batch_size,
-                    show_progress_bar=len(uncached_texts) > 20  # Show progress for large batches
-                )
+                logger.info(f"Generating embeddings for {len(uncached_texts)} texts")
+                batch_embeddings = self.model.encode(uncached_texts, convert_to_tensor=False, batch_size=32)
                 
                 # Fill in the uncached embeddings and cache them
                 for idx, embedding in zip(uncached_indices, batch_embeddings):
@@ -225,7 +182,7 @@ class EmbeddingService:
             return embeddings
             
         except Exception as e:
-            logger.error(f"Failed to process embedding batch: {e}")
+            logger.error(f"Failed to create batch embeddings: {e}")
             return []
     
     def extract_semantic_content(self, document_chunks: List[Dict], query: str, max_chunks: int = 10, query_threshold: float = None) -> List[Dict]:
