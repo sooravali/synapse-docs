@@ -1,27 +1,29 @@
-/* Flow Status Bar Styles */
+/* Flow Status Bar - Redesigned for Professional UI/UX Integration */
 .flow-status-bar {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  margin: 0;
+  /* Match the app's panel background instead of purple gradient */
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-bottom: 1px solid #cbd5e1;
+  padding: 8px 0; /* Further reduced height for compact design */
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  width: 100%;
 }
 
 .status-content {
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 100%;
+  max-width: 500px; /* Smaller container */
+  margin: 0 auto;
+  padding: 0 40px; /* Increased padding for better symmetry with smaller content */
 }
 
 .status-steps {
   display: flex;
-  align-items: flex-start;
-  gap: 6px;
+  align-items: center;
+  gap: 16px; /* Reduced spacing for smaller icons */
   flex-shrink: 0;
 }
 
@@ -29,117 +31,283 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px; /* Reduced gap */
+  position: relative;
 }
 
 .status-step {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 42px; /* Smaller size */
+  height: 42px; /* Smaller size */
   border-radius: 50%;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.status-step svg {
-  width: 22px;
-  height: 22px;
-}
-
-.status-label {
-  font-size: 10px;
-  font-weight: 500;
-  text-align: center;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-
-.status-step.pending {
-  background: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.status-step.active {
-  background: rgba(255, 255, 255, 0.9);
-  color: #667eea;
-  box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
-  animation: pulse 2s infinite;
-}
-
+/* COMPLETED STATE: Solid blue background with white icon */
 .status-step.completed {
-  background: #10b981;
+  background: #3b82f6; /* App's primary blue */
+  border: none;
   color: white;
 }
 
-.status-label.pending {
-  color: rgba(255, 255, 255, 0.6);
+.status-step.completed svg {
+  width: 24px; /* Larger icons as requested */
+  height: 24px;
+  color: white;
 }
 
-.status-label.active {
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 600;
+/* ACTIVE STATE: Blue outline with blue icon (most prominent) */
+.status-step.active {
+  background: rgba(59, 130, 246, 0.1); /* Subtle blue background */
+  border: 3px solid #3b82f6; /* Thick blue border */
+  color: #3b82f6;
+}
+
+.status-step.active svg {
+  width: 24px;
+  height: 24px;
+  color: #3b82f6;
+}
+
+/* PENDING STATE: Gray outline with gray icon */
+.status-step.pending {
+  background: transparent;
+  border: 2px solid #d1d5db; /* Gray border */
+  color: #9ca3af;
+}
+
+.status-step.pending svg {
+  width: 24px;
+  height: 24px;
+  color: #9ca3af;
+}
+
+/* LABELS */
+.status-label {
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  transition: all 0.3s ease;
+  white-space: nowrap;
 }
 
 .status-label.completed {
-  color: #10b981;
+  color: #3b82f6; /* Blue text for completed */
   font-weight: 600;
 }
 
-.status-connector {
-  width: 20px;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 1px;
-  margin-top: 20px; /* Align with the center of the larger icons */
+.status-label.active {
+  color: #3b82f6; /* Blue text for active */
+  font-weight: 700; /* Even bolder for emphasis */
 }
 
-.status-message {
-  font-size: 13px;
+.status-label.pending {
+  color: #9ca3af; /* Gray text for pending */
   font-weight: 500;
-  opacity: 0.95;
-  line-height: 1.2;
-  text-align: center;
-  margin-top: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
 }
 
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-  }
-  50% {
-    transform: scale(1.05);
-    box-shadow: 0 0 25px rgba(255, 255, 255, 0.5);
-  }
+/* CONNECTORS */
+.status-connector {
+  width: 32px; /* Smaller to match reduced icons */
+  height: 2px; /* Thinner line */
+  position: relative;
+  border-radius: 1px;
+  transition: all 0.4s ease;
+  align-self: center; /* Ensure it aligns with icon center */
 }
 
+.status-connector.completed {
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+}
+
+.status-connector.pending {
+  background: linear-gradient(90deg, #e5e7eb, #d1d5db);
+  position: relative;
+}
+
+.status-connector.pending::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    #d1d5db 0,
+    #d1d5db 4px,
+    transparent 4px,
+    transparent 8px
+  );
+  transform: translateY(-50%);
+}
+
+/* HOVER EFFECTS for better interactivity */
+.status-step.completed:hover {
+  background: #2563eb; /* Darker blue on hover */
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.status-step.active:hover {
+  border-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.status-step.pending:hover {
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+}
+
+/* RESPONSIVE DESIGN */
 @media (max-width: 768px) {
   .flow-status-bar {
-    padding: 8px 16px;
-    gap: 8px;
+    padding: 12px 16px;
+  }
+  
+  .status-steps {
+    gap: 16px;
   }
   
   .status-step {
-    width: 30px;
-    height: 30px;
+    width: 40px;
+    height: 40px;
   }
   
   .status-step svg {
-    width: 16px;
-    height: 16px;
+    width: 20px !important;
+    height: 20px !important;
+  }
+  
+  .status-connector {
+    width: 24px;
   }
   
   .status-label {
-    font-size: 9px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .status-steps {
+    gap: 12px;
   }
   
-  .status-message {
-    font-size: 12px;
-    margin-top: 6px;
+  .status-step {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .status-step svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+  
+  .status-connector {
+    width: 20px;
+    height: 2px;
+  }
+  
+  .status-label {
+    font-size: 10px;
+  }
+  
+  /* Mobile tooltip adjustments */
+  .tooltip {
+    font-size: 10px !important; /* Smaller on mobile */
+    padding: 4px 6px !important; /* Reduced padding */
+    max-width: 140px !important; /* Smaller max-width */
+  }
+}
+
+/* Tooltip Styles - Minimal and Clean */
+.tooltip {
+  position: absolute;
+  top: calc(100% + 8px); /* Positioned below with more space */
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(55, 65, 81, 1); /* Fully opaque - no transparency */
+  color: white;
+  padding: 6px 10px; /* Better padding for readability */
+  border-radius: 6px; /* Slightly more rounded */
+  font-size: 11px; /* Slightly larger for better readability */
+  font-weight: 500; /* Medium weight for clarity */
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25); /* Stronger shadow */
+  z-index: 1000;
+  animation: tooltipFadeIn 0.15s ease-out;
+  pointer-events: none;
+  max-width: 200px; /* Larger max-width for full text */
+  text-align: center;
+  line-height: 1.2; /* Better line spacing */
+}
+
+/* Smart tooltip positioning for edge cases */
+.status-step-container:first-child .tooltip {
+  left: 0;
+  transform: translateX(0);
+}
+
+.status-step-container:first-child .tooltip::before {
+  left: 20px; /* Position arrow over the icon */
+}
+
+.status-step-container:last-child .tooltip {
+  right: 0;
+  left: auto;
+  transform: translateX(0);
+}
+
+.status-step-container:last-child .tooltip::before {
+  right: 20px; /* Position arrow over the icon */
+  left: auto;
+}
+
+.tooltip::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent; /* Slightly larger arrow */
+  border-bottom-color: rgba(55, 65, 81, 1); /* Match opaque background */
+}
+
+/* Smart positioning for edge tooltips */
+.status-item:first-child .tooltip {
+  left: 0;
+  transform: translateX(0);
+}
+
+.status-item:first-child .tooltip::before {
+  left: 20px;
+}
+
+.status-item:last-child .tooltip {
+  right: 0;
+  left: auto;
+  transform: translateX(0);
+}
+
+.status-item:last-child .tooltip::before {
+  right: 20px;
+  left: auto;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 }
