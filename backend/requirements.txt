@@ -1,6 +1,4 @@
-# FastAPI Backend Dependencies - Size-Optimized for Docker (CPU-only)
-# Reduced from ~12GB to ~3-4GB while maintaining full functionality
-
+# FastAPI Backend Dependencies - Corrected for Compatibility
 # Core FastAPI stack (essential)
 fastapi==0.116.1
 uvicorn[standard]==0.35.0
@@ -13,19 +11,31 @@ aiofiles==23.2.0
 
 # HTTP client for API calls (essential)
 httpx==0.28.1
+requests==2.32.3
 
 # Azure TTS (Adobe Hackathon requirement)
 azure-cognitiveservices-speech==1.34.0
 
-# Google Gemini (Adobe Hackathon requirement)
-google-generativeai==0.8.5
+# Google Gemini with Vertex AI (Adobe Hackathon requirement - corrected packages)
+google-cloud-aiplatform==1.60.0
+vertexai==1.60.0
+# REMOVED the deprecated 'google-generativeai' package.
+# 'google-genai' is the new, correct package and is a dependency of langchain-google-genai.
+google-cloud-texttospeech==2.24.0
+
+# Adobe Hackathon Sample Scripts Dependencies - FULLY COMPATIBLE VERSIONS
+langchain==0.3.15
+langchain-openai==0.2.10
+langchain-google-genai==2.0.7
+langchain-community==0.3.15
+pydub==0.25.1
 
 # ML Core Stack - CPU optimized (essential for Challenge 1A & 1B)
-# torch and torchvision installed separately in Dockerfile with CPU-only index
-sentence-transformers==5.1.0
-faiss-cpu==1.11.0.post1
-numpy==2.3.2
-scikit-learn==1.7.1
+# torch and torchvision are installed separately in the Dockerfile
+sentence-transformers==3.0.1
+faiss-cpu==1.8.0
+numpy==1.26.4
+scikit-learn==1.5.2
 
 # PDF Processing (Challenge 1A)
 pdfminer.six==20250506
