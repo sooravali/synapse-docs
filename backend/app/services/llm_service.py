@@ -60,36 +60,64 @@ class LLMService:
             
             # For hackathon compliance, prioritize service account authentication
             if credentials_path:
-                # Set the environment variable for Google Cloud SDK
-                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
-                
                 # Initialize Vertex AI with service account
                 # Extract project ID from service account file for Vertex AI initialization
                 import json
+                import tempfile
+                
                 try:
-                    # Handle both absolute paths and relative paths within Docker container
-                    actual_creds_path = credentials_path
+                    creds_data = None
+                    actual_creds_path = None
                     
-                    # If path doesn't start with /, it might be relative to /credentials (Docker mount)
-                    if not credentials_path.startswith('/'):
-                        docker_path = f"/credentials/{credentials_path}"
-                        if os.path.exists(docker_path):
-                            actual_creds_path = docker_path
-                            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = docker_path
-                    elif not os.path.exists(credentials_path):
-                        # Try common Docker mount path
-                        filename = os.path.basename(credentials_path)
-                        docker_path = f"/credentials/{filename}"
-                        if os.path.exists(docker_path):
-                            actual_creds_path = docker_path
-                            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = docker_path
+                    # Check if credentials_path is JSON content (starts with '{') or a file path
+                    if credentials_path.strip().startswith('{'):
+                        # Direct JSON content (production deployment with secrets)
+                        logger.info("Using service account JSON from environment variable")
+                        try:
+                            creds_data = json.loads(credentials_path)
+                            
+                            # Create temporary file for Google Cloud SDK
+                            temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json')
+                            json.dump(creds_data, temp_file, indent=2)
+                            temp_file.flush()
+                            actual_creds_path = temp_file.name
+                            temp_file.close()
+                            
+                            # Set environment variable for Google Cloud SDK
+                            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = actual_creds_path
+                            logger.info(f"Created temporary credentials file at {actual_creds_path}")
+                            
+                        except json.JSONDecodeError as e:
+                            logger.error(f"Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS: {e}")
+                            raise ValueError("GOOGLE_APPLICATION_CREDENTIALS contains invalid JSON")
+                    else:
+                        # File path (local development / hackathon evaluation)
+                        logger.info("Using service account JSON from file path")
+                        actual_creds_path = credentials_path
+                        
+                        # Handle both absolute paths and relative paths within Docker container
+                        if not credentials_path.startswith('/'):
+                            docker_path = f"/credentials/{credentials_path}"
+                            if os.path.exists(docker_path):
+                                actual_creds_path = docker_path
+                        elif not os.path.exists(credentials_path):
+                            # Try common Docker mount path
+                            filename = os.path.basename(credentials_path)
+                            docker_path = f"/credentials/{filename}"
+                            if os.path.exists(docker_path):
+                                actual_creds_path = docker_path
+                        
+                        # Set environment variable for Google Cloud SDK
+                        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = actual_creds_path
+                        
+                        if not os.path.exists(actual_creds_path):
+                            raise FileNotFoundError(f"Service account file not found at {actual_creds_path}")
+                        
+                        with open(actual_creds_path, 'r') as f:
+                            creds_data = json.load(f)
                     
-                    if not os.path.exists(actual_creds_path):
-                        raise FileNotFoundError(f"Service account file not found at {actual_creds_path}")
-                    
-                    with open(actual_creds_path, 'r') as f:
-                        creds_data = json.load(f)
-                        project_id = creds_data.get('project_id')
+                    # Extract project ID from credentials data
+                    project_id = creds_data.get('project_id') if creds_data else None
                     
                     if not project_id:
                         # Fallback project ID for hackathon evaluation
