@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # Gemini Configuration (Adobe Hackathon 2025 Compatible)
     GOOGLE_API_KEY: Optional[str] = None
     GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = None  # Path to service account JSON file for Vertex AI
-    GEMINI_MODEL: str = "gemini-1.5-flash"  # Default: gemini-1.5-flash (dev) or gemini-1.5-flash-002, Evaluation: gemini-2.5-flash
+    GEMINI_MODEL: str = "gemini-2.0-flash"  # Default: gemini-2.0-flash (stable), Evaluation: gemini-2.5-flash (provided by Adobe)
     
     # Ollama Configuration (for local development)
     OLLAMA_BASE_URL: str = "http://localhost:11434"
