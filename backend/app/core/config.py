@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     
     # Adobe PDF Embed API Configuration
     ADOBE_CLIENT_ID: Optional[str] = None
+    ADOBE_EMBED_API_KEY: Optional[str] = None  # Alternative name for hackathon compatibility
     
     # CORS Configuration
     CORS_ORIGINS: List[str] = [
@@ -42,8 +43,8 @@ class Settings(BaseSettings):
     
     # Gemini Configuration (Adobe Hackathon 2025 Compatible)
     GOOGLE_API_KEY: Optional[str] = None
-    GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = None  # Used as API key for hackathon
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = None  # Path to service account JSON file for Vertex AI
+    GEMINI_MODEL: str = "gemini-1.5-flash"  # Default: gemini-1.5-flash (dev) or gemini-1.5-flash-002, Evaluation: gemini-2.5-flash
     
     # Ollama Configuration (for local development)
     OLLAMA_BASE_URL: str = "http://localhost:11434"
@@ -77,6 +78,11 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+    
+    @property
+    def adobe_client_id(self) -> Optional[str]:
+        """Get Adobe Client ID from either environment variable name"""
+        return self.ADOBE_EMBED_API_KEY or self.ADOBE_CLIENT_ID
 
 # Global settings instance
 settings = Settings()
