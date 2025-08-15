@@ -17,6 +17,28 @@ const SynapsePanel = forwardRef(({
   onInsightsGenerated 
 }, ref) => {
 
+  // Helper function to show confirmation overlay
+  const showConfirmation = (message, action, actionText = 'Continue', cancelText = 'Keep Current') => {
+    return new Promise((resolve) => {
+      setConfirmationConfig({
+        message,
+        action,
+        actionText,
+        cancelText,
+        resolve
+      });
+      setShowConfirmationOverlay(true);
+    });
+  };
+
+  // Helper function to handle confirmation response
+  const handleConfirmationResponse = (confirmed) => {
+    setShowConfirmationOverlay(false);
+    if (confirmationConfig.resolve) {
+      confirmationConfig.resolve(confirmed);
+    }
+  };
+
   // Helper function to clean filename display
   const cleanFileName = (fileName) => {
     if (!fileName) return '';
@@ -58,6 +80,15 @@ const SynapsePanel = forwardRef(({
   const [expandedSnippets, setExpandedSnippets] = useState({}); // For snippet expansion
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  
+  // Confirmation overlay state
+  const [showConfirmationOverlay, setShowConfirmationOverlay] = useState(false);
+  const [confirmationConfig, setConfirmationConfig] = useState({
+    message: '',
+    action: null,
+    actionText: 'Continue',
+    cancelText: 'Keep Current'
+  });
   
   // INSIGHTS STABILITY: Track insights generation metadata for intelligent clearing
   const [insightsMetadata, setInsightsMetadata] = useState(null);
@@ -550,8 +581,11 @@ const SynapsePanel = forwardRef(({
 
     // Check if we already have insights and show confirmation dialog
     if (insights && insights.parsed) {
-      const shouldProceed = window.confirm(
-        "This will clear your current insights and audio content to generate new analysis. Continue?"
+      const shouldProceed = await showConfirmation(
+        "This will clear your old insights and audio content to generate new analysis.",
+        "generate-insights",
+        "Continue",
+        "Keep Current"
       );
       
       if (!shouldProceed) {
@@ -768,8 +802,11 @@ const SynapsePanel = forwardRef(({
 
     // Check if we already have podcast data and show confirmation dialog
     if (podcastData && podcastData.audio_url) {
-      const shouldProceed = window.confirm(
-        "This will replace your current audio content with new audio. Continue?"
+      const shouldProceed = await showConfirmation(
+        "This will replace your current audio content with new audio.",
+        "generate-audio",
+        "Continue",
+        "Keep Current"
       );
       
       if (!shouldProceed) {
@@ -1419,7 +1456,45 @@ const SynapsePanel = forwardRef(({
           </div>
         )}
 
-        {activeTab === 'insights' && renderInsightsContent()}
+        {activeTab === 'insights' && (
+          <div className={`insights-tab-container ${showConfirmationOverlay ? 'overlay-active' : ''}`}>
+            <div className="insights-content-wrapper">
+              {renderInsightsContent()}
+            </div>
+            
+            {/* Professional Confirmation Overlay */}
+            {showConfirmationOverlay && (
+              <div className="confirmation-overlay">
+                <div className="confirmation-backdrop" onClick={() => handleConfirmationResponse(false)} />
+                <div className="confirmation-dialog">
+                  <div className="confirmation-content">
+                    <div className="confirmation-icon">
+                      <Lightbulb size={20} />
+                    </div>
+                    <div className="confirmation-text">
+                      <h4>Confirm Action</h4>
+                      <p>{confirmationConfig.message}</p>
+                    </div>
+                  </div>
+                  <div className="confirmation-actions">
+                    <button 
+                      className="confirmation-btn cancel-btn" 
+                      onClick={() => handleConfirmationResponse(false)}
+                    >
+                      {confirmationConfig.cancelText}
+                    </button>
+                    <button 
+                      className="confirmation-btn continue-btn" 
+                      onClick={() => handleConfirmationResponse(true)}
+                    >
+                      {confirmationConfig.actionText}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
