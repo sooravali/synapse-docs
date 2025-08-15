@@ -44,47 +44,137 @@ class LLMService:
             raise
     
     async def _chat_with_gemini(self, messages: list, **kwargs) -> str:
-        """Chat with Google Gemini"""
-        api_key = settings.GOOGLE_APPLICATION_CREDENTIALS or settings.GOOGLE_API_KEY
-        if not api_key:
-            raise ValueError("Gemini API key not configured")
-        
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent"
-        headers = {"Content-Type": "application/json"}
-        params = {"key": api_key}
-        
-        # Convert messages to Gemini format
-        content = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
-        payload = {
-            "contents": [{"parts": [{"text": content}]}],
-            "generationConfig": {
-                "temperature": 0.7,
-                "topK": 40,
-                "topP": 0.95,
-                "maxOutputTokens": 1024
-            }
-        }
-        
-        # Retry logic for transient errors
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                async with httpx.AsyncClient() as client:
-                    response = await client.post(url, headers=headers, json=payload, params=params, timeout=30)
-                    response.raise_for_status()
-                    result = response.json()
-                    return result["candidates"][0]["content"]["parts"][0]["text"]
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code in [503, 429, 500] and attempt < max_retries - 1:
-                    wait_time = 2 ** attempt
-                    logger.warning(f"Gemini API error {e.response.status_code} (attempt {attempt + 1}/{max_retries}), retrying in {wait_time} seconds...")
-                    await asyncio.sleep(wait_time)
-                    continue
-                else:
-                    logger.error(f"Gemini API error: {e}")
-                    if e.response.status_code == 503:
-                        raise Exception("Gemini API is temporarily unavailable. Please try again in a few moments.")
-                    raise
+        """Chat with Google Gemini via Vertex AI (Adobe Hackathon 2025 Compliant)"""
+        try:
+            # Import Vertex AI client
+            from google.cloud import aiplatform
+            from vertexai.generative_models import GenerativeModel
+            import vertexai
+            
+            # Check for service account credentials (required for hackathon)
+            credentials_path = settings.GOOGLE_APPLICATION_CREDENTIALS
+            api_key = settings.GOOGLE_API_KEY
+            
+            if not credentials_path and not api_key:
+                raise ValueError("Either GOOGLE_APPLICATION_CREDENTIALS (service account) or GOOGLE_API_KEY must be set")
+            
+            # For hackathon compliance, prioritize service account authentication
+            if credentials_path:
+                # Set the environment variable for Google Cloud SDK
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
+                
+                # Initialize Vertex AI with service account
+                # Extract project ID from service account file for Vertex AI initialization
+                import json
+                try:
+                    # Handle both absolute paths and relative paths within Docker container
+                    actual_creds_path = credentials_path
+                    
+                    # If path doesn't start with /, it might be relative to /credentials (Docker mount)
+                    if not credentials_path.startswith('/'):
+                        docker_path = f"/credentials/{credentials_path}"
+                        if os.path.exists(docker_path):
+                            actual_creds_path = docker_path
+                            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = docker_path
+                    elif not os.path.exists(credentials_path):
+                        # Try common Docker mount path
+                        filename = os.path.basename(credentials_path)
+                        docker_path = f"/credentials/{filename}"
+                        if os.path.exists(docker_path):
+                            actual_creds_path = docker_path
+                            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = docker_path
+                    
+                    if not os.path.exists(actual_creds_path):
+                        raise FileNotFoundError(f"Service account file not found at {actual_creds_path}")
+                    
+                    with open(actual_creds_path, 'r') as f:
+                        creds_data = json.load(f)
+                        project_id = creds_data.get('project_id')
+                    
+                    if not project_id:
+                        # Fallback project ID for hackathon evaluation
+                        project_id = os.environ.get('GOOGLE_CLOUD_PROJECT', 'synapse-docs-468420')
+                except Exception as e:
+                    logger.warning(f"Could not read project ID from service account: {e}")
+                    project_id = os.environ.get('GOOGLE_CLOUD_PROJECT', 'synapse-docs-468420')
+                
+                # Initialize Vertex AI
+                vertexai.init(project=project_id, location="us-central1")
+                
+                # Use Vertex AI Generative Model
+                model = GenerativeModel(settings.GEMINI_MODEL)
+                
+                # Convert messages to Vertex AI format
+                content_parts = []
+                for msg in messages:
+                    content_parts.append(f"{msg['role']}: {msg['content']}")
+                combined_content = "\n".join(content_parts)
+                
+                # Generate content with retry logic
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        response = await asyncio.get_event_loop().run_in_executor(
+                            None, 
+                            lambda: model.generate_content(combined_content)
+                        )
+                        return response.text
+                    except Exception as e:
+                        if attempt < max_retries - 1:
+                            wait_time = 2 ** attempt
+                            logger.warning(f"Vertex AI Gemini error (attempt {attempt + 1}/{max_retries}), retrying in {wait_time} seconds: {e}")
+                            await asyncio.sleep(wait_time)
+                            continue
+                        else:
+                            logger.error(f"Vertex AI Gemini error: {e}")
+                            raise
+            
+            else:
+                # Fallback to AI Studio API for development (when no service account)
+                logger.info("Using AI Studio API as fallback (service account not available)")
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.GEMINI_MODEL}:generateContent"
+                headers = {"Content-Type": "application/json"}
+                params = {"key": api_key}
+                
+                # Convert messages to Gemini format
+                content = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
+                payload = {
+                    "contents": [{"parts": [{"text": content}]}],
+                    "generationConfig": {
+                        "temperature": 0.7,
+                        "topK": 40,
+                        "topP": 0.95,
+                        "maxOutputTokens": 1024
+                    }
+                }
+                
+                # Retry logic for transient errors
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        async with httpx.AsyncClient() as client:
+                            response = await client.post(url, headers=headers, json=payload, params=params, timeout=30)
+                            response.raise_for_status()
+                            result = response.json()
+                            return result["candidates"][0]["content"]["parts"][0]["text"]
+                    except httpx.HTTPStatusError as e:
+                        if e.response.status_code in [503, 429, 500] and attempt < max_retries - 1:
+                            wait_time = 2 ** attempt
+                            logger.warning(f"Gemini API error {e.response.status_code} (attempt {attempt + 1}/{max_retries}), retrying in {wait_time} seconds...")
+                            await asyncio.sleep(wait_time)
+                            continue
+                        else:
+                            logger.error(f"Gemini API error: {e}")
+                            if e.response.status_code == 503:
+                                raise Exception("Gemini API is temporarily unavailable. Please try again in a few moments.")
+                            raise
+                            
+        except ImportError as e:
+            logger.error(f"Google Cloud Vertex AI libraries not available: {e}")
+            raise ValueError("Google Cloud Vertex AI SDK is required for Gemini integration. Please install google-cloud-aiplatform.")
+        except Exception as e:
+            logger.error(f"Gemini chat error: {e}")
+            raise
     
     async def _chat_with_openai(self, messages: list, **kwargs) -> str:
         """Chat with OpenAI API"""
