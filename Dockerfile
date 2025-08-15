@@ -58,6 +58,8 @@ COPY --from=python-deps /root/.local /root/.local
 # Copy minimal application files only
 COPY backend/app /app/app
 COPY backend/gunicorn_conf.py /app/
+COPY backend/chat_with_llm.py /app/
+COPY backend/generate_audio.py /app/
 COPY --from=frontend /frontend/dist /app/static
 
 # Create required directories with proper permissions
