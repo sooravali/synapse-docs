@@ -12,7 +12,7 @@ services:
     environment:
       - LLM_PROVIDER=gemini
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
-      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-1.5-flash}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
       - TTS_PROVIDER=azure
       - AZURE_TTS_KEY=${AZURE_TTS_KEY}
       - AZURE_TTS_ENDPOINT=${AZURE_TTS_ENDPOINT}
