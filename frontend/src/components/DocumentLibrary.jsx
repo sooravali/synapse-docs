@@ -6,7 +6,7 @@
  */
 import { useState, useEffect } from 'react';
 import { documentAPI, sessionUtils } from '../api';
-import { Upload, Search, CheckCircle, AlertCircle, Clock, FileText, Trash2 } from 'lucide-react';
+import { Upload, Search, CheckCircle, AlertCircle, Clock, FileText, Trash2, Info } from 'lucide-react';
 import FlowStatusBar from './FlowStatusBar';
 import './DocumentLibrary.css';
 
@@ -31,6 +31,9 @@ const DocumentLibrary = ({
   // Session-based state for "Recently Added" feature
   const [recentDocuments, setRecentDocuments] = useState([]);
   const [knowledgeBaseDocuments, setKnowledgeBaseDocuments] = useState([]);
+  
+  // Tab state management for the new tabbed interface
+  const [activeTab, setActiveTab] = useState('recent'); // Default to 'recent' or 'all' based on content
 
   // SessionStorage utilities for tracking new files in current session
   const SESSION_STORAGE_KEY = 'synapse_docs_newFileIDs';
@@ -67,6 +70,28 @@ const DocumentLibrary = ({
     return documents.find(doc => doc.id === mostRecentID) || null;
   };
 
+  // Utility function to format dates in a user-friendly way
+  const formatDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffTime = Math.abs(now - date);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 1) return 'today';
+      if (diffDays === 2) return 'yesterday';
+      if (diffDays <= 7) return `${diffDays - 1} days ago`;
+      
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+      });
+    } catch (error) {
+      return '';
+    }
+  };
+
   // Helper function to clean filename display
   const cleanFileName = (fileName) => {
     if (!fileName) return '';
@@ -91,11 +116,24 @@ const DocumentLibrary = ({
     setRecentDocuments(recent);
     setKnowledgeBaseDocuments(knowledgeBase);
     
+    // Smart tab selection logic based on content
+    if (recent.length > 0) {
+      // If there are recent documents, default to 'recent' tab
+      setActiveTab('recent');
+    } else if (knowledgeBase.length > 0) {
+      // If no recent documents but there are existing documents, show 'all'
+      setActiveTab('all');
+    } else {
+      // First-time user with no documents, default to 'all' for the initial upload prompt
+      setActiveTab('all');
+    }
+    
     // Debug session information
     const currentSessionId = sessionUtils.getSessionId();
     const currentUserId = sessionUtils.getCurrentUserId();
     console.log(`Session Debug - Session ID: ${currentSessionId}, User ID: ${currentUserId}`);
     console.log(`Categorized documents: ${recent.length} recent, ${knowledgeBase.length} all documents`);
+    console.log(`Active tab set to: ${recent.length > 0 ? 'recent' : knowledgeBase.length > 0 ? 'all' : 'all'}`);
   }, [documents]);
 
   // Filter documents based on search term (global search across both sections)
@@ -222,6 +260,10 @@ const DocumentLibrary = ({
             console.log(`Added newly uploaded document ${result.document_id} to session tracking`);
           }
         });
+        
+        // Automatically switch to 'recent' tab when new documents are uploaded
+        setActiveTab('recent');
+        console.log('Switched to Recent tab after file upload');
       }
 
       // Small delay to ensure database transaction is committed
@@ -351,6 +393,173 @@ const DocumentLibrary = ({
     }
   };
 
+  // Tab handling functions
+  const handleTabClick = (tabName) => {
+    setActiveTab(tabName);
+    console.log(`Switched to ${tabName} tab`);
+  };
+
+  // Get documents for the active tab
+  const getActiveTabDocuments = () => {
+    if (searchTerm) {
+      // When searching, show all filtered results regardless of tab
+      return filteredDocuments;
+    }
+    
+    if (activeTab === 'recent') {
+      return recentDocuments;
+    } else {
+      return knowledgeBaseDocuments;
+    }
+  };
+
+  // Get tab display name with count
+  const getTabDisplayName = (tabName) => {
+    if (tabName === 'recent') {
+      const count = recentDocuments.length;
+      return count > 0 ? `Recent (${count})` : 'Recent';
+    } else {
+      const count = knowledgeBaseDocuments.length;
+      return count > 0 ? `All Documents (${count})` : 'All Documents';
+    }
+  };
+
+  // Component for rendering individual tab button with enhanced tooltip
+  const TabButton = ({ tabName, isActive, onClick, tooltip }) => {
+    const [showTooltip, setShowTooltip] = useState(false);
+    
+    return (
+      <div className="tab-button-wrapper">
+        <button
+          className={`tab-button ${isActive ? 'active' : ''}`}
+          onClick={() => onClick(tabName)}
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
+        >
+          <span className="tab-text">{getTabDisplayName(tabName)}</span>
+          <Info size={12} className="tab-info-icon" />
+        </button>
+        {showTooltip && (
+          <div className="tab-tooltip">
+            {tooltip}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render the document list for the active tab
+  const renderDocumentList = (documents) => {
+    if (documents.length === 0) {
+      // Handle empty states based on tab and search context
+      if (searchTerm) {
+        return (
+          <div className="empty-state">
+            <div className="no-matches">
+              <p>No documents match your search.</p>
+              <button onClick={() => setSearchTerm('')} className="clear-search-btn">
+                Clear search
+              </button>
+            </div>
+          </div>
+        );
+      } else if (activeTab === 'recent') {
+        return (
+          <div className="empty-state">
+            <div className="tab-empty-state">
+              <p>Your newly uploaded documents will appear here.</p>
+              <span className="empty-hint">Upload some PDFs to get started!</span>
+            </div>
+          </div>
+        );
+      } else if (activeTab === 'all' && knowledgeBaseDocuments.length === 0 && recentDocuments.length === 0) {
+        // First-time user experience
+        return (
+          <div className="empty-state">
+            <div className="getting-started">
+              <div className="welcome-content">
+                <h3>Welcome to Synapse</h3>
+                <p>Upload your first PDF to start discovering connections and generating insights across your documents.</p>
+                <div className="next-steps">
+                  <div className="step">
+                    <span className="step-number">1</span>
+                    <span>Upload PDFs using the area above</span>
+                  </div>
+                  <div className="step">
+                    <span className="step-number">2</span>
+                    <span>Select a document to view it</span>
+                  </div>
+                  <div className="step">
+                    <span className="step-number">3</span>
+                    <span>Scroll to discover related content</span>
+                  </div>
+                  <div className="step">
+                    <span className="step-number">4</span>
+                    <span>Select text for AI insights</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      } else {
+        // All Documents tab with no documents in library (but recent documents exist)
+        return (
+          <div className="empty-state">
+            <div className="tab-empty-state">
+              <p>Your document library is empty.</p>
+              <span className="empty-hint">Documents from 'Recent' will appear here after your next session.</span>
+            </div>
+          </div>
+        );
+      }
+    }
+
+    return (
+      <div className="tab-document-list">
+        {documents.map((doc) => (
+          <div
+            key={doc.id}
+            className={`document-item ${selectedDocument?.id === doc.id ? 'selected' : ''}`}
+            onClick={() => onDocumentSelect(doc)}
+          >
+            <div className="document-info">
+              <div className="document-main">
+                <div className="document-icon">
+                  <FileText size={16} />
+                </div>
+                <div className="document-details">
+                  <div className="document-name">
+                    {cleanFileName(doc.file_name)}
+                    {selectedDocument?.id === doc.id && (
+                      <span className="currently-reading-badge">Reading</span>
+                    )}
+                    {recentDocuments.find(recent => recent.id === doc.id) && activeTab === 'all' && (
+                      <span className="new-badge">New</span>
+                    )}
+                  </div>
+                  <div className="document-metadata">
+                    {doc.created_at && (
+                      <span className="document-date">
+                        Added {formatDate(doc.created_at)}
+                      </span>
+                    )}
+                    {doc.status !== 'ready' && (
+                      <div className="document-status-indicator">
+                        {getStatusIcon(doc.status)}
+                        <span className="document-status">{getStatusText(doc)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const cancelClearAll = () => {
     setShowClearConfirm(false);
   };
@@ -456,126 +665,36 @@ const DocumentLibrary = ({
         </div>
       )}
 
-      {/* Document List with Recently Added and All Documents sections */}
+      {/* Document List with Tabbed Interface */}
       <div className="document-list">
-        {filteredDocuments.length === 0 ? (
-          <div className="empty-state">
-            {documents.length === 0 ? (
-              <div className="getting-started">
-                <div className="welcome-content">
-                  <h3>Welcome to Synapse</h3>
-                  <p>Upload your first PDF to start discovering connections and generating insights across your documents.</p>
-                  <div className="next-steps">
-                    <div className="step">
-                      <span className="step-number">1</span>
-                      <span>Upload PDFs using the area above</span>
-                    </div>
-                    <div className="step">
-                      <span className="step-number">2</span>
-                      <span>Select a document to view it</span>
-                    </div>
-                    <div className="step">
-                      <span className="step-number">3</span>
-                      <span>Scroll to discover related content</span>
-                    </div>
-                    <div className="step">
-                      <span className="step-number">4</span>
-                      <span>Select text for AI insights</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="no-matches">
-                <p>No documents match your search.</p>
-                <button onClick={() => setSearchTerm('')} className="clear-search-btn">
-                  Clear search
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="document-sections">
-            {/* Recently Added Section - Only show if there are recent documents and no search */}
-            {!searchTerm && recentDocuments.length > 0 && (
-              <div className="document-section">
-                <h4 className="section-heading">RECENTLY ADDED</h4>
-                <div className="section-documents">
-                  {recentDocuments
-                    .filter(doc => !searchTerm || cleanFileName(doc.file_name).toLowerCase().includes(searchTerm.toLowerCase()))
-                    .map((doc) => (
-                    <div
-                      key={doc.id}
-                      className={`document-item ${selectedDocument?.id === doc.id ? 'selected' : ''}`}
-                      onClick={() => onDocumentSelect(doc)}
-                    >
-                      <div className="document-info">
-                        <div className="document-main">
-                          <div className="document-icon">
-                            <FileText size={16} />
-                          </div>
-                          <div className="document-details">
-                            <div className="document-name">
-                              {cleanFileName(doc.file_name)}
-                            </div>
-                            {doc.status !== 'ready' && (
-                              <div className="document-meta">
-                                {getStatusIcon(doc.status)}
-                                <span className="document-status">{getStatusText(doc)}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+        {/* Tab Container */}
+        <div className="tab-container">
+          <TabButton
+            tabName="recent"
+            isActive={activeTab === 'recent'}
+            onClick={handleTabClick}
+            tooltip="Documents uploaded in this session. They will be moved to 'All Documents' on your next visit."
+          />
+          <TabButton
+            tabName="all"
+            isActive={activeTab === 'all'}
+            onClick={handleTabClick}
+            tooltip="Your permanent library. Insights are generated by connecting information across all documents here."
+          />
+        </div>
 
-            {/* Visual separator between sections */}
-            {!searchTerm && recentDocuments.length > 0 && knowledgeBaseDocuments.length > 0 && (
-              <hr className="section-separator" />
-            )}
-
-            {/* All Documents Section - Always show if there are any documents */}
-            {(knowledgeBaseDocuments.length > 0 || searchTerm) && (
-              <div className="document-section">
-                <h4 className="section-heading">
-                  {searchTerm ? 'SEARCH RESULTS' : 'ALL DOCUMENTS'}
-                </h4>
-                <div className="section-documents">
-                  {(searchTerm ? filteredDocuments : knowledgeBaseDocuments).map((doc) => (
-                    <div
-                      key={doc.id}
-                      className={`document-item ${selectedDocument?.id === doc.id ? 'selected' : ''}`}
-                      onClick={() => onDocumentSelect(doc)}
-                    >
-                      <div className="document-info">
-                        <div className="document-main">
-                          <div className="document-icon">
-                            <FileText size={16} />
-                          </div>
-                          <div className="document-details">
-                            <div className="document-name">
-                              {cleanFileName(doc.file_name)}
-                            </div>
-                            {doc.status !== 'ready' && (
-                              <div className="document-meta">
-                                {getStatusIcon(doc.status)}
-                                <span className="document-status">{getStatusText(doc)}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Tab Content */}
+        <div className="tab-content">
+          {searchTerm ? (
+            // When searching, show all results with search indicator
+            <div className="search-results-header">
+              <h4 className="search-results-title">SEARCH RESULTS</h4>
+            </div>
+          ) : null}
+          
+          {/* Render the active tab's content */}
+          {renderDocumentList(getActiveTabDocuments())}
+        </div>
       </div>
     </div>
   );
