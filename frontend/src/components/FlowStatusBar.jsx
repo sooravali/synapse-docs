@@ -83,66 +83,66 @@ const FlowStatusBar = ({
       <div className="status-content">
         <div className="status-steps">
           {/* Upload Step */}
-          <div className="status-step-container">
-            <div 
-              className={`status-step ${getStepStatus('upload')}`}
-              onMouseEnter={() => setHoveredStep('upload')}
-              onMouseLeave={() => setHoveredStep(null)}
-            >
+          <div 
+            className="status-step-container"
+            onMouseEnter={() => setHoveredStep('upload')}
+            onMouseLeave={() => setHoveredStep(null)}
+          >
+            <div className={`status-step ${getStepStatus('upload')}`}>
               <FileText size={18} />
-              {hoveredStep === 'upload' && (
-                <div className="tooltip">
-                  {getStepTooltip('upload')}
-                </div>
-              )}
             </div>
             <div className={`status-label ${getStepStatus('upload')}`}>
               {getStepLabel('upload')}
             </div>
+            {hoveredStep === 'upload' && (
+              <div className="tooltip">
+                {getStepTooltip('upload')}
+              </div>
+            )}
           </div>
           
           {/* Connector 1 */}
           <div className={`status-connector ${getConnectorStatus('upload')}`} />
           
           {/* Connect Step */}
-          <div className="status-step-container">
-            <div 
-              className={`status-step ${getStepStatus('connect')}`}
-              onMouseEnter={() => setHoveredStep('connect')}
-              onMouseLeave={() => setHoveredStep(null)}
-            >
+          <div 
+            className="status-step-container"
+            onMouseEnter={() => setHoveredStep('connect')}
+            onMouseLeave={() => setHoveredStep(null)}
+          >
+            <div className={`status-step ${getStepStatus('connect')}`}>
               <Network size={18} />
-              {hoveredStep === 'connect' && (
-                <div className="tooltip">
-                  {getStepTooltip('connect')}
-                </div>
-              )}
             </div>
             <div className={`status-label ${getStepStatus('connect')}`}>
               {getStepLabel('connect')}
             </div>
+            {hoveredStep === 'connect' && (
+              <div className="tooltip">
+                {getStepTooltip('connect')}
+              </div>
+            )}
           </div>
           
           {/* Connector 2 */}
           <div className={`status-connector ${getConnectorStatus('connect')}`} />
           
           {/* Generate Step */}
-          <div className="status-step-container">
-            <div 
-              className={`status-step ${getStepStatus('generate')}`}
-              onMouseEnter={() => setHoveredStep('generate')}
-              onMouseLeave={() => setHoveredStep(null)}
-            >
+          <div 
+            className="status-step-container"
+            onMouseEnter={() => setHoveredStep('generate')}
+            onMouseLeave={() => setHoveredStep(null)}
+          >
+            <div className={`status-step ${getStepStatus('generate')}`}>
               <Lightbulb size={18} />
-              {hoveredStep === 'generate' && (
-                <div className="tooltip">
-                  {getStepTooltip('generate')}
-                </div>
-              )}
             </div>
             <div className={`status-label ${getStepStatus('generate')}`}>
               {getStepLabel('generate')}
             </div>
+            {hoveredStep === 'generate' && (
+              <div className="tooltip">
+                {getStepTooltip('generate')}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -224,13 +224,14 @@
     font-size: 10px !important; /* Smaller on mobile */
     padding: 4px 6px !important; /* Reduced padding */
     max-width: 250px !important; /* Increased for full text on mobile */
+    top: calc(100% + 12px) !important; /* Adjust for smaller mobile labels */
   }
 }
 
 /* Tooltip Styles - Minimal and Clean */
 .tooltip {
   position: absolute;
-  top: calc(100% + 8px); /* Positioned below with more space */
+  top: calc(100% + 16px); /* Positioned below the step container (icon + label) */
   left: 50%;
   transform: translateX(-50%);
   background: rgba(55, 65, 81, 1); /* Fully opaque - no transparency */
@@ -273,38 +274,17 @@
 .tooltip::before {
   content: '';
   position: absolute;
-  bottom: 100%;
+  bottom: 100%; /* Position arrow at top of tooltip since tooltip is below */
   left: 50%;
   transform: translateX(-50%);
   border: 4px solid transparent; /* Slightly larger arrow */
-  border-bottom-color: rgba(55, 65, 81, 1); /* Match opaque background */
-}
-
-/* Smart positioning for edge tooltips */
-.status-item:first-child .tooltip {
-  left: 0;
-  transform: translateX(0);
-}
-
-.status-item:first-child .tooltip::before {
-  left: 20px;
-}
-
-.status-item:last-child .tooltip {
-  right: 0;
-  left: auto;
-  transform: translateX(0);
-}
-
-.status-item:last-child .tooltip::before {
-  right: 20px;
-  left: auto;
+  border-bottom-color: rgba(55, 65, 81, 1); /* Arrow pointing up */
 }
 
 @keyframes tooltipFadeIn {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(-2px);
+    transform: translateX(-50%) translateY(2px); /* Slide up from below */
   }
   to {
     opacity: 1;
