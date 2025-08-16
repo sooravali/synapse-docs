@@ -1594,7 +1594,7 @@ const SynapsePanel = forwardRef(({
           </button>
           
           <button 
-            className={`tab-button insights-bulb-button ${activeTab === 'insights' ? 'active' : ''} ${isLoadingInsights ? 'loading' : ''}`}
+            className={`tab-button insights-bulb-button ${activeTab === 'insights' ? 'active' : ''}`}
             onClick={() => {
               setActiveTab('insights');
               // Always attempt to generate insights when button is clicked, even if insights already exist
@@ -1603,7 +1603,7 @@ const SynapsePanel = forwardRef(({
                 generateInsightsFromContext();
               }
             }}
-            disabled={!currentContext || connections.length === 0 || isLoadingInsights}
+            disabled={!currentContext || connections.length === 0}
             title={
               !currentContext 
                 ? 'Read document first to generate insights'
@@ -1615,17 +1615,8 @@ const SynapsePanel = forwardRef(({
             }
           >
             <div className="insights-button-content">
-              {isLoadingInsights ? (
-                <>
-                  <div className="bulb-spinner"></div>
-                  <span>Generating...</span>
-                </>
-              ) : (
-                <>
-                  <Lightbulb size={16} className="insights-bulb-icon" />
-                  <span>AI Insights</span>
-                </>
-              )}
+              <Lightbulb size={16} className="insights-bulb-icon" />
+              <span>Insights</span>
             </div>
           </button>
         </div>
