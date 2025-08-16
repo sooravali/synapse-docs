@@ -64,17 +64,30 @@ async def process_document_background(document_id: int, file_content: bytes, ses
     This implements the complete pipeline with chunked processing for large documents:
     1. Parse PDF using Challenge 1A logic (DocumentParser) - streaming approach
     2. Generate embeddings using Challenge 1B logic (EmbeddingService) - batched processing
-    3. Store in Faiss vector database - incremental updates
+    3. Store in session-aware Faiss vector database - incremental updates
     4. Update database with results - transaction management
     """
     try:
         logger.info(f"Document {document_id}: Starting optimized background processing pipeline")
+        
+        # Get the document to retrieve session_id
+        from app.crud.crud_document import get_document
+        document = get_document(session, document_id)
+        if not document:
+            logger.error(f"Document {document_id} not found")
+            return
+        
+        session_id = document.session_id
+        logger.info(f"Document {document_id}: Processing for session {session_id}")
         
         # Get shared service instances
         services = get_services()
         document_parser = services['document_parser']
         embedding_service = services['embedding_service']
         faiss_service = services['faiss_service']
+        
+        # Set the session for the Faiss service
+        faiss_service.set_session(session_id)
         
         file_size_mb = len(file_content) / (1024 * 1024)
         logger.info(f"Document {document_id}: Processing {file_size_mb:.1f}MB PDF with optimized pipeline")
@@ -236,7 +249,8 @@ async def process_document_background(document_id: int, file_content: bytes, ses
             metadata_list.append(chunk_metadata)
         
         try:
-            faiss_positions = faiss_service.add_embeddings(all_embeddings, metadata_list)
+            # Add embeddings to session-specific Faiss index
+            faiss_positions = faiss_service.add_embeddings(all_embeddings, metadata_list, session_id)
             
             if not faiss_positions:
                 update_document_status(
@@ -766,16 +780,18 @@ async def clear_all_documents(
         # Note: Documents and chunks are already deleted by clear_all_session_documents
         
         # Clear session data from Faiss vector index
-        # Note: Since we can't easily filter Faiss by session, we'll need to rebuild it
-        # For now, we'll just note this limitation
         try:
             services = get_services()
             faiss_service = services['faiss_service']
-            # TODO: Implement session-based Faiss filtering
-            # For hackathon purposes, this limitation is acceptable
-            logger.info("Session-based Faiss clearing not implemented yet - acceptable for demo")
+            
+            # Clear session-specific Faiss data
+            success = faiss_service.clear_session_data(session_id)
+            if success:
+                logger.info(f"Successfully cleared Faiss data for session {session_id}")
+            else:
+                logger.warning(f"Failed to clear Faiss data for session {session_id}")
         except Exception as faiss_error:
-            logger.error(f"Failed to handle Faiss index: {faiss_error}")
+            logger.error(f"Failed to clear Faiss index for session {session_id}: {faiss_error}")
         
         # Clear uploads directory
         uploads_dir = "uploads"
@@ -809,19 +825,21 @@ async def clear_all_documents(
         )
 
 @router.post("/reload-index")
-async def reload_faiss_index():
+async def reload_faiss_index(request: Request):
     """
-    Reload the Faiss index from disk.
+    Reload the session-specific Faiss index from disk.
     
     This is useful when the index files have been updated but the in-memory 
     service hasn't been refreshed. This can happen after clearing documents
     and uploading new ones.
     """
     try:
-        logger.info("Reloading Faiss index from disk...")
+        session_id = get_session_id(request)
+        logger.info(f"Reloading Faiss index for session {session_id}...")
         
         services = get_services()
         faiss_service = services['faiss_service']
+        faiss_service.set_session(session_id)
         success = faiss_service.reload_index()
         index_size = faiss_service.get_index_size()
         
@@ -845,28 +863,32 @@ async def reload_faiss_index():
 @router.delete("/{document_id}")
 async def delete_document_endpoint(
     document_id: int,
+    request: Request,
     session: Session = Depends(get_session)
 ):
-    """Delete a document and all its associated data."""
-    document = get_document(session, document_id)
+    """Delete a document and all its associated data.""" 
+    session_id = get_session_id(request)
+    document = get_document(session, document_id, session_id)
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
     
     try:
         # Get chunk Faiss positions before deletion
-        from app.crud.crud_document import get_text_chunks_by_document
-        chunks = get_text_chunks_by_document(session, document_id)
+        from app.crud.crud_document import get_text_chunks_by_document_with_session
+        chunks = get_text_chunks_by_document_with_session(session, document_id, session_id)
         faiss_positions = [chunk.faiss_index_position for chunk in chunks 
                           if chunk.faiss_index_position is not None]
         
-        # Remove from Faiss index
+        # Remove from session-specific Faiss index
         if faiss_positions:
             services = get_services()
             faiss_service = services['faiss_service']
+            # Set session and remove embeddings
+            faiss_service.set_session(session_id)
             faiss_service.remove_embeddings(faiss_positions)
         
-        # Delete from database
-        success = delete_document(session, document_id)
+        # Delete from database with session filtering
+        success = delete_document(session, document_id, session_id)
         
         if success:
             return {"message": "Document deleted successfully", "document_id": document_id}
