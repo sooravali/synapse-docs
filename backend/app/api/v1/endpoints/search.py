@@ -7,7 +7,7 @@ import time
 import logging
 from typing import List, Optional, Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlmodel import Session
 
 from app.core.database import get_session
@@ -25,8 +25,16 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+def get_session_id(request: Request) -> str:
+    """Extract session ID from request headers."""
+    session_id = request.headers.get('X-Session-ID')
+    if not session_id:
+        raise HTTPException(status_code=400, detail="Session ID is required")
+    return session_id
+
 @router.post("/semantic", response_model=SearchResponse)
 async def semantic_search(
+    request: Request,
     search_query: SearchQuery,
     session: Session = Depends(get_session)
 ):
@@ -72,9 +80,13 @@ async def semantic_search(
                 embedding_time_ms=embedding_time
             )
         
-        # Stage 3: Get chunk details from database
+        # Get session ID for filtering
+        session_id = get_session_id(request)
+        
+        # Stage 3: Get chunk details from database with session filtering
         faiss_positions = [result['faiss_index_position'] for result in faiss_results]
-        chunks = get_text_chunks_by_faiss_positions(session, faiss_positions)
+        from app.crud.crud_document import get_text_chunks_by_faiss_positions_with_session
+        chunks = get_text_chunks_by_faiss_positions_with_session(session, faiss_positions, session_id)
         
         # Create lookup for chunks by Faiss position
         chunk_lookup = {chunk.faiss_index_position: chunk for chunk in chunks}
