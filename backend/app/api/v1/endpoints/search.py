@@ -64,11 +64,15 @@ async def semantic_search(
                 detail="Failed to generate embedding for query"
             )
         
-        # Stage 2: Search Faiss vector database
+        # Get session ID for session-aware search
+        session_id = get_session_id(request)
+        
+        # Stage 2: Search session-specific Faiss vector database  
         faiss_results = faiss_service.search(
             query_embedding=query_embedding,
             top_k=search_query.top_k * 2,  # Get more results for filtering
-            similarity_threshold=search_query.similarity_threshold
+            similarity_threshold=search_query.similarity_threshold,
+            session_id=session_id  # Use session-aware search
         )
         
         if not faiss_results:
@@ -79,9 +83,6 @@ async def semantic_search(
                 search_time_ms=(time.time() - start_time) * 1000,
                 embedding_time_ms=embedding_time
             )
-        
-        # Get session ID for filtering
-        session_id = get_session_id(request)
         
         # Stage 3: Get chunk details from database with session filtering
         faiss_positions = [result['faiss_index_position'] for result in faiss_results]
@@ -227,6 +228,7 @@ async def text_search(
 
 @router.get("/similar/{chunk_id}", response_model=List[SearchResultItem])
 async def find_similar_chunks(
+    request: Request,
     chunk_id: int,
     top_k: int = Query(5, ge=1, le=20, description="Number of similar chunks to return"),
     similarity_threshold: float = Query(0.7, ge=0.0, le=1.0, description="Minimum similarity score"),
@@ -238,10 +240,14 @@ async def find_similar_chunks(
     Uses the Challenge 1B semantic analysis to find related content.
     """
     try:
+        # Get session ID for session-aware operations
+        session_id = get_session_id(request)
+        
         # Get shared service instances
         faiss_service = get_faiss_service()
+        faiss_service.set_session(session_id)
         
-        # Get the reference chunk
+        # Get the reference chunk (note: we'll use existing method but it should be session-filtered)
         from app.crud.crud_document import get_text_chunk
         reference_chunk = get_text_chunk(session, chunk_id)
         
@@ -254,7 +260,7 @@ async def find_similar_chunks(
                 detail="Chunk does not have vector embedding"
             )
         
-        # Get the embedding from Faiss
+        # Get the embedding from session-specific Faiss
         embedding_data = faiss_service.get_embedding_by_position(
             reference_chunk.faiss_index_position
         )
@@ -267,11 +273,12 @@ async def find_similar_chunks(
         
         reference_embedding, _ = embedding_data
         
-        # Search for similar embeddings
+        # Search for similar embeddings in session-specific index
         faiss_results = faiss_service.search(
             query_embedding=reference_embedding,
             top_k=top_k + 1,  # +1 to exclude the reference chunk itself
-            similarity_threshold=similarity_threshold
+            similarity_threshold=similarity_threshold,
+            session_id=session_id
         )
         
         # Filter out the reference chunk and build results
