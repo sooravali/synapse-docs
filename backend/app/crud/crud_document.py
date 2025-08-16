@@ -9,6 +9,7 @@ from app.schemas.document import DocumentCreate, TextChunkCreate
 def create_document(session: Session, document_data: DocumentCreate) -> Document:
     """Create a new document record."""
     document = Document(
+        session_id=document_data.session_id,
         file_name=document_data.file_name,
         content_hash=document_data.content_hash,
         file_size=document_data.file_size,
@@ -19,19 +20,23 @@ def create_document(session: Session, document_data: DocumentCreate) -> Document
     session.refresh(document)
     return document
 
-def get_document(session: Session, document_id: int) -> Optional[Document]:
-    """Get a document by ID with related chunks."""
+def get_document(session: Session, document_id: int, session_id: Optional[str] = None) -> Optional[Document]:
+    """Get a document by ID with session-based filtering."""
     statement = select(Document).where(Document.id == document_id)
+    if session_id:
+        statement = statement.where(Document.session_id == session_id)
     return session.exec(statement).first()
 
-def get_document_by_hash(session: Session, content_hash: str) -> Optional[Document]:
-    """Get a document by content hash to prevent duplicates."""
-    statement = select(Document).where(Document.content_hash == content_hash)
+def get_document_by_hash(session: Session, content_hash: str, session_id: str) -> Optional[Document]:
+    """Get a document by content hash within the same session to prevent duplicates."""
+    statement = select(Document).where(
+        and_(Document.content_hash == content_hash, Document.session_id == session_id)
+    )
     return session.exec(statement).first()
 
-def get_all_documents(session: Session, skip: int = 0, limit: int = 100, status: Optional[str] = None) -> List[Document]:
-    """Get documents with pagination and optional status filter."""
-    statement = select(Document)
+def get_all_documents(session: Session, session_id: str, skip: int = 0, limit: int = 100, status: Optional[str] = None) -> List[Document]:
+    """Get documents with session-based filtering, pagination and optional status filter."""
+    statement = select(Document).where(Document.session_id == session_id)
     
     if status:
         statement = statement.where(Document.status == status)
@@ -39,9 +44,9 @@ def get_all_documents(session: Session, skip: int = 0, limit: int = 100, status:
     statement = statement.offset(skip).limit(limit).order_by(desc(Document.upload_timestamp))
     return session.exec(statement).all()
 
-def get_documents_count(session: Session, status: Optional[str] = None) -> int:
-    """Get total count of documents."""
-    statement = select(func.count(Document.id))
+def get_documents_count(session: Session, session_id: str, status: Optional[str] = None) -> int:
+    """Get total count of documents for a session."""
+    statement = select(func.count(Document.id)).where(Document.session_id == session_id)
     
     if status:
         statement = statement.where(Document.status == status)
@@ -73,9 +78,9 @@ def update_document_status(session: Session, document_id: int, status: str,
         session.refresh(document)
     return document
 
-def delete_document(session: Session, document_id: int) -> bool:
-    """Delete a document and all its related chunks."""
-    document = get_document(session, document_id)
+def delete_document(session: Session, document_id: int, session_id: Optional[str] = None) -> bool:
+    """Delete a document and all its related chunks with session-based filtering."""
+    document = get_document(session, document_id, session_id)
     if document:
         # Delete all related text chunks first
         chunks_statement = select(TextChunk).where(TextChunk.document_id == document_id)
@@ -88,6 +93,34 @@ def delete_document(session: Session, document_id: int) -> bool:
         session.commit()
         return True
     return False
+
+def clear_all_session_documents(session: Session, session_id: str) -> Dict[str, int]:
+    """Clear all documents and chunks for a specific session."""
+    # Get all documents for this session
+    documents = get_all_documents(session, session_id, limit=10000)  # High limit to get all
+    
+    deleted_count = 0
+    deleted_chunks = 0
+    
+    for document in documents:
+        # Delete all related text chunks first
+        chunks_statement = select(TextChunk).where(TextChunk.document_id == document.id)
+        chunks = session.exec(chunks_statement).all()
+        
+        for chunk in chunks:
+            session.delete(chunk)
+            deleted_chunks += 1
+        
+        # Delete the document
+        session.delete(document)
+        deleted_count += 1
+    
+    session.commit()
+    
+    return {
+        "deleted_count": deleted_count,
+        "deleted_chunks": deleted_chunks
+    }
 
 # Text Chunk CRUD Operations
 
@@ -311,3 +344,25 @@ def get_database_health(session: Session) -> Dict[str, Any]:
             'status': 'unhealthy',
             'error': str(e)
         }
+
+# Session-based search functions
+
+def get_text_chunks_by_faiss_positions_with_session(session: Session, faiss_positions: List[int], session_id: str) -> List[TextChunk]:
+    """Get text chunks by Faiss positions filtered by session."""
+    statement = select(TextChunk).join(Document).where(
+        and_(
+            TextChunk.faiss_index_position.in_(faiss_positions),
+            Document.session_id == session_id
+        )
+    )
+    return session.exec(statement).all()
+
+def get_text_chunks_by_document_with_session(session: Session, document_id: int, session_id: str) -> List[TextChunk]:
+    """Get all text chunks for a document filtered by session."""
+    statement = select(TextChunk).join(Document).where(
+        and_(
+            TextChunk.document_id == document_id,
+            Document.session_id == session_id
+        )
+    )
+    return session.exec(statement).all()
