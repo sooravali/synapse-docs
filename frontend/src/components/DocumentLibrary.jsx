@@ -98,6 +98,19 @@ const DocumentLibrary = ({
     return fileName.replace(/^doc_\d+_/, '').replace(/\.pdf$/, '');
   };
 
+  // Helper function to get upload progress for a specific document
+  const getDocumentUploadProgress = (fileName) => {
+    // Find upload progress entry that matches this document's filename
+    const progressEntries = Object.entries(uploadProgress);
+    const matchingEntry = progressEntries.find(([key, progress]) => {
+      const cleanProgressName = progress.name.replace(/\.pdf$/, '');
+      const cleanDocName = cleanFileName(fileName);
+      return cleanProgressName === cleanDocName || progress.name === fileName;
+    });
+    
+    return matchingEntry ? matchingEntry[1] : null;
+  };
+
   // Categorize documents into Recent vs All Documents based on session storage
   useEffect(() => {
     const sessionIDs = getSessionNewFileIDs();
@@ -105,12 +118,27 @@ const DocumentLibrary = ({
     const recent = [];
     const knowledgeBase = [];
     
+    // Add actual documents from the database
     documents.forEach(doc => {
       if (sessionIDs.includes(doc.id)) {
         recent.push(doc);
       } else {
         knowledgeBase.push(doc);
       }
+    });
+
+    // Add uploading documents to Recent tab (these are temporary until they become real documents)
+    Object.entries(uploadProgress).forEach(([key, progress]) => {
+      // Create temporary document objects for uploading files
+      const tempDoc = {
+        id: `temp_${key}`,
+        file_name: progress.name,
+        status: progress.status === 'uploading' ? 'uploading' : 'processing',
+        created_at: new Date().toISOString(),
+        isTemporary: true, // Flag to identify temporary upload documents
+        uploadProgress: progress
+      };
+      recent.push(tempDoc);
     });
     
     setRecentDocuments(recent);
@@ -134,7 +162,7 @@ const DocumentLibrary = ({
     console.log(`Session Debug - Session ID: ${currentSessionId}, User ID: ${currentUserId}`);
     console.log(`Categorized documents: ${recent.length} recent, ${knowledgeBase.length} all documents`);
     console.log(`Active tab set to: ${recent.length > 0 ? 'recent' : knowledgeBase.length > 0 ? 'all' : 'all'}`);
-  }, [documents]);
+  }, [documents, uploadProgress]);
 
   // Filter documents based on search term (global search across both sections)
   useEffect(() => {
@@ -520,8 +548,8 @@ const DocumentLibrary = ({
         {documents.map((doc) => (
           <div
             key={doc.id}
-            className={`document-item ${selectedDocument?.id === doc.id ? 'selected' : ''}`}
-            onClick={() => onDocumentSelect(doc)}
+            className={`document-item ${selectedDocument?.id === doc.id ? 'selected' : ''} ${doc.isTemporary ? 'uploading' : ''}`}
+            onClick={() => !doc.isTemporary && onDocumentSelect(doc)}
           >
             <div className="document-info">
               <div className="document-main">
@@ -531,7 +559,7 @@ const DocumentLibrary = ({
                 <div className="document-details">
                   <div className="document-name">
                     <span>{cleanFileName(doc.file_name)}</span>
-                    {selectedDocument?.id === doc.id && (
+                    {selectedDocument?.id === doc.id && !doc.isTemporary && (
                       <span className="currently-reading-badge">Reading</span>
                     )}
                     {recentDocuments.find(recent => recent.id === doc.id) && activeTab === 'all' && (
@@ -539,16 +567,41 @@ const DocumentLibrary = ({
                     )}
                   </div>
                   <div className="document-metadata">
-                    {doc.created_at && (
-                      <span className="document-date">
-                        Added {formatDate(doc.created_at)}
-                      </span>
-                    )}
-                    {doc.status !== 'ready' && (
-                      <div className="document-status-indicator">
-                        {getStatusIcon(doc.status)}
-                        <span className="document-status">{getStatusText(doc)}</span>
+                    {/* Show upload progress for temporary documents */}
+                    {doc.isTemporary && doc.uploadProgress && (
+                      <div className="document-upload-progress">
+                        <div className="upload-status-info">
+                          <span className="upload-status-text">
+                            {doc.uploadProgress.status === 'uploading' && `Uploading... ${doc.uploadProgress.progress}%`}
+                            {doc.uploadProgress.status === 'processing' && `Processing... ${doc.uploadProgress.progress}%`}
+                            {doc.uploadProgress.status === 'completed' && `Completed!`}
+                            {doc.uploadProgress.status === 'error' && `Error`}
+                          </span>
+                        </div>
+                        <div className="inline-progress-bar">
+                          <div 
+                            className={`inline-progress-fill ${doc.uploadProgress.status === 'completed' ? 'completed' : ''} ${doc.uploadProgress.status === 'error' ? 'error' : ''}`}
+                            style={{ width: `${doc.uploadProgress.progress}%` }}
+                          />
+                        </div>
                       </div>
+                    )}
+                    
+                    {/* Show regular metadata for real documents */}
+                    {!doc.isTemporary && (
+                      <>
+                        {doc.created_at && (
+                          <span className="document-date">
+                            Added {formatDate(doc.created_at)}
+                          </span>
+                        )}
+                        {doc.status !== 'ready' && (
+                          <div className="document-status-indicator">
+                            {getStatusIcon(doc.status)}
+                            <span className="document-status">{getStatusText(doc)}</span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -639,31 +692,6 @@ const DocumentLibrary = ({
           className="file-input"
         />
       </div>
-
-      {/* Upload Progress */}
-      {Object.keys(uploadProgress).length > 0 && (
-        <div className="upload-progress">
-          {Object.entries(uploadProgress).map(([key, progress]) => (
-            <div key={key} className="progress-item">
-              <div className="progress-info">
-                <span className="progress-name">{progress.name}</span>
-                <span className="progress-status">
-                  {progress.status === 'uploading' && `Uploading... ${progress.progress}%`}
-                  {progress.status === 'processing' && `Processing... ${progress.progress}%`}
-                  {progress.status === 'completed' && ` Completed!`}
-                  {progress.status === 'error' && ` Error`}
-                </span>
-              </div>
-              <div className="progress-bar">
-                <div 
-                  className={`progress-fill ${progress.status === 'completed' ? 'completed' : ''} ${progress.status === 'error' ? 'error' : ''}`}
-                  style={{ width: `${progress.progress}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Document List with Tabbed Interface */}
       <div className="document-list">
