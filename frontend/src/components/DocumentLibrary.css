@@ -21,10 +21,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 0 12px 0; /* Reduced margin */
+  margin: 0; /* Remove all margins to ensure perfect alignment */
   font-size: 18px;
   font-weight: 600;
   color: #1a1a1a;
+  line-height: 1.2; /* Explicit line-height for consistency */
 }
 
 .library-search {
@@ -529,9 +530,10 @@
 /* Clear All Functionality */
 .library-title-section {
   display: flex;
-  align-items: center;
+  align-items: center; /* Ensure perfect vertical alignment */
   justify-content: space-between;
-  margin-bottom: 0px;
+  margin-bottom: 12px; /* Move margin here from library-title */
+  min-height: 24px; /* Ensure consistent height for alignment */
 }
 
 .clear-all-section {
@@ -541,16 +543,18 @@
 .clear-all-button {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  gap: 4px; /* Reduced gap */
+  padding: 4px 8px; /* Reduced padding for smaller button */
   background: transparent;
   color: #6b7280;
   border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: 4px; /* Slightly smaller border radius */
+  font-size: 11px; /* Reduced font size */
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  line-height: 1.2; /* Match title line-height */
+  height: 24px; /* Explicit height to match title */
 }
 
 .clear-all-button:hover:not(:disabled) {
