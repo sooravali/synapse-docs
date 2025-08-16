@@ -2,7 +2,7 @@
  * Main Application Component - Synapse-Docs "Conversational Intelligence" UI
  * 
  * Implements the three-panel "Cockpit" design:
- * - Left Panel: The Knowledge Base (Document Library)
+ * - Left Panel: The Workspace (Document Library)
  * - Center Panel: The Workbench (PDF Viewer with Context Lens & Action Halo)
  * - Right Panel: The Synapse (Connections & Insights)
  * 
@@ -203,7 +203,7 @@ function App() {
       )}
       
       <div className="app-layout">
-        {/* Left Panel: The Knowledge Base */}
+        {/* Left Panel: The Workspace */}
         <div className="panel panel-left">
           <DocumentLibrary
             documents={documents}
