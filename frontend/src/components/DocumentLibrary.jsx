@@ -787,7 +787,7 @@ const DocumentLibrary = ({
                   className="clear-all-button"
                   title="Clear all documents and start fresh"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={12} />
                   {isClearingAll ? 'Clearing...' : 'Clear All'}
                 </button>
               ) : (
