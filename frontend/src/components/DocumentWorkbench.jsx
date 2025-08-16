@@ -18,8 +18,40 @@ const DocumentWorkbench = forwardRef(({
   onInsightsRequest, 
   onPodcastRequest,
   searchResults = [],
-  connectionResults = []
+  connectionResults = [],
+  breadcrumbTrail = [],
+  onBreadcrumbClick,
+  onClearBreadcrumbs,
+  onAddCurrentLocation
 }, ref) => {
+
+  // Helper functions for breadcrumb management
+  const addCurrentLocationToBreadcrumbs = async () => {
+    if (!document || !onAddCurrentLocation) return;
+    
+    // Get current page number from Adobe API
+    let pageNumber = currentPageNumber;
+    
+    if (!pageNumber && isViewerReady && adobeViewerRef.current) {
+      try {
+        const apis = await adobeViewerRef.current.getAPIs();
+        if (apis && apis.getCurrentPage) {
+          pageNumber = await apis.getCurrentPage();
+          setCurrentPageNumber(pageNumber);
+        }
+      } catch (error) {
+        console.log('🍞 Could not get current page for breadcrumbs:', error);
+      }
+    }
+    
+    if (pageNumber) {
+      // Get current context as a preview for the breadcrumb
+      const contextPreview = currentContext ? currentContext.substring(0, 100) : '';
+      
+      console.log(`🍞 Adding current reading location to breadcrumbs: ${cleanFileName(document.file_name)} (Page ${pageNumber})`);
+      onAddCurrentLocation(contextPreview);
+    }
+  };
 
   // Helper function to clean filename display
   const cleanFileName = (fileName) => {
@@ -35,6 +67,7 @@ const DocumentWorkbench = forwardRef(({
   const [currentDetectedContext, setCurrentContext] = useState('');
   const [isTextSelectionActive, setIsTextSelectionActive] = useState(false); // Track if text selection is active
   const [textSelectionContext, setTextSelectionContext] = useState(''); // Store text selection context
+  const [currentPageNumber, setCurrentPageNumber] = useState(null); // Track current page for breadcrumbs
   
   const viewerRef = useRef(null);
   const adobeViewRef = useRef(null);
@@ -94,6 +127,10 @@ const DocumentWorkbench = forwardRef(({
           // Adobe gotoLocation: pass the page number (1-based)
           await apis.gotoLocation(pageNumber);
           console.log(` Successfully navigated to display page ${pageNumber}`);
+          
+          // Update current page tracking
+          setCurrentPageNumber(pageNumber);
+          
           return true;
         } else {
           console.warn(' Adobe gotoLocation API not available');
@@ -102,6 +139,28 @@ const DocumentWorkbench = forwardRef(({
       } catch (error) {
         console.error(` Failed to navigate to page ${pageNumber}:`, error);
         return false;
+      }
+    },
+    
+    getCurrentPage: async () => {
+      if (!isViewerReady || !adobeViewerRef.current) {
+        console.warn('Adobe viewer not ready for getCurrentPage');
+        return currentPageNumber || 1;
+      }
+
+      try {
+        const apis = await adobeViewerRef.current.getAPIs();
+        if (apis && apis.getCurrentPage) {
+          const page = await apis.getCurrentPage();
+          setCurrentPageNumber(page);
+          return page;
+        } else {
+          console.warn('Adobe getCurrentPage API not available');
+          return currentPageNumber || 1;
+        }
+      } catch (error) {
+        console.error('Failed to get current page:', error);
+        return currentPageNumber || 1;
       }
     }
   }));
@@ -467,6 +526,18 @@ const DocumentWorkbench = forwardRef(({
       if (centralText.length > 50 && centralText !== lastDetectedContextRef.current?.split('\n')[1]) {
         console.log(` STAGE 1 - NEW central paragraph detected: "${centralText.substring(0, 50)}..."`);
         
+        // Track page changes for breadcrumbs
+        if (currentPageNum && currentPageNum !== currentPageNumber) {
+          console.log(`🍞 Page change detected: ${currentPageNumber} → ${currentPageNum}`);
+          setCurrentPageNumber(currentPageNum);
+          
+          // Add to breadcrumbs if user has moved to a significantly different page (not just scrolling within same page)
+          if (currentPageNumber && Math.abs(currentPageNum - currentPageNumber) >= 2) {
+            console.log('🍞 Significant page jump detected, adding to breadcrumbs');
+            addCurrentLocationToBreadcrumbs();
+          }
+        }
+        
         // CRITICAL: Only switch to reading context if NO text selection is active
         if (textSelectionContext && textSelectionContext.length > 0) {
           console.log(' Text selection context active - preserving connections, ignoring reading context');
@@ -668,8 +739,11 @@ const DocumentWorkbench = forwardRef(({
         console.log(' PDF viewer is ready');
         setIsViewerReady(true);
         
-        // Set up fallback scroll detection since Adobe scroll events might not work
+        // Add initial reading location to breadcrumbs after a short delay
         setTimeout(() => {
+          addCurrentLocationToBreadcrumbs();
+          
+          // Set up fallback scroll detection since Adobe scroll events might not work
           setupFallbackScrollDetection();
         }, 2000);
         break;
@@ -1235,19 +1309,67 @@ const DocumentWorkbench = forwardRef(({
 
   return (
     <div className="document-workbench">
-      {/* Navigation Breadcrumb */}
+      {/* Unified Research Trail - Simple Breadcrumb Navigation */}
       {document && document.file_name && (
         <div className="navigation-breadcrumb">
           <div className="breadcrumb-content">
-            <div className="current-document">
-              <span className="document-icon"></span>
-              <span className="document-name">
-                {cleanFileName(document.file_name)}
-              </span>
-            </div>
-            <div className="document-meta">
-              <span className="page-info">Ready to navigate</span>
-            </div>
+            {breadcrumbTrail.length > 0 ? (
+              // Show breadcrumb trail when available
+              <>
+                <div className="breadcrumb-header">
+                  <div className="trail-info">
+                    <span className="trail-label">
+                      Research Trail:
+                    </span>
+                    <div 
+                      className="trail-info-icon"
+                      title="Research Trail: Track your navigation path through documents and pages. Click any item to jump back to that location instantly."
+                    >
+                      <span className="info-icon">ℹ</span>
+                    </div>
+                  </div>
+                  <div className="trail-actions-simple">
+                    <button
+                      className="clear-trail-btn-simple"
+                      onClick={onClearBreadcrumbs}
+                      title="Clear research trail and start fresh navigation"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <div className="trail-items-simple">
+                  {breadcrumbTrail.map((item, index) => (
+                    <div key={item.id} className="trail-item-wrapper-simple">
+                      <button
+                        className="trail-item-simple"
+                        onClick={() => onBreadcrumbClick(item)}
+                        title={`Jump back to: ${item.documentName} (Page ${item.pageNumber})\n${item.context ? item.context + '...' : ''}`}
+                      >
+                        <span className="trail-document-simple">{item.documentName}</span>
+                        <span className="trail-page-simple">Page {item.pageNumber}</span>
+                      </button>
+                      {index < breadcrumbTrail.length - 1 && (
+                        <span className="trail-separator-simple">›</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              // Show default info when no trail
+              <>
+                <div className="current-document">
+                  <span className="document-icon">📄</span>
+                  <span className="document-name">
+                    {cleanFileName(document.file_name)}
+                  </span>
+                </div>
+                <div className="document-meta">
+                  <span className="page-info">Ready to navigate</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
