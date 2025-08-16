@@ -136,6 +136,17 @@ export const documentAPI = {
     return response.data;
   },
 
+  // Delete individual document
+  deleteDocument: async (documentId) => {
+    const response = await api.delete(`/api/v1/documents/${documentId}`);
+    return response.data;
+  },
+
+  // Download document (using view URL with download attribute)
+  getDownloadUrl: (documentId) => {
+    return `${API_BASE_URL}/api/v1/documents/view/${documentId}`;
+  },
+
   // Search across documents using semantic search
   search: async (queryText, topK = 5, similarityThreshold = 0.3) => {
     const response = await api.post('/api/v1/search/semantic', {
