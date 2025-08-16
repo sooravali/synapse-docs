@@ -10,6 +10,7 @@ class DocumentBase(BaseModel):
 
 class DocumentCreate(DocumentBase):
     """Schema for creating a new document."""
+    session_id: str = Field(..., description="Session ID for user isolation")
     content_hash: str = Field(..., description="Hash of the file content to prevent duplicates")
     file_size: Optional[int] = Field(None, description="Size of the file in bytes")
 
