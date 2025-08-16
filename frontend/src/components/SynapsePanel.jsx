@@ -1231,7 +1231,7 @@ const SynapsePanel = forwardRef(({
                                       <div className="source-doc-name">{docName}</div>
                                       <div className="source-pages">
                                         {pages.map(page => (
-                                          <span key={page} className="page-tag">p.{page}</span>
+                                          <span key={page} className="page-tag">Page {page}</span>
                                         ))}
                                       </div>
                                     </div>
@@ -1289,7 +1289,7 @@ const SynapsePanel = forwardRef(({
                                   <div className="source-doc-name">{docName}</div>
                                   <div className="source-pages">
                                     {pages.map(page => (
-                                      <span key={page} className="page-tag">p.{page}</span>
+                                      <span key={page} className="page-tag">Page {page}</span>
                                     ))}
                                   </div>
                                 </div>
@@ -1680,6 +1680,21 @@ const SynapsePanel = forwardRef(({
                       const isTextSelection = currentContext?.includes('[Selected Text from');
                       const isReadingContext = currentContext?.includes('[Reading context from');
                       
+                      // For reading context, if no page in context, try to get from connections
+                      let fallbackPage = null;
+                      if (isReadingContext && !pageMatch && connections.length > 0) {
+                        // Use the most common page from connections as fallback
+                        const pages = connections.map(conn => conn.page_number + 1);
+                        const pageCount = {};
+                        pages.forEach(page => {
+                          pageCount[page] = (pageCount[page] || 0) + 1;
+                        });
+                        const mostCommonPage = Object.keys(pageCount).reduce((a, b) => 
+                          pageCount[a] > pageCount[b] ? a : b
+                        );
+                        fallbackPage = mostCommonPage;
+                      }
+                      
                       return (
                         <div className="connections-source-info">
                           {isTextSelection ? (
@@ -1692,13 +1707,18 @@ const SynapsePanel = forwardRef(({
                           ) : isReadingContext ? (
                             <p className="context-source">
                               📖 Source: Reading context from {cleanFileName(selectedDocument?.file_name) || 'document'}
-                              {pageMatch && (
+                              {pageMatch ? (
                                 <span className="source-page"> • Page {pageMatch[1]}</span>
-                              )}
+                              ) : fallbackPage ? (
+                                <span className="source-page"> • Page {fallbackPage}</span>
+                              ) : null}
                             </p>
                           ) : (
                             <p className="context-source">
                               📖 Source: Reading context from {cleanFileName(selectedDocument?.file_name) || 'document'}
+                              {fallbackPage && (
+                                <span className="source-page"> • Page {fallbackPage}</span>
+                              )}
                             </p>
                           )}
                         </div>
