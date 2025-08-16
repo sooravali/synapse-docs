@@ -5,7 +5,7 @@
  * status indicators, and library search functionality.
  */
 import { useState, useEffect } from 'react';
-import { documentAPI } from '../api';
+import { documentAPI, sessionUtils } from '../api';
 import { Upload, Search, CheckCircle, AlertCircle, Clock, FileText, Trash2 } from 'lucide-react';
 import FlowStatusBar from './FlowStatusBar';
 import './DocumentLibrary.css';
@@ -91,6 +91,10 @@ const DocumentLibrary = ({
     setRecentDocuments(recent);
     setKnowledgeBaseDocuments(knowledgeBase);
     
+    // Debug session information
+    const currentSessionId = sessionUtils.getSessionId();
+    const currentUserId = sessionUtils.getCurrentUserId();
+    console.log(`Session Debug - Session ID: ${currentSessionId}, User ID: ${currentUserId}`);
     console.log(`Categorized documents: ${recent.length} recent, ${knowledgeBase.length} all documents`);
   }, [documents]);
 
