@@ -299,21 +299,21 @@
   width: 100%;
 }
 
-/* PDF Viewer Container */
+/* PDF Viewer Container - Optimized for FULL_WINDOW mode */
 .pdf-viewer-container {
   flex: 1;
   height: calc(100% - 49px); /* Account for breadcrumb height */
   width: 100%;
   position: relative;
-  width: 100%;
-  position: relative;
-  /* Let Adobe PDF viewer handle its own scrolling */
+  background: #f5f5f5; /* Match Adobe's standard background */
+  /* FULL_WINDOW mode handles all UI controls internally */
 }
 
 .pdf-viewer-container.loading {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #f5f5f5;
 }
 
 /* Context Lens - Subtle highlight overlay */
@@ -682,16 +682,18 @@
   }
 }
 
-/* Adobe Viewer Override Styles */
+/* Adobe Viewer Override Styles for FULL_WINDOW mode */
 #adobe-dc-view {
   height: 100% !important;
   width: 100% !important;
-  min-height: 400px !important; /* Ensure minimum height for SIZED_CONTAINER mode */
+  min-height: 500px !important; /* Ensure adequate height for FULL_WINDOW mode */
+  background: #f5f5f5; /* Match Adobe's standard background */
 }
 
-/* Hide Adobe branding if needed */
+/* Adobe PDF iframe styling */
 .adobe-dc-view-iframe {
   border: none !important;
+  background: #f5f5f5 !important;
 }
 
 /* Insights Bulb - Stage 2 Trigger */
