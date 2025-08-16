@@ -10,11 +10,12 @@ class Document(SQLModel, table=True):
     """
     
     id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: str = Field(index=True)  # Session-based user isolation
     file_name: str = Field(index=True)
     upload_timestamp: datetime = Field(default_factory=datetime.utcnow)
     processing_completed_at: Optional[datetime] = Field(default=None)
     status: str = Field(default="processing")  # "processing", "ready", "error"
-    content_hash: str = Field(unique=True, index=True)  # To prevent duplicate uploads
+    content_hash: str = Field(index=True)  # Remove unique constraint for multi-session support
     file_size: Optional[int] = Field(default=None)
     page_count: Optional[int] = Field(default=None)
     total_chunks: Optional[int] = Field(default=None)
