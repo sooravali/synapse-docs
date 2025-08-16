@@ -8,6 +8,17 @@
   overflow: auto; /* Allow scrolling */
 }
 
+/* Force all tooltips in this component to use browser default black styling */
+.document-workbench [title] {
+  position: relative;
+}
+
+/* Override any framework tooltip styling */
+.document-workbench [title]:hover::after,
+.document-workbench [title]:hover::before {
+  display: none !important;
+}
+
 /* Tooltip Styles for Research Trail - Only for the "i" icon */
 .trail-info-icon {
   cursor: pointer;
@@ -22,49 +33,13 @@
   position: relative;
 }
 
-/* Hide native browser tooltip and show custom tooltip */
-.trail-info-icon[title] {
-  position: relative;
-}
-
-.trail-info-icon[title]:hover::after {
-  content: attr(title);
-  position: absolute;
-  top: 100%; /* Position below the icon */
-  left: -120px; /* Position to the left of the icon to avoid screen edge cutoff */
-  background-color: #1f2937;
-  color: white;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 400;
-  white-space: normal;
-  max-width: 300px;
-  width: max-content;
-  z-index: 1000;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  margin-top: 5px;
-}
-
-.trail-info-icon[title]:hover::before {
-  content: '';
-  position: absolute;
-  top: 100%; /* Position below the icon */
-  left: -7px; /* Center the arrow above the icon */
-  border: 5px solid transparent;
-  border-bottom-color: #1f2937;
-  z-index: 1000;
-  margin-top: -5px;
-}
-
-/* Hide the native browser tooltip */
-.trail-info-icon[title]:hover {
+/* Simple hover effect - no custom tooltip */
+.trail-info-icon:hover {
   background-color: #d1d5db;
-  transform: none;
 }
 
-/* Ensure no native tooltip appears */
-.trail-info-icon[title]:focus {
+/* Ensure no focus outline */
+.trail-info-icon:focus {
   outline: none;
 }
 
@@ -215,7 +190,7 @@
   font-size: 12px; /* Reduced from 13px for more compact text */
   font-weight: 600;
   color: #374151;
-  cursor: pointer; /* Changed from default to pointer for better tooltip UX */
+  cursor: help; /* Changed to help cursor to indicate tooltip */
   position: relative; /* Added for tooltip positioning */
 }
 
@@ -224,6 +199,7 @@
   font-weight: bold;
   color: #6b7280;
   line-height: 1;
+  pointer-events: none; /* Prevent any direct interaction with the icon itself */
 }
 
 .current-document {
