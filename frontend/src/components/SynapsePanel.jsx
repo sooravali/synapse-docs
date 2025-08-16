@@ -5,7 +5,7 @@
  * Connections and Insights, featuring structured display and actions.
  */
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { Network, Lightbulb, Play, Pause, Download, ExternalLink, Zap, Radio, FileText } from 'lucide-react';
+import { Network, Lightbulb, Play, Pause, Download, ExternalLink, Zap, Radio, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { searchAPI, insightsAPI, podcastAPI } from '../api';
 import './SynapsePanel.css';
 
@@ -80,6 +80,7 @@ const SynapsePanel = forwardRef(({
   const [expandedSnippets, setExpandedSnippets] = useState({}); // For snippet expansion
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
   
   // Confirmation overlay state
   const [showConfirmationOverlay, setShowConfirmationOverlay] = useState(false);
@@ -99,6 +100,7 @@ const SynapsePanel = forwardRef(({
   const lastPageContextRef = useRef(null);
   const searchTimeoutRef = useRef(null);
   const audioRef = useRef(null); // For controlling podcast audio
+  const sourceDropdownRef = useRef(null); // For source dropdown click outside detection
 
   // UNIFIED WORKFLOW: Helper functions for generating insights/podcast from current context
   const generateInsightsFromContext = async () => {
@@ -255,6 +257,36 @@ const SynapsePanel = forwardRef(({
     };
   };
 
+  // Helper function to extract and format page information for display
+  const getPageInfoForDisplay = (context, connections = []) => {
+    if (!context) return null;
+    
+    // Try to extract page from context first using the correct pattern: (Page X)
+    const pageMatch = context.match(/\(Page\s+(\d+)\)/i);
+    if (pageMatch) {
+      const pageNum = parseInt(pageMatch[1], 10);
+      return { pageNumber: pageNum, isFromContext: true };
+    }
+    
+    // If connections are available, get page info from them
+    if (connections && connections.length > 0) {
+      const sourcePages = connections
+        .filter(conn => conn.page_number !== undefined && conn.page_number !== null)
+        .map(conn => conn.page_number + 1); // Convert from 0-based to 1-based
+      
+      if (sourcePages.length > 0) {
+        const uniquePages = [...new Set(sourcePages)].sort((a, b) => a - b);
+        return { 
+          pageNumbers: uniquePages, 
+          isFromConnections: true,
+          primaryPage: uniquePages[0]
+        };
+      }
+    }
+    
+    return null;
+  };
+
   // OPTIMIZATION: Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
@@ -263,6 +295,22 @@ const SynapsePanel = forwardRef(({
       }
     };
   }, []);
+
+  // Handle click outside for source dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (sourceDropdownRef.current && !sourceDropdownRef.current.contains(event.target)) {
+        setSourceDropdownOpen(false);
+      }
+    };
+
+    if (sourceDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [sourceDropdownOpen]);
 
   // STAGE 1: Auto-search for connections when context changes (ENHANCED CACHING)
   useEffect(() => {
@@ -481,6 +529,8 @@ const SynapsePanel = forwardRef(({
       setAudioDuration(0);
       setIsPlayingPodcast(false);
       setInsightsMetadata(null);
+      setSourceDropdownOpen(false);
+      setSourceDropdownOpen(false);
       // Clear cache for clean slate
       connectionsCache.current.clear();
       lastQueryRef.current = '';
@@ -1103,18 +1153,169 @@ const SynapsePanel = forwardRef(({
     return (
       <div className="insights-content">
         <div className="insights-header">
-          <h4>AI-Generated Insights</h4>
+          <h4>Insights</h4>
           <p className="insights-context">
             {insights.context && insights.context.includes('[Selected Text from') 
               ? ' Generated from your selected text'
-              : ' Generated from your reading context'
+              : insights.context && insights.context.includes('[Reading context from')
+                ? ' Generated from your reading context'
+                : ' Generated from your reading context'
             }
           </p>
-          {insights.context && insights.context.includes('[Selected Text from') && (
-            <p className="context-source">
-               From: {cleanFileName(selectedDocument?.file_name) || 'document'}
-            </p>
-          )}
+          {(() => {
+            // Enhanced page information display for insights - use stored contextConnections
+            const storedConnections = insights.contextConnections || [];
+            const pageInfo = getPageInfoForDisplay(insights.context, storedConnections);
+            
+            if (pageInfo) {
+              return (
+                <div className="insights-page-info">
+                  {insights.context && insights.context.includes('[Selected Text from') ? (
+                    <div>
+                      <p className="context-source">
+                         From: {cleanFileName(selectedDocument?.file_name) || 'document'}
+                        {(() => {
+                          // Extract page from context for text selection
+                          const pageMatch = insights.context?.match(/\[(.*?)\(Page\s+(\d+)\)\]/i) || 
+                                           insights.context?.match(/\[(.*?Page\s+(\d+).*?)\]/i);
+                          return pageMatch ? (
+                            <span className="page-indicator"> • Page {pageMatch[2]}</span>
+                          ) : null;
+                        })()}
+                      </p>
+                      
+                      {/* Show sources dropdown for text selection insights if there are related sources */}
+                      {storedConnections && storedConnections.length > 0 && (
+                        <div className="insights-source-info">
+                          <div className="sources-compact" ref={sourceDropdownRef}>
+                            <button 
+                              className="sources-toggle"
+                              onClick={() => setSourceDropdownOpen(!sourceDropdownOpen)}
+                              title="View all source pages used for insights"
+                            >
+                              <span className="sources-label">
+                                {storedConnections.length === 1 
+                                  ? "1 source used"
+                                  : `${storedConnections.length} sources used`
+                                }
+                              </span>
+                              {sourceDropdownOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                            </button>
+                            
+                            {sourceDropdownOpen && (
+                              <div className="sources-popup">
+                                {(() => {
+                                  // Group sources by document for better organization
+                                  const sourcesByDoc = {};
+                                  storedConnections.forEach(conn => {
+                                    const docName = selectedDocument && selectedDocument.id === conn.document_id 
+                                      ? 'This document' 
+                                      : cleanFileName(conn.document_name);
+                                    const pageNum = conn.page_number + 1;
+                                    
+                                    if (!sourcesByDoc[docName]) {
+                                      sourcesByDoc[docName] = [];
+                                    }
+                                    if (!sourcesByDoc[docName].includes(pageNum)) {
+                                      sourcesByDoc[docName].push(pageNum);
+                                    }
+                                  });
+                                  
+                                  // Sort pages within each document
+                                  Object.keys(sourcesByDoc).forEach(docName => {
+                                    sourcesByDoc[docName].sort((a, b) => a - b);
+                                  });
+                                  
+                                  return Object.entries(sourcesByDoc).map(([docName, pages]) => (
+                                    <div key={docName} className="source-group">
+                                      <div className="source-doc-name">{docName}</div>
+                                      <div className="source-pages">
+                                        {pages.map(page => (
+                                          <span key={page} className="page-tag">p.{page}</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ));
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : pageInfo.pageNumbers && pageInfo.pageNumbers.length > 0 ? (
+                    <div className="insights-source-info">
+                      <div className="sources-compact" ref={sourceDropdownRef}>
+                        <button 
+                          className="sources-toggle"
+                          onClick={() => setSourceDropdownOpen(!sourceDropdownOpen)}
+                          title="View source pages"
+                        >
+                          <span className="sources-label">
+                            {pageInfo.pageNumbers.length === 1 
+                              ? `Source: Page ${pageInfo.pageNumbers[0]}`
+                              : `${pageInfo.pageNumbers.length} sources`
+                            }
+                          </span>
+                          {sourceDropdownOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        </button>
+                        
+                        {sourceDropdownOpen && (
+                          <div className="sources-popup">
+                            {(() => {
+                              // Group sources by document for better organization
+                              const sourcesByDoc = {};
+                              storedConnections.forEach(conn => {
+                                const docName = selectedDocument && selectedDocument.id === conn.document_id 
+                                  ? 'This document' 
+                                  : cleanFileName(conn.document_name);
+                                const pageNum = conn.page_number + 1;
+                                
+                                if (!sourcesByDoc[docName]) {
+                                  sourcesByDoc[docName] = [];
+                                }
+                                if (!sourcesByDoc[docName].includes(pageNum)) {
+                                  sourcesByDoc[docName].push(pageNum);
+                                }
+                              });
+                              
+                              // Sort pages within each document
+                              Object.keys(sourcesByDoc).forEach(docName => {
+                                sourcesByDoc[docName].sort((a, b) => a - b);
+                              });
+                              
+                              return Object.entries(sourcesByDoc).map(([docName, pages]) => (
+                                <div key={docName} className="source-group">
+                                  <div className="source-doc-name">{docName}</div>
+                                  <div className="source-pages">
+                                    {pages.map(page => (
+                                      <span key={page} className="page-tag">p.{page}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              ));
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            }
+            return (insights.context && (insights.context.includes('[Selected Text from') || insights.context.includes('[Reading context from'))) && (
+              <p className="context-source">
+                 From: {cleanFileName(selectedDocument?.file_name) || 'document'}
+                {(() => {
+                  // Extract page from context using the correct pattern
+                  const pageMatch = insights.context?.match(/\(Page\s+(\d+)\)/i);
+                  return pageMatch ? (
+                    <span className="page-indicator"> • Page {pageMatch[1]}</span>
+                  ) : null;
+                })()}
+              </p>
+            );
+          })()}
         </div>
         
         <div className="insights-cards">
@@ -1225,7 +1426,34 @@ const SynapsePanel = forwardRef(({
 
         {/* Integrated Podcast Mode within the panel */}
         <div className="integrated-podcast-section">
-          <h4 className="podcast-section-title">Generate Audio Summary</h4>
+          <div className="podcast-header">
+            <h4 className="podcast-section-title">Generate Audio Summary</h4>
+            {(() => {
+              // Display page information for podcast section
+              const pageInfo = getPageInfoForDisplay(currentContext, connections);
+              if (pageInfo && (podcastData || isGeneratingPodcast)) {
+                return (
+                  <div className="podcast-page-info">
+                    {pageInfo.pageNumber ? (
+                      <p className="podcast-source">
+                         Based on Page {pageInfo.pageNumber}
+                      </p>
+                    ) : pageInfo.pageNumbers && pageInfo.pageNumbers.length > 0 ? (
+                      <p className="podcast-source">
+                         Based on {pageInfo.pageNumbers.length === 1 
+                          ? `Page ${pageInfo.pageNumbers[0]}`
+                          : pageInfo.pageNumbers.length <= 3
+                            ? `Pages ${pageInfo.pageNumbers.join(', ')}`
+                            : `Pages ${pageInfo.pageNumbers.slice(0, 3).join(', ')} +${pageInfo.pageNumbers.length - 3} more`
+                        }
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              }
+              return null;
+            })()}
+          </div>
           
           {!podcastData ? (
             <button 
@@ -1443,11 +1671,39 @@ const SynapsePanel = forwardRef(({
                         : ' from your reading context'
                       }
                     </p>
-                    {currentContext?.includes('[Selected Text from') && (
-                      <p className="context-source">
-                         From: {cleanFileName(selectedDocument?.file_name) || 'document'}
-                      </p>
-                    )}
+                    
+                    {/* Source Information - Show the page where user is currently reading/selected text from */}
+                    {(() => {
+                      // Extract page information from the current context
+                      // Handle the enhanced format: [Selected Text from doc (Page X)] or [Reading context from doc (Page X)]
+                      const pageMatch = currentContext?.match(/\(Page\s+(\d+)\)/i);
+                      const isTextSelection = currentContext?.includes('[Selected Text from');
+                      const isReadingContext = currentContext?.includes('[Reading context from');
+                      
+                      return (
+                        <div className="connections-source-info">
+                          {isTextSelection ? (
+                            <p className="context-source">
+                              📄 Source: Text selected from {cleanFileName(selectedDocument?.file_name) || 'document'}
+                              {pageMatch && (
+                                <span className="source-page"> • Page {pageMatch[1]}</span>
+                              )}
+                            </p>
+                          ) : isReadingContext ? (
+                            <p className="context-source">
+                              📖 Source: Reading context from {cleanFileName(selectedDocument?.file_name) || 'document'}
+                              {pageMatch && (
+                                <span className="source-page"> • Page {pageMatch[1]}</span>
+                              )}
+                            </p>
+                          ) : (
+                            <p className="context-source">
+                              📖 Source: Reading context from {cleanFileName(selectedDocument?.file_name) || 'document'}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
                 {connections.map(renderConnectionCard)}

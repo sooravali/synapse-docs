@@ -130,8 +130,8 @@ const DocumentWorkbench = forwardRef(({
   // UNIFIED WORKFLOW: Text Selection Handler (Triggers CONNECTIONS + Simple Notification)
   // This immediately generates connections from selected text and shows a simple confirmation
   useEffect(() => {
-    const handleMouseUp = () => {
-      setTimeout(() => {
+    const handleMouseUp = async () => {
+      setTimeout(async () => {
         try {
           const selection = window.getSelection();
           const selectedText = selection.toString().trim();
@@ -142,8 +142,22 @@ const DocumentWorkbench = forwardRef(({
             
             setSelectedText(selectedText);
             
+            // Get current page for enhanced context
+            let pageInfo = '';
+            try {
+              if (adobeViewerRef.current) {
+                const apis = await adobeViewerRef.current.getAPIs();
+                if (apis && apis.getCurrentPage) {
+                  const currentPageNum = await apis.getCurrentPage();
+                  pageInfo = ` (Page ${currentPageNum})`;
+                }
+              }
+            } catch (error) {
+              console.log(' Could not get current page:', error);
+            }
+            
             // Step 1: Mark text selection as active and store context
-            const enrichedContext = `[Selected Text from ${cleanFileName(document?.file_name) || 'document'}]\n${selectedText}`;
+            const enrichedContext = `[Selected Text from ${cleanFileName(document?.file_name) || 'document'}${pageInfo}]\n${selectedText}`;
             setIsTextSelectionActive(true);
             setTextSelectionContext(enrichedContext);
             
@@ -323,6 +337,7 @@ const DocumentWorkbench = forwardRef(({
     
     try {
       let centralText = '';
+      let currentPageNum = null; // Track the current page for context
       
       // Method 1: Use Adobe PDF APIs to get viewport content (best approach)
       if (isViewerReady && adobeViewRef.current && typeof adobeViewRef.current.getAPIs === 'function') {
@@ -331,13 +346,13 @@ const DocumentWorkbench = forwardRef(({
           
           // Try to get current page and visible text
           if (apis.getCurrentPage && apis.getPageBounds) {
-            const currentPage = await apis.getCurrentPage();
-            console.log(' Current page:', currentPage);
+            currentPageNum = await apis.getCurrentPage();
+            console.log(' Current page:', currentPageNum);
             
             // If Adobe provides text extraction for current page
             if (apis.extractText) {
               const pageTextData = await apis.extractText({
-                pageNumber: currentPage,
+                pageNumber: currentPageNum,
                 includeFormatting: false
               });
               
@@ -449,7 +464,7 @@ const DocumentWorkbench = forwardRef(({
       
       // OPTIMIZATION: Only proceed if we found substantial content and it's different from current context
       // This prevents duplicate API calls for the same content
-      if (centralText.length > 50 && centralText !== lastDetectedContextRef.current) {
+      if (centralText.length > 50 && centralText !== lastDetectedContextRef.current?.split('\n')[1]) {
         console.log(` STAGE 1 - NEW central paragraph detected: "${centralText.substring(0, 50)}..."`);
         
         // CRITICAL: Only switch to reading context if NO text selection is active
@@ -466,13 +481,16 @@ const DocumentWorkbench = forwardRef(({
           setTextSelectionContext('');
         }
         
-        // Update our tracking refs
-        lastDetectedContextRef.current = centralText;
-        setCurrentContext(centralText);
+        // Update our tracking refs with enhanced context that includes page information
+        const pageInfo = currentPageNum ? ` (Page ${currentPageNum})` : '';
+        const enhancedContext = `[Reading context from ${cleanFileName(document?.file_name) || 'document'}${pageInfo}]\n${centralText}`;
+        
+        lastDetectedContextRef.current = enhancedContext;
+        setCurrentContext(enhancedContext);
         
         // Trigger the automatic connections search
         if (onContextChange) {
-          onContextChange(centralText);
+          onContextChange(enhancedContext);
         }
       } else if (centralText.length <= 50) {
         console.log(' Could not detect meaningful central paragraph content');
@@ -1018,7 +1036,7 @@ const DocumentWorkbench = forwardRef(({
     };
   };
 
-  const handleTextSelectionEvent = (selectionData) => {
+  const handleTextSelectionEvent = async (selectionData) => {
     console.log(` Raw selection event data:`, selectionData);
     
     // Extract text from various possible Adobe selection formats
@@ -1052,8 +1070,22 @@ const DocumentWorkbench = forwardRef(({
       
       setSelectedText(selectedText);
       
+      // Get current page for enhanced context
+      let pageInfo = '';
+      try {
+        if (adobeViewerRef.current) {
+          const apis = await adobeViewerRef.current.getAPIs();
+          if (apis && apis.getCurrentPage) {
+            const currentPageNum = await apis.getCurrentPage();
+            pageInfo = ` (Page ${currentPageNum})`;
+          }
+        }
+      } catch (error) {
+        console.log(' Could not get current page:', error);
+      }
+      
       // Step 1: Mark text selection as active and store context
-      const enrichedContext = `[Selected Text from ${cleanFileName(document?.file_name) || 'document'}]\n${selectedText}`;
+      const enrichedContext = `[Selected Text from ${cleanFileName(document?.file_name) || 'document'}${pageInfo}]\n${selectedText}`;
       setIsTextSelectionActive(true);
       setTextSelectionContext(enrichedContext);
       
@@ -1089,8 +1121,22 @@ const DocumentWorkbench = forwardRef(({
     setShowActionHalo(false);
     
     try {
-      // Create enriched context with clear source information
-      const enrichedContext = `[Selected Text from ${cleanFileName(document?.file_name) || 'document'}]\n${selectedText}`;
+      // Get current page number for context
+      let currentPageNum = null;
+      if (isViewerReady && adobeViewerRef.current) {
+        try {
+          const apis = await adobeViewerRef.current.getAPIs();
+          if (apis && apis.getCurrentPage) {
+            currentPageNum = await apis.getCurrentPage();
+          }
+        } catch (pageError) {
+          console.warn('Could not get current page:', pageError);
+        }
+      }
+      
+      // Create enriched context with clear source information including page number
+      const pageInfo = currentPageNum ? ` (Page ${currentPageNum})` : '';
+      const enrichedContext = `[Selected Text from ${cleanFileName(document?.file_name) || 'document'}${pageInfo}]\n${selectedText}`;
       
       // This triggers insights generation using the already-generated connections as context
       await onInsightsRequest(enrichedContext);
@@ -1110,8 +1156,22 @@ const DocumentWorkbench = forwardRef(({
     setShowActionHalo(false);
     
     try {
-      // Create enriched context with clear source information
-      const enrichedContext = `[Selected Text from ${cleanFileName(document?.file_name) || 'document'}]\n${selectedText}`;
+      // Get current page number for context
+      let currentPageNum = null;
+      if (isViewerReady && adobeViewerRef.current) {
+        try {
+          const apis = await adobeViewerRef.current.getAPIs();
+          if (apis && apis.getCurrentPage) {
+            currentPageNum = await apis.getCurrentPage();
+          }
+        } catch (pageError) {
+          console.warn('Could not get current page:', pageError);
+        }
+      }
+      
+      // Create enriched context with clear source information including page number
+      const pageInfo = currentPageNum ? ` (Page ${currentPageNum})` : '';
+      const enrichedContext = `[Selected Text from ${cleanFileName(document?.file_name) || 'document'}${pageInfo}]\n${selectedText}`;
       
       await onPodcastRequest(enrichedContext);
       console.log(` Generated podcast successfully from selected text`);
