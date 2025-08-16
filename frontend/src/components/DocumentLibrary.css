@@ -7,7 +7,8 @@
   border-right: 1px solid #e1e5e9;
   width: 100%;
   max-width: 100%;
-  overflow: hidden; /* Prevent horizontal scroll */
+  overflow-x: visible; /* Allow dropdowns to be visible */
+  overflow-y: hidden; /* Only prevent vertical overflow */
 }
 
 .library-header {
@@ -266,7 +267,7 @@
 .document-list {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden; /* Prevent horizontal scroll */
+  overflow-x: visible; /* Allow dropdowns to be visible horizontally */
   padding: 0; /* Remove padding to maximize space */
   width: 100%;
   max-width: 100%;
@@ -284,6 +285,13 @@
   width: 100%;
   max-width: 100%;
   overflow: hidden; /* Prevent content overflow */
+  position: relative; /* Establish stacking context */
+  z-index: 1; /* Base z-index */
+}
+
+.document-item.menu-open {
+  z-index: 1001; /* Higher than dropdown z-index to ensure proper layering */
+  overflow: visible; /* Allow dropdown to overflow when menu is open */
 }
 
 .document-item:hover {
@@ -369,18 +377,6 @@
 }
 
 /* Status and Badge Styles */
-.currently-reading-badge {
-  background: #3b82f6;
-  color: white;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  flex-shrink: 0;
-}
-
 .new-badge {
   background: #10b981;
   color: white;
@@ -844,6 +840,7 @@
   display: flex;
   flex-direction: column;
   flex: 1;
+  overflow: visible; /* Allow menu dropdowns to be visible */
 }
 
 /* Tab Empty States */
@@ -953,4 +950,86 @@
 
 .document-list::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
+}
+
+/* Document Actions Menu */
+.document-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  z-index: 1000; /* Ensure actions are above other content */
+}
+
+.document-menu-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  transition: all 0.15s ease;
+  opacity: 1;
+}
+
+.document-menu-button:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.document-menu-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Document Menu Dropdown */
+.document-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 9999; /* Very high z-index to ensure visibility */
+  min-width: 140px;
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: #374151;
+  transition: background-color 0.15s ease;
+  text-align: left;
+}
+
+.menu-item:hover {
+  background: #f9fafb;
+}
+
+.menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.download-item:hover {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.delete-item:hover {
+  background: #fef2f2;
+  color: #dc2626;
 }
