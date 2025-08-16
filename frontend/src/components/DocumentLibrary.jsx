@@ -1,5 +1,5 @@
 /**
- * Left Panel: The Knowledge Base
+ * Left Panel: The Workspace
  * 
  * Implements the user's personal library with bulk upload capabilities,
  * status indicators, and library search functionality.
@@ -73,7 +73,7 @@ const DocumentLibrary = ({
     return fileName.replace(/^doc_\d+_/, '').replace(/\.pdf$/, '');
   };
 
-  // Categorize documents into Recent vs Knowledge Base based on session storage
+  // Categorize documents into Recent vs All Documents based on session storage
   useEffect(() => {
     const sessionIDs = getSessionNewFileIDs();
     
@@ -91,7 +91,7 @@ const DocumentLibrary = ({
     setRecentDocuments(recent);
     setKnowledgeBaseDocuments(knowledgeBase);
     
-    console.log(`Categorized documents: ${recent.length} recent, ${knowledgeBase.length} knowledge base`);
+    console.log(`Categorized documents: ${recent.length} recent, ${knowledgeBase.length} all documents`);
   }, [documents]);
 
   // Filter documents based on search term (global search across both sections)
@@ -119,7 +119,7 @@ const DocumentLibrary = ({
         return;
       }
       
-      // Priority 2: Fallback to original logic - first ready document in knowledge base
+      // Priority 2: Fallback to original logic - first ready document in all documents
       const readyDoc = documents.find(doc => doc.status === 'ready');
       if (readyDoc) {
         console.log('Auto-selecting first ready document:', readyDoc.file_name);
@@ -366,7 +366,7 @@ const DocumentLibrary = ({
         <div className="library-title-section">
           <h2 className="library-title">
             <FileText size={20} />
-            My Library
+            Workspace
           </h2>
           
           {/* Clear All Button */}
@@ -452,7 +452,7 @@ const DocumentLibrary = ({
         </div>
       )}
 
-      {/* Document List with Recently Added and Knowledge Base sections */}
+      {/* Document List with Recently Added and All Documents sections */}
       <div className="document-list">
         {filteredDocuments.length === 0 ? (
           <div className="empty-state">
@@ -513,7 +513,6 @@ const DocumentLibrary = ({
                           <div className="document-details">
                             <div className="document-name">
                               {cleanFileName(doc.file_name)}
-                              <span className="new-badge">✨ NEW</span>
                             </div>
                             {doc.status !== 'ready' && (
                               <div className="document-meta">
@@ -535,11 +534,11 @@ const DocumentLibrary = ({
               <hr className="section-separator" />
             )}
 
-            {/* Knowledge Base Section - Always show if there are any documents */}
+            {/* All Documents Section - Always show if there are any documents */}
             {(knowledgeBaseDocuments.length > 0 || searchTerm) && (
               <div className="document-section">
                 <h4 className="section-heading">
-                  {searchTerm ? 'SEARCH RESULTS' : 'KNOWLEDGE BASE'}
+                  {searchTerm ? 'SEARCH RESULTS' : 'ALL DOCUMENTS'}
                 </h4>
                 <div className="section-documents">
                   {(searchTerm ? filteredDocuments : knowledgeBaseDocuments).map((doc) => (
@@ -556,10 +555,6 @@ const DocumentLibrary = ({
                           <div className="document-details">
                             <div className="document-name">
                               {cleanFileName(doc.file_name)}
-                              {/* Show NEW badge for recent documents even in search results */}
-                              {searchTerm && recentDocuments.some(recentDoc => recentDoc.id === doc.id) && (
-                                <span className="new-badge">✨ NEW</span>
-                              )}
                             </div>
                             {doc.status !== 'ready' && (
                               <div className="document-meta">
