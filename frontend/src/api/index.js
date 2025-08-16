@@ -9,20 +9,46 @@ import axios from 'axios';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
   (import.meta.env.PROD ? '' : 'http://localhost:8080');
 
-// Generate unique session ID per browser session for user isolation
+// Generate unique session ID for user isolation with persistence
 const generateSessionId = () => {
   return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
 
-// Get or create session ID (persists for browser session only)
+// Get or create session ID with localStorage for persistence across browser sessions
 const getSessionId = () => {
+  // First check sessionStorage for current browser session
   let sessionId = sessionStorage.getItem('synapse_session_id');
+  
   if (!sessionId) {
-    sessionId = generateSessionId();
+    // Check localStorage for persistent user ID across browser sessions
+    let persistentUserId = localStorage.getItem('synapse_user_id');
+    
+    if (!persistentUserId) {
+      // First time user - create persistent user ID
+      persistentUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('synapse_user_id', persistentUserId);
+      console.log('Generated new persistent user ID:', persistentUserId);
+    }
+    
+    // Use the persistent user ID as session ID for file access
+    sessionId = persistentUserId;
     sessionStorage.setItem('synapse_session_id', sessionId);
-    console.log('Generated new session ID:', sessionId);
+    console.log('Using persistent session ID:', sessionId);
   }
+  
   return sessionId;
+};
+
+// Clear user session (for testing or user logout)
+const clearUserSession = () => {
+  sessionStorage.removeItem('synapse_session_id');
+  localStorage.removeItem('synapse_user_id');
+  console.log('Cleared user session - next request will create new user');
+};
+
+// Get current user ID for debugging
+const getCurrentUserId = () => {
+  return localStorage.getItem('synapse_user_id');
 };
 
 // Create axios instance with default configuration
@@ -199,6 +225,13 @@ export const searchAPI = {
     const response = await api.get('/api/v1/search/analytics');
     return response.data;
   }
+};
+
+// Export session utilities for debugging and testing
+export const sessionUtils = {
+  clearUserSession,
+  getCurrentUserId,
+  getSessionId
 };
 
 export default api;
