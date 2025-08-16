@@ -1318,7 +1318,10 @@ const DocumentWorkbench = forwardRef(({
               <>
                 <div className="breadcrumb-header">
                   <div className="trail-info">
-                    <span className="trail-label">
+                    <span 
+                      className="trail-label"
+                      title="Track your navigation path through documents and pages"
+                    >
                       Research Trail:
                     </span>
                     <div 
@@ -1344,7 +1347,7 @@ const DocumentWorkbench = forwardRef(({
                       <button
                         className="trail-item-simple"
                         onClick={() => onBreadcrumbClick(item)}
-                        title={`Jump back to: ${item.documentName} (Page ${item.pageNumber})\n${item.context ? item.context + '...' : ''}`}
+                        title={`Jump back to: ${item.documentName} (Page ${item.pageNumber})`}
                       >
                         <span className="trail-document-simple">{item.documentName}</span>
                         <span className="trail-page-simple">Page {item.pageNumber}</span>
