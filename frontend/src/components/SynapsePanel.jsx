@@ -1691,7 +1691,7 @@ const SynapsePanel = forwardRef(({
                           {isTextSelection ? (
                             <div className="sources-toggle" style={{ cursor: 'default' }}>
                               <span className="sources-label">
-                                Source: {pageMatch ? `Page ${pageMatch[1]}` : 'Current page'}
+                                Source: Selected text from {pageMatch ? `page ${pageMatch[1]}` : 'current page'}
                               </span>
                             </div>
                           ) : isReadingContext ? (
