@@ -8,20 +8,222 @@
   overflow: auto; /* Allow scrolling */
 }
 
-/* Navigation Breadcrumb */
+/* Tooltip Styles for Research Trail - Only for the "i" icon */
+.trail-info-icon {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: #e5e7eb;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+/* Hide native browser tooltip and show custom tooltip */
+.trail-info-icon[title] {
+  position: relative;
+}
+
+.trail-info-icon[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  top: 100%; /* Position below the icon */
+  left: -120px; /* Position to the left of the icon to avoid screen edge cutoff */
+  background-color: #1f2937;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 400;
+  white-space: normal;
+  max-width: 300px;
+  width: max-content;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-top: 5px;
+}
+
+.trail-info-icon[title]:hover::before {
+  content: '';
+  position: absolute;
+  top: 100%; /* Position below the icon */
+  left: -7px; /* Center the arrow above the icon */
+  border: 5px solid transparent;
+  border-bottom-color: #1f2937;
+  z-index: 1000;
+  margin-top: -5px;
+}
+
+/* Hide the native browser tooltip */
+.trail-info-icon[title]:hover {
+  background-color: #d1d5db;
+  transform: none;
+}
+
+/* Ensure no native tooltip appears */
+.trail-info-icon[title]:focus {
+  outline: none;
+}
+
+/* Navigation Breadcrumb - Unified with Trail */
 .navigation-breadcrumb {
   background: #f8fafc;
   border-bottom: 1px solid #e2e8f0;
-  padding: 12px 20px;
+  padding: 4px 20px; /* Reduced from 8px to 4px for minimal height */
   flex-shrink: 0;
   z-index: 10;
 }
 
+/* Simple Trail Items (when breadcrumb trail exists) */
+.trail-items-simple {
+  display: flex;
+  align-items: center;
+  gap: 6px; /* Reduced from 8px for more compact spacing */
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.trail-items-simple::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.trail-item-wrapper-simple {
+  display: flex;
+  align-items: center;
+  gap: 6px; /* Reduced from 8px for more compact spacing */
+  flex-shrink: 0;
+}
+
+.trail-item-simple {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0px; /* Reduced from 1px for ultra-tight spacing */
+  padding: 4px 8px; /* Reduced from 6px 10px for even smaller cards */
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px; /* Reduced from 6px for more compact look */
+  color: #374151;
+  font-size: 10px; /* Reduced from 11px for smaller text */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 100px; /* Reduced from 120px for more compact cards */
+  max-width: 160px; /* Reduced from 180px for more consistent sizing */
+  width: auto;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  height: auto;
+  min-height: 32px; /* Reduced from 36px for smaller cards */
+  max-height: 32px; /* Reduced from 36px to prevent size variation */
+}
+
+.trail-item-simple:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.trail-item-simple:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.trail-document-simple {
+  font-weight: 600;
+  line-height: 1.0; /* Even tighter line height for ultra-compact sizing */
+  max-width: 140px; /* Reduced from 160px for more compact card sizing */
+  color: #1f2937;
+  /* FORCE single line to ensure consistent card heights */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Remove multi-line display properties that cause size inconsistency */
+}
+
+.trail-page-simple {
+  font-weight: 400;
+  opacity: 0.7;
+  white-space: nowrap;
+  line-height: 1.0; /* Consistent with document name line height */
+  color: #6b7280;
+  font-size: 9px; /* Reduced from 10px for even smaller page info */
+}
+
+.trail-separator-simple {
+  color: #9ca3af;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.trail-actions-simple {
+  flex-shrink: 0;
+}
+
+.clear-trail-btn-simple {
+  padding: 3px 8px; /* Reduced from 4px 10px for more compact button */
+  background: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-radius: 4px; /* Reduced from 6px for more compact look */
+  color: #6b7280;
+  font-size: 10px; /* Reduced from 11px for more compact text */
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-trail-btn-simple:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  color: #374151;
+}
+
+.clear-trail-btn-simple:active {
+  transform: translateY(0);
+}
+
 .breadcrumb-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* Reduced from 6px for even more compact layout */
+  max-width: 100%;
+}
+
+.breadcrumb-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  max-width: 100%;
+  gap: 8px; /* Reduced from 12px for minimal spacing */
+  min-height: 16px; /* Reduced from 20px for smaller header */
+}
+
+/* Trail Info Section */
+.trail-info {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px; /* Reduced from 6px for minimal spacing */
+}
+
+.trail-label {
+  font-size: 12px; /* Reduced from 13px for more compact text */
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer; /* Changed from default to pointer for better tooltip UX */
+  position: relative; /* Added for tooltip positioning */
+}
+
+.info-icon {
+  font-size: 9px; /* Reduced from 10px for more compact icon */
+  font-weight: bold;
+  color: #6b7280;
+  line-height: 1;
 }
 
 .current-document {
