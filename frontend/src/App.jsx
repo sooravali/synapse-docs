@@ -42,6 +42,9 @@ function App() {
   const [connectionResults, setConnectionResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   
+  // Navigation Breadcrumb State
+  const [breadcrumbTrail, setBreadcrumbTrail] = useState([]);
+  
   // UI State
   const [viewerError, setViewerError] = useState(null);
   const [showQuickStart, setShowQuickStart] = useState(false);
@@ -50,6 +53,111 @@ function App() {
   // Component References
   const synapsePanelRef = useRef(null);
   const documentWorkbenchRef = useRef(null);
+
+  // Helper function to clean filename display
+  const cleanFileName = (fileName) => {
+    if (!fileName) return '';
+    return fileName.replace(/^doc_\d+_/, '').replace(/\.pdf$/, '');
+  };
+
+  // Breadcrumb Trail Management Functions
+  const addToBreadcrumbTrail = (document, pageNumber, context = '') => {
+    const newTrailItem = {
+      id: `${document.id}-${pageNumber}-${Date.now()}`, // Unique ID for each trail item
+      documentId: document.id,
+      documentName: cleanFileName(document.file_name),
+      pageNumber: pageNumber,
+      context: context.substring(0, 100), // Store context preview for tooltip
+      timestamp: Date.now()
+    };
+
+    setBreadcrumbTrail(prevTrail => {
+      // Check if the last item in trail is the same location to avoid duplicates
+      const lastItem = prevTrail[prevTrail.length - 1];
+      if (lastItem && 
+          lastItem.documentId === document.id && 
+          lastItem.pageNumber === pageNumber) {
+        console.log('🍞 Skipping duplicate breadcrumb entry');
+        return prevTrail;
+      }
+
+      const newTrail = [...prevTrail, newTrailItem];
+      console.log(`🍞 Added to breadcrumb trail: ${newTrailItem.documentName} (Page ${pageNumber})`);
+      console.log(`🍞 Trail now has ${newTrail.length} items`);
+      return newTrail;
+    });
+  };
+
+  const navigateToBreadcrumbItem = async (trailItem) => {
+    console.log(`🍞 Navigating to breadcrumb: ${trailItem.documentName} (Page ${trailItem.pageNumber})`);
+    
+    // Find the target document
+    const targetDoc = documents.find(doc => doc.id === trailItem.documentId);
+    if (!targetDoc) {
+      console.error('🍞 Target document not found for breadcrumb navigation');
+      return;
+    }
+
+    // Check if we need to switch documents
+    const isDocumentSwitch = targetDoc.id !== selectedDocument?.id;
+    
+    if (isDocumentSwitch) {
+      console.log('🍞 Switching to different document');
+      setSelectedDocument(targetDoc);
+    }
+
+    // Navigate to the specific page
+    if (trailItem.pageNumber !== undefined && trailItem.pageNumber !== null) {
+      const targetPageNumber = trailItem.pageNumber;
+      console.log(`🍞 Navigating to page ${targetPageNumber}`);
+      
+      // Smart timing based on operation type
+      const navigationDelay = isDocumentSwitch ? 1500 : 50;
+      
+      setTimeout(async () => {
+        if (documentWorkbenchRef.current && documentWorkbenchRef.current.navigateToPage) {
+          const success = await documentWorkbenchRef.current.navigateToPage(targetPageNumber);
+          if (success) {
+            console.log(`🍞 Successfully navigated to breadcrumb location`);
+            
+            // Truncate trail to this point (remove items after the clicked item)
+            setBreadcrumbTrail(prevTrail => {
+              const clickedIndex = prevTrail.findIndex(item => item.id === trailItem.id);
+              if (clickedIndex !== -1) {
+                const truncatedTrail = prevTrail.slice(0, clickedIndex + 1);
+                console.log(`🍞 Truncated trail to ${truncatedTrail.length} items`);
+                return truncatedTrail;
+              }
+              return prevTrail;
+            });
+          } else {
+            console.error('🍞 Failed to navigate to breadcrumb location');
+          }
+        }
+      }, navigationDelay);
+    }
+  };
+
+  const clearBreadcrumbTrail = () => {
+    console.log('🍞 Clearing breadcrumb trail');
+    setBreadcrumbTrail([]);
+  };
+
+  const addCurrentLocationToBreadcrumbs = async (context = '') => {
+    if (!selectedDocument) return;
+    
+    // Get current page from DocumentWorkbench
+    let currentPage = 1; // Default fallback
+    if (documentWorkbenchRef.current && documentWorkbenchRef.current.getCurrentPage) {
+      try {
+        currentPage = await documentWorkbenchRef.current.getCurrentPage();
+      } catch (error) {
+        console.log('🍞 Could not get current page, using default page 1');
+      }
+    }
+    
+    addToBreadcrumbTrail(selectedDocument, currentPage, context);
+  };
 
   // Load documents on component mount
   useEffect(() => {
@@ -80,7 +188,14 @@ function App() {
       if (!selectedDocument && docs.length > 0) {
         const readyDoc = docs.find(doc => doc.status === 'ready');
         if (readyDoc) {
+          console.log('Auto-selecting first ready document:', readyDoc.file_name);
           setSelectedDocument(readyDoc);
+          
+          // Add initial document to breadcrumb trail as starting point
+          setTimeout(() => {
+            console.log('🍞 Adding auto-selected initial document to breadcrumb trail');
+            addToBreadcrumbTrail(readyDoc, 1, 'Auto-selected starting document');
+          }, 1000); // Longer delay for auto-selection to ensure viewer is ready
         }
       }
     } catch (error) {
@@ -97,6 +212,19 @@ function App() {
     setSearchResults([]); // Clear search results
     setConnectionResults([]); // Clear connections when switching documents
     setHasInsights(false); // Reset insights state
+    
+    // Clear breadcrumb trail when manually selecting a new document
+    // This ensures fresh navigation context
+    clearBreadcrumbTrail();
+    
+    // Add the initial document to breadcrumb trail as the starting point
+    // Use a small delay to ensure the document is loaded
+    setTimeout(() => {
+      if (document && document.id) {
+        console.log('🍞 Adding initial document to breadcrumb trail as starting point');
+        addToBreadcrumbTrail(document, 1, 'Starting document'); // Page 1 as starting point
+      }
+    }, 500);
     
     // Clear any insights and reset Synapse panel state
     if (synapsePanelRef.current && synapsePanelRef.current.resetPanelState) {
@@ -146,6 +274,37 @@ function App() {
     const targetDoc = documents.find(doc => doc.id === connection.document_id);
     const isDocumentSwitch = targetDoc && targetDoc.id !== selectedDocument?.id;
     
+    // Add current location to breadcrumb trail BEFORE navigation
+    if (selectedDocument && connection.page_number !== undefined) {
+      // Get the CURRENT page the user is viewing (not just page 1)
+      console.log('🍞 Getting current page before navigation for breadcrumb trail...');
+      
+      const addCurrentPageToBreadcrumbs = async () => {
+        let currentPage = 1; // Default fallback
+        
+        // Try to get the actual current page from DocumentWorkbench
+        if (documentWorkbenchRef.current && documentWorkbenchRef.current.getCurrentPage) {
+          try {
+            const actualCurrentPage = await documentWorkbenchRef.current.getCurrentPage();
+            if (actualCurrentPage && actualCurrentPage > 0) {
+              currentPage = actualCurrentPage;
+              console.log(`🍞 Got actual current page: ${currentPage}`);
+            }
+          } catch (error) {
+            console.log('🍞 Could not get current page, using default page 1');
+          }
+        }
+        
+        // Add the current location to breadcrumb trail with the actual page
+        const contextPreview = `Viewing content before jumping to connection`;
+        addToBreadcrumbTrail(selectedDocument, currentPage, contextPreview);
+        console.log(`🍞 Added current location to breadcrumb: ${cleanFileName(selectedDocument.file_name)} (Page ${currentPage})`);
+      };
+      
+      // Add current location immediately
+      addCurrentPageToBreadcrumbs();
+    }
+    
     if (isDocumentSwitch) {
       setSelectedDocument(targetDoc);
     }
@@ -173,6 +332,12 @@ function App() {
           const success = await documentWorkbenchRef.current.navigateToPage(targetPageNumber);
           if (success) {
             console.log(` Successfully navigated to page ${targetPageNumber} (attempt ${attempt})`);
+            
+            // Add DESTINATION to breadcrumb trail after successful navigation
+            const contextPreview = connection.text_chunk ? connection.text_chunk.substring(0, 100) : '';
+            addToBreadcrumbTrail(targetDoc, targetPageNumber, contextPreview);
+            console.log(`🍞 Added destination to breadcrumb: ${cleanFileName(targetDoc.file_name)} (Page ${targetPageNumber})`);
+            
           } else if (attempt < 3 && isDocumentSwitch) {
             // Retry for document switches if first attempt fails
             console.log(` Navigation failed, retrying in 500ms (attempt ${attempt + 1})`);
@@ -228,6 +393,10 @@ function App() {
             onPodcastRequest={handlePodcastRequest}
             searchResults={searchResults}
             connectionResults={connectionResults}
+            breadcrumbTrail={breadcrumbTrail}
+            onBreadcrumbClick={navigateToBreadcrumbItem}
+            onClearBreadcrumbs={clearBreadcrumbTrail}
+            onAddCurrentLocation={addCurrentLocationToBreadcrumbs}
           />
         </div>
 
