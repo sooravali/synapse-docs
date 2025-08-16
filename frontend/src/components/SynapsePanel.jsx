@@ -1654,7 +1654,7 @@ const SynapsePanel = forwardRef(({
                   <h3>Discover Related Snippets</h3>
                   <p>Start reading or select text - related snippets will automatically appear from your other documents.</p>
                   <div className="empty-tip">
-                    <span className="tip-icon">💡</span>
+                    <span className="tip-icon"></span>
                     <span>Both reading and text selection trigger the same unified workflow!</span>
                   </div>
                 </div>
@@ -1699,14 +1699,14 @@ const SynapsePanel = forwardRef(({
                         <div className="connections-source-info">
                           {isTextSelection ? (
                             <p className="context-source">
-                              📄 Source: Text selected from {cleanFileName(selectedDocument?.file_name) || 'document'}
+                              Source: Text selected from {cleanFileName(selectedDocument?.file_name) || 'document'}
                               {pageMatch && (
                                 <span className="source-page"> • Page {pageMatch[1]}</span>
                               )}
                             </p>
                           ) : isReadingContext ? (
                             <p className="context-source">
-                              📖 Source: Reading context from {cleanFileName(selectedDocument?.file_name) || 'document'}
+                              Source: Reading context from {cleanFileName(selectedDocument?.file_name) || 'document'}
                               {pageMatch ? (
                                 <span className="source-page"> • Page {pageMatch[1]}</span>
                               ) : fallbackPage ? (
@@ -1715,7 +1715,7 @@ const SynapsePanel = forwardRef(({
                             </p>
                           ) : (
                             <p className="context-source">
-                              📖 Source: Reading context from {cleanFileName(selectedDocument?.file_name) || 'document'}
+                              Source: Reading context from {cleanFileName(selectedDocument?.file_name) || 'document'}
                               {fallbackPage && (
                                 <span className="source-page"> • Page {fallbackPage}</span>
                               )}
