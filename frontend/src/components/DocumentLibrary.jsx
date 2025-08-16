@@ -448,7 +448,7 @@ const DocumentLibrary = ({
       return count > 0 ? `Recent (${count})` : 'Recent';
     } else {
       const count = knowledgeBaseDocuments.length;
-      return count > 0 ? `All Documents (${count})` : 'All Documents';
+      return count > 0 ? `Past Documents (${count})` : 'Past Documents';
     }
   };
 
