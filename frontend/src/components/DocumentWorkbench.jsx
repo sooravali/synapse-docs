@@ -654,18 +654,25 @@ const DocumentWorkbench = forwardRef(({
       const pdfUrl = `${API_BASE_URL}/api/v1/documents/view/${document.id}`;
       console.log(` Loading PDF from: ${pdfUrl}`);
 
-      // Configure preview options based on Adobe best practices
+      // Configure preview options for full Adobe PDF interface with all standard features
       const previewConfig = {
-        embedMode: "SIZED_CONTAINER", // Changed from IN_LINE to SIZED_CONTAINER for proper scrolling
-        showDownloadPDF: false,
-        showPrintPDF: false,
-        showLeftHandPanel: false,
-        showAnnotationTools: false,
-        enableFormFilling: false,
-        focusOnRendering: false,
-        enableLinearization: true,
-        defaultViewMode: "FIT_WIDTH",
-        showFullScreen: true // Enable full screen for SIZED_CONTAINER mode
+        embedMode: "FULL_WINDOW", // Enable full Adobe PDF interface with all standard controls
+        showDownloadPDF: true, // Enable download button in top toolbar
+        showPrintPDF: true, // Enable print button in top toolbar  
+        showLeftHandPanel: true, // Enable left-hand panel with bookmarks, thumbnails
+        showAnnotationTools: true, // Enable all commenting and annotation tools
+        showThumbnails: true, // Show page thumbnails in left panel
+        showBookmarks: true, // Show bookmarks in left panel
+        showZoomControl: true, // Enable zoom controls
+        enableFormFilling: true, // Enable form editing capabilities
+        focusOnRendering: false, // Don't auto-focus on PDF to preserve breadcrumb interactions
+        enableLinearization: true, // Optimize for faster viewing
+        defaultViewMode: "FIT_WIDTH", // Default page view mode
+        showDisabledSaveButton: false, // Only show save button when PDF is modified
+        enableSearchAPIs: false, // Keep UI search enabled instead of programmatic search
+        enableAnnotationAPIs: true, // Enable annotation APIs for potential future features
+        showFullScreen: true, // Enable full screen option
+        exitPDFViewerType: "CLOSE" // Use close button in full screen mode
       };
 
       // Preview the file with proper error handling
@@ -1337,7 +1344,7 @@ const DocumentWorkbench = forwardRef(({
                       onClick={onClearBreadcrumbs}
                       title="Clear research trail and start fresh navigation"
                     >
-                      Clear
+                      Clear Trail
                     </button>
                   </div>
                 </div>
