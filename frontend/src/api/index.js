@@ -1,6 +1,6 @@
 /**
  * API client for communicating with the Synapse-Docs backend
- * Provides centralized HTTP request handling using axios
+ * Provides centralized HTTP request handling using axios with session-based isolation
  */
 import axios from 'axios';
 
@@ -8,6 +8,22 @@ import axios from 'axios';
 // In development, use localhost:8080
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
   (import.meta.env.PROD ? '' : 'http://localhost:8080');
+
+// Generate unique session ID per browser session for user isolation
+const generateSessionId = () => {
+  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+};
+
+// Get or create session ID (persists for browser session only)
+const getSessionId = () => {
+  let sessionId = sessionStorage.getItem('synapse_session_id');
+  if (!sessionId) {
+    sessionId = generateSessionId();
+    sessionStorage.setItem('synapse_session_id', sessionId);
+    console.log('Generated new session ID:', sessionId);
+  }
+  return sessionId;
+};
 
 // Create axios instance with default configuration
 const api = axios.create({
@@ -17,6 +33,18 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Add request interceptor to include session ID in all requests
+api.interceptors.request.use(
+  (config) => {
+    const sessionId = getSessionId();
+    config.headers['X-Session-ID'] = sessionId;
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 // API functions for document operations
 export const documentAPI = {
