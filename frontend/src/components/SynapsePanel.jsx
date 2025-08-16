@@ -1687,30 +1687,25 @@ const SynapsePanel = forwardRef(({
                       }
                       
                       return (
-                        <div className="connections-source-info">
+                        <div className="sources-compact" style={{ marginTop: '8px' }}>
                           {isTextSelection ? (
-                            <p className="context-source">
-                              Source: Text selected from {cleanFileName(selectedDocument?.file_name) || 'document'}
-                              {pageMatch && (
-                                <span className="source-page"> • Page {pageMatch[1]}</span>
-                              )}
-                            </p>
+                            <div className="sources-toggle" style={{ cursor: 'default' }}>
+                              <span className="sources-label">
+                                Source: {pageMatch ? `Page ${pageMatch[1]}` : 'Current page'}
+                              </span>
+                            </div>
                           ) : isReadingContext ? (
-                            <p className="context-source">
-                              Source: Reading context from {cleanFileName(selectedDocument?.file_name) || 'document'}
-                              {pageMatch ? (
-                                <span className="source-page"> • Page {pageMatch[1]}</span>
-                              ) : fallbackPage ? (
-                                <span className="source-page"> • Page {fallbackPage}</span>
-                              ) : null}
-                            </p>
+                            <div className="sources-toggle" style={{ cursor: 'default' }}>
+                              <span className="sources-label">
+                                Source: {pageMatch ? `Page ${pageMatch[1]}` : fallbackPage ? `Page ${fallbackPage}` : 'Current page'}
+                              </span>
+                            </div>
                           ) : (
-                            <p className="context-source">
-                              Source: Reading context from {cleanFileName(selectedDocument?.file_name) || 'document'}
-                              {fallbackPage && (
-                                <span className="source-page"> • Page {fallbackPage}</span>
-                              )}
-                            </p>
+                            <div className="sources-toggle" style={{ cursor: 'default' }}>
+                              <span className="sources-label">
+                                Source: {fallbackPage ? `Page ${fallbackPage}` : 'Current page'}
+                              </span>
+                            </div>
                           )}
                         </div>
                       );
