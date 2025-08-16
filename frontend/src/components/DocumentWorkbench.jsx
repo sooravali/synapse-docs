@@ -576,8 +576,8 @@ const DocumentWorkbench = forwardRef(({
     }
   };
 
-  // OPTIMIZATION: Immediate scroll handler for instant connections
-  const handleScrollForContextDetection = () => {
+  // OPTIMIZATION: Page-based context detection instead of scroll-based
+  const handleScrollForContextDetection = async () => {
     // PRIORITY CHECK: Don't trigger reading context if text selection is active
     if (isTextSelectionActiveRef.current) {
       console.log(' Text selection active - ignoring scroll for context detection to preserve selected text connections');
@@ -587,21 +587,47 @@ const DocumentWorkbench = forwardRef(({
     const now = Date.now();
     
     // OPTIMIZATION: Minimal throttle to prevent excessive duplicate calls within same millisecond
-    if (now - lastScrollTime.current < 50) {
-      console.log(' Scroll event throttled (within 50ms), skipping...');
+    if (now - lastScrollTime.current < 200) {
+      console.log(' Scroll event throttled (within 200ms), skipping...');
       return;
     }
     
     lastScrollTime.current = now;
     
-    // OPTIMIZATION: Clear existing timeout if any
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
+    // PAGE-BASED DETECTION: Only trigger context detection on actual page changes
+    try {
+      if (isViewerReady && adobeViewerRef.current) {
+        const apis = await adobeViewerRef.current.getAPIs();
+        if (apis && apis.getCurrentPage) {
+          const currentPage = await apis.getCurrentPage();
+          
+          // Only trigger context detection if page has actually changed
+          if (currentPage !== currentPageNumber) {
+            console.log(` Page change detected: ${currentPageNumber} → ${currentPage}, triggering context detection...`);
+            setCurrentPageNumber(currentPage);
+            
+            // OPTIMIZATION: Clear existing timeout if any
+            if (scrollTimeoutRef.current) {
+              clearTimeout(scrollTimeoutRef.current);
+            }
+            
+            // Use a short debounce for page changes to allow page rendering to complete
+            scrollTimeoutRef.current = setTimeout(() => {
+              detectCentralParagraph();
+            }, 300);
+          } else {
+            console.log(` Scroll within same page ${currentPage}, ignoring for context detection`);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(' Error checking page number during scroll:', error);
+      // Fallback: only trigger if significant time has passed since last detection
+      if (now - lastScrollTime.current > 2000) {
+        console.log(' Fallback: triggering context detection after 2s cooldown');
+        detectCentralParagraph();
+      }
     }
-    
-    // INSTANT TRIGGER: No debounce delay for immediate response
-    console.log(' Scroll detected, triggering IMMEDIATE central paragraph detection...');
-    detectCentralParagraph();
   };
 
   const initializeViewer = async () => {
@@ -756,14 +782,14 @@ const DocumentWorkbench = forwardRef(({
         break;
         
       case 'PREVIEW_PAGE_VIEW_SCROLLED':
-        console.log(' Adobe scroll event detected:', event.data);
-        // Use Adobe's scroll events for context detection
-        handleScrollForContextDetection();
+        console.log(' Adobe scroll event detected - ignoring for context detection (using page render instead)');
+        // No longer trigger context detection on scroll events - only on page changes
         break;
         
       case 'PREVIEW_PAGE_RENDERED':
         console.log(' Page rendered:', event.data);
-        // Also trigger context detection when a new page is rendered
+        // Perfect event for page-based context detection
+        console.log(' Page render event - checking for page change before context detection');
         handleScrollForContextDetection();
         break;
         
@@ -987,14 +1013,15 @@ const DocumentWorkbench = forwardRef(({
   };
 
   const setupFallbackScrollDetection = () => {
-    console.log(' Setting up intelligent scroll detection for central paragraph...');
+    console.log(' Setting up page-based scroll detection for central paragraph...');
     
     let scrollTimeout;
     let lastScrollTime = Date.now();
     let isScrolling = false;
+    let lastCheckedPage = currentPageNumber;
 
-    // Optimized scroll handler that detects when user stops reading
-    const handleScroll = () => {
+    // Page-based scroll handler that only detects context on page changes
+    const handleScroll = async () => {
       // PRIORITY CHECK: Don't trigger reading context if text selection is active
       if (isTextSelectionActiveRef.current) {
         console.log(' Text selection active - ignoring scroll events to preserve selected text connections');
@@ -1010,23 +1037,52 @@ const DocumentWorkbench = forwardRef(({
         clearTimeout(scrollTimeout);
       }
       
-      // Set new timeout to detect when scrolling stops
-      scrollTimeout = setTimeout(() => {
+      // Set new timeout to check page after scrolling stops
+      scrollTimeout = setTimeout(async () => {
         // Double-check text selection before triggering
         if (!isTextSelectionActiveRef.current) {
           isScrolling = false;
-          console.log(' User stopped scrolling - detecting central paragraph...');
-          detectCentralParagraph();
+          
+          // PAGE-BASED DETECTION: Check if page has changed
+          try {
+            if (isViewerReady && adobeViewerRef.current) {
+              const apis = await adobeViewerRef.current.getAPIs();
+              if (apis && apis.getCurrentPage) {
+                const currentPage = await apis.getCurrentPage();
+                
+                // Only trigger context detection if page has actually changed
+                if (currentPage !== lastCheckedPage) {
+                  console.log(` Page change detected in fallback: ${lastCheckedPage} → ${currentPage}, detecting context...`);
+                  lastCheckedPage = currentPage;
+                  setCurrentPageNumber(currentPage);
+                  detectCentralParagraph();
+                } else {
+                  console.log(` Scroll within same page ${currentPage}, ignoring in fallback detection`);
+                }
+              }
+            } else {
+              // Fallback for when Adobe APIs are not available
+              console.log(' Adobe APIs not available - using time-based fallback with longer interval');
+              // Only trigger if significant time has passed (5 seconds instead of 1)
+              if (now - lastScrollTime > 5000) {
+                detectCentralParagraph();
+              }
+            }
+          } catch (error) {
+            console.warn(' Error checking page in fallback scroll handler:', error);
+          }
         } else {
           console.log(' Text selection still active - skipping reading context detection');
         }
-      }, 1000); // Wait 1 second after scrolling stops
+      }, 800); // Wait 800ms after scrolling stops to allow page change detection
     };
 
     // Method 1: Listen for scroll events on the viewer container
     const viewerElement = viewerRef.current;
+    let scrollListener = null;
+    
     if (viewerElement) {
-      const scrollListener = () => {
+      scrollListener = () => {
         console.log(' Scroll detected on viewer container');
         handleScroll();
       };
@@ -1077,8 +1133,8 @@ const DocumentWorkbench = forwardRef(({
       });
     }, 1000);
     
-    // Method 4: Periodic checking for reading context (less frequent, avoid interrupting reading)
-    const periodicCheck = () => {
+    // Method 4: Less aggressive periodic checking (longer intervals since we use page-based detection)
+    const periodicCheck = async () => {
       // PRIORITY CHECK: Don't trigger reading context if text selection is active
       if (isTextSelectionActiveRef.current) {
         console.log(' Text selection active - skipping periodic reading context detection');
@@ -1086,26 +1142,63 @@ const DocumentWorkbench = forwardRef(({
       }
       
       const now = Date.now();
-      // Only trigger if user hasn't scrolled recently (avoid interrupting active reading)
-      if (!isScrolling && (now - lastScrollTime > 15000)) {
-        console.log(' Periodic central paragraph detection (reading session timeout)');
-        detectCentralParagraph();
+      // Only trigger if user hasn't scrolled recently and sufficient time has passed
+      if (!isScrolling && (now - lastScrollTime > 30000)) {
+        console.log(' Periodic central paragraph detection (30s reading session timeout)');
+        
+        // Check if page has changed before triggering
+        try {
+          if (isViewerReady && adobeViewerRef.current) {
+            const apis = await adobeViewerRef.current.getAPIs();
+            if (apis && apis.getCurrentPage) {
+              const currentPage = await apis.getCurrentPage();
+              if (currentPage !== lastCheckedPage) {
+                console.log(` Periodic page change detected: ${lastCheckedPage} → ${currentPage}`);
+                lastCheckedPage = currentPage;
+                setCurrentPageNumber(currentPage);
+                detectCentralParagraph();
+              }
+            }
+          } else {
+            // Fallback periodic detection when APIs unavailable
+            detectCentralParagraph();
+          }
+        } catch (error) {
+          console.warn(' Error in periodic page check:', error);
+        }
+        
         lastScrollTime = now;
       }
     };
     
-    const periodicInterval = setInterval(periodicCheck, 10000); // Every 10 seconds
-    console.log(' Started periodic central paragraph detection');
+    const periodicInterval = setInterval(periodicCheck, 15000); // Every 15 seconds (less aggressive)
+    console.log(' Started periodic central paragraph detection with page tracking');
     
-    // Initial detection after a brief delay
-    setTimeout(() => {
-      console.log(' Initial central paragraph detection...');
+    // Initial detection after a brief delay with proper page setup
+    setTimeout(async () => {
+      console.log(' Initial central paragraph detection with page setup...');
+      
+      // Initialize page tracking
+      try {
+        if (isViewerReady && adobeViewerRef.current) {
+          const apis = await adobeViewerRef.current.getAPIs();
+          if (apis && apis.getCurrentPage) {
+            const initialPage = await apis.getCurrentPage();
+            lastCheckedPage = initialPage;
+            setCurrentPageNumber(initialPage);
+            console.log(` Initial page set to: ${initialPage}`);
+          }
+        }
+      } catch (error) {
+        console.warn(' Error setting initial page:', error);
+      }
+      
       detectCentralParagraph();
     }, 2000);
 
     // Cleanup function
     return () => {
-      if (viewerElement) {
+      if (viewerElement && scrollListener) {
         viewerElement.removeEventListener('scroll', scrollListener);
       }
       window.removeEventListener('scroll', windowScrollListener);
@@ -1113,7 +1206,8 @@ const DocumentWorkbench = forwardRef(({
         clearTimeout(scrollTimeout);
       }
       clearInterval(periodicInterval);
-      console.log(' Cleaned up scroll detection listeners');
+      lastCheckedPage = null; // Clear page tracking
+      console.log(' Cleaned up page-based scroll detection listeners');
     };
   };
 
