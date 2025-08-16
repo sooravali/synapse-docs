@@ -22,7 +22,7 @@
 
 .status-steps {
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* Change from center to flex-start */
   gap: 16px; /* Reduced spacing for smaller icons */
   flex-shrink: 0;
 }
@@ -118,7 +118,9 @@
   position: relative;
   border-radius: 1px;
   transition: all 0.4s ease;
-  align-self: center; /* Ensure it aligns with icon center */
+  /* Align with center of the circle icon (42px height) - now positioned from top */
+  margin-top: 20px; /* Center of 42px icon: 42px/2 - 1px (half connector height) = 21px - 1px = 20px */
+  align-self: flex-start; /* Ensure it starts from the top */
 }
 
 .status-connector.completed {
@@ -188,6 +190,8 @@
   
   .status-connector {
     width: 24px;
+    /* Align with center of the circle icon (40px height) */
+    margin-top: 19px; /* Center of 40px icon: 40px/2 - 1px = 20px - 1px = 19px */
   }
   
   .status-label {
@@ -213,6 +217,8 @@
   .status-connector {
     width: 20px;
     height: 2px;
+    /* Align with center of the circle icon (36px height) */
+    margin-top: 17px; /* Center of 36px icon: 36px/2 - 1px = 18px - 1px = 17px */
   }
   
   .status-label {
