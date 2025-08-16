@@ -530,7 +530,7 @@ const DocumentLibrary = ({
                 </div>
                 <div className="document-details">
                   <div className="document-name">
-                    {cleanFileName(doc.file_name)}
+                    <span>{cleanFileName(doc.file_name)}</span>
                     {selectedDocument?.id === doc.id && (
                       <span className="currently-reading-badge">Reading</span>
                     )}
