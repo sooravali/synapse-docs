@@ -118,8 +118,7 @@
   position: relative;
   border-radius: 1px;
   transition: all 0.4s ease;
-  align-self: flex-start; /* Align to top of flex container */
-  margin-top: 21px; /* Half of icon height (42px / 2) to center with icon */
+  align-self: center; /* Ensure it aligns with icon center */
 }
 
 .status-connector.completed {
@@ -189,7 +188,6 @@
   
   .status-connector {
     width: 24px;
-    margin-top: 20px; /* Half of mobile icon height (40px / 2) */
   }
   
   .status-label {
@@ -215,7 +213,6 @@
   .status-connector {
     width: 20px;
     height: 2px;
-    margin-top: 18px; /* Half of small mobile icon height (36px / 2) */
   }
   
   .status-label {
@@ -226,7 +223,7 @@
   .tooltip {
     font-size: 10px !important; /* Smaller on mobile */
     padding: 4px 6px !important; /* Reduced padding */
-    max-width: 140px !important; /* Smaller max-width */
+    max-width: 250px !important; /* Increased for full text on mobile */
   }
 }
 
@@ -247,7 +244,7 @@
   z-index: 1000;
   animation: tooltipFadeIn 0.15s ease-out;
   pointer-events: none;
-  max-width: 200px; /* Larger max-width for full text */
+  max-width: 280px; /* Increased to accommodate full text */
   text-align: center;
   line-height: 1.2; /* Better line spacing */
 }
