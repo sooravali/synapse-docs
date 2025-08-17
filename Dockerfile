@@ -1,13 +1,20 @@
 # Adobe Hackathon 2025 - Ultra-Optimized Dockerfile for Synapse-Docs
 # Target: Reduce from ~12GB to ~3-4GB with full functionality preservation
 
-# Stage 1: Frontend Build (minimal Alpine)
+# Stage 1: Frontend Build (production-optimized with npm ci)
 FROM node:18-alpine AS frontend
 WORKDIR /frontend
+
+# Copy package.json and install all dependencies (including dev for build)
 COPY frontend/package.json ./
 RUN npm install --silent
+
+# Copy source and build (requires dev dependencies like Vite)
 COPY frontend/ ./
 RUN npm run build
+
+# Generate clean production node_modules using the lock file
+RUN npm ci --silent --only=production
 
 # Stage 2: Python Dependencies (optimized compilation)
 FROM python:3.11-slim AS python-deps
