@@ -15,7 +15,8 @@ const FlowStatusBar = ({
   connectionsCount, 
   hasInsights, 
   isLoadingConnections,
-  currentContext 
+  currentContext,
+  isVertical = false
 }) => {
   const [flowStep, setFlowStep] = useState('upload');
   const [hoveredStep, setHoveredStep] = useState(null);
@@ -79,7 +80,7 @@ const FlowStatusBar = ({
   };
 
   return (
-    <div className="flow-status-bar">
+    <div className={`flow-status-bar ${isVertical ? 'vertical' : ''}`}>
       <div className="status-content">
         <div className="status-steps">
           {/* Upload Step */}
@@ -89,11 +90,13 @@ const FlowStatusBar = ({
             onMouseLeave={() => setHoveredStep(null)}
           >
             <div className={`status-step ${getStepStatus('upload')}`}>
-              <FileText size={18} />
+              <FileText size={isVertical ? 14 : 18} />
             </div>
-            <div className={`status-label ${getStepStatus('upload')}`}>
-              {getStepLabel('upload')}
-            </div>
+            {!isVertical && (
+              <div className={`status-label ${getStepStatus('upload')}`}>
+                {getStepLabel('upload')}
+              </div>
+            )}
             {hoveredStep === 'upload' && (
               <div className="tooltip">
                 {getStepTooltip('upload')}
@@ -111,11 +114,13 @@ const FlowStatusBar = ({
             onMouseLeave={() => setHoveredStep(null)}
           >
             <div className={`status-step ${getStepStatus('connect')}`}>
-              <Network size={18} />
+              <Network size={isVertical ? 14 : 18} />
             </div>
-            <div className={`status-label ${getStepStatus('connect')}`}>
-              {getStepLabel('connect')}
-            </div>
+            {!isVertical && (
+              <div className={`status-label ${getStepStatus('connect')}`}>
+                {getStepLabel('connect')}
+              </div>
+            )}
             {hoveredStep === 'connect' && (
               <div className="tooltip">
                 {getStepTooltip('connect')}
@@ -133,11 +138,13 @@ const FlowStatusBar = ({
             onMouseLeave={() => setHoveredStep(null)}
           >
             <div className={`status-step ${getStepStatus('generate')}`}>
-              <Lightbulb size={18} />
+              <Lightbulb size={isVertical ? 14 : 18} />
             </div>
-            <div className={`status-label ${getStepStatus('generate')}`}>
-              {getStepLabel('generate')}
-            </div>
+            {!isVertical && (
+              <div className={`status-label ${getStepStatus('generate')}`}>
+                {getStepLabel('generate')}
+              </div>
+            )}
             {hoveredStep === 'generate' && (
               <div className="tooltip">
                 {getStepTooltip('generate')}
