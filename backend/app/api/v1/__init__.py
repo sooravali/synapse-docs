@@ -5,7 +5,7 @@ Configures all v1 API endpoints for the Synapse-Docs service.
 """
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import documents, search, system, llm
+from app.api.v1.endpoints import documents, search, system, llm, graph
 from app.api.v1 import insights, config
 
 api_router = APIRouter()
@@ -33,6 +33,12 @@ api_router.include_router(
     system.router,
     prefix="/system",
     tags=["system"]
+)
+
+api_router.include_router(
+    graph.router,
+    prefix="/graph",
+    tags=["knowledge-graph"]
 )
 
 api_router.include_router(
