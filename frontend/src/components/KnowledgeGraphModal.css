@@ -1,0 +1,617 @@
+/* Knowledge Graph Modal Styles */
+
+.knowledge-graph-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.knowledge-graph-modal {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  width: 90vw;
+  max-width: 1200px;
+  height: 85vh;
+  max-height: 800px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Header */
+.knowledge-graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.knowledge-graph-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.knowledge-graph-title > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Control buttons container */
+.knowledge-graph-controls {
+  display: flex;
+  gap: 8px;
+  margin-right: 12px;
+}
+
+.control-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #e5e7eb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 36px;
+  height: 36px;
+}
+
+.control-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.control-button:active {
+  transform: translateY(0);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.knowledge-graph-icon {
+  opacity: 0.9;
+}
+
+.knowledge-graph-title h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.knowledge-graph-subtitle {
+  font-size: 14px;
+  opacity: 0.8;
+  margin-left: 8px;
+}
+
+.knowledge-graph-close {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.knowledge-graph-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+/* Content */
+.knowledge-graph-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Loading State */
+.knowledge-graph-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  color: #6b7280;
+}
+
+.knowledge-graph-loading .spin {
+  animation: spin 1s linear infinite;
+}
+
+.knowledge-graph-loading p {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Error State */
+.knowledge-graph-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: #ef4444;
+  text-align: center;
+  max-width: 400px;
+}
+
+.knowledge-graph-error h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.knowledge-graph-error p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.knowledge-graph-retry {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.knowledge-graph-retry:hover {
+  background: #2563eb;
+}
+
+/* Empty State */
+.knowledge-graph-empty,
+.knowledge-graph-no-connections {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: #6b7280;
+  text-align: center;
+  max-width: 400px;
+}
+
+.knowledge-graph-empty h3,
+.knowledge-graph-no-connections h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.knowledge-graph-empty p,
+.knowledge-graph-no-connections p {
+  margin: 0;
+  color: #6b7280;
+}
+
+/* Isolated Documents Display */
+.knowledge-graph-isolated-docs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+  max-width: 500px;
+}
+
+.isolated-doc {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.isolated-doc:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+}
+
+/* Graph Container */
+.knowledge-graph-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Legend */
+.knowledge-graph-legend {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  z-index: 15;
+  max-width: 250px;
+}
+
+.knowledge-graph-legend h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: #374151;
+  padding: 4px 0;
+  transition: all 0.2s ease;
+}
+
+.legend-item:last-child {
+  margin-bottom: 0;
+}
+
+.legend-item:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin: 6px -8px;
+}
+
+.legend-node {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.legend-node.current-doc {
+  background: #3b82f6;
+  border: 2px solid #1e40af;
+}
+
+.legend-node.breakfast {
+  background: #f59e0b;
+}
+
+.legend-node.lunch {
+  background: #10b981;
+}
+
+.legend-node.dinner-mains {
+  background: #ef4444;
+}
+
+.legend-node.dinner-sides {
+  background: #8b5cf6;
+}
+
+.legend-line.very-strong {
+  background: #ef4444;
+  height: 3px;
+}
+
+.legend-line.strong {
+  background: #f59e0b;
+  height: 2px;
+}
+
+.legend-line.medium {
+  background: #10b981;
+  height: 1px;
+}
+
+.legend-node.ready-doc {
+  background: #10b981;
+}
+
+.legend-line {
+  width: 20px;
+  height: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.legend-line.strong {
+  background: #ef4444;
+}
+
+.legend-line.medium {
+  background: #f59e0b;
+}
+
+/* Stats */
+.knowledge-graph-stats {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  gap: 16px;
+}
+
+.stat {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px 16px;
+  text-align: center;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.stat-value {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.stat-label {
+  display: block;
+  font-size: 12px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat.hovered {
+  background: #dbeafe;
+  border-color: #3b82f6;
+}
+
+.stat.hovered .stat-value {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+/* Instructions */
+.knowledge-graph-instructions {
+  padding: 16px 24px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.knowledge-graph-instructions p {
+  margin: 0;
+  margin-bottom: 8px;
+}
+
+.knowledge-graph-instructions p:last-child {
+  margin-bottom: 0;
+}
+
+.knowledge-graph-instructions .shortcuts {
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .knowledge-graph-modal-overlay {
+    padding: 10px;
+  }
+  
+  .knowledge-graph-modal {
+    width: 95vw;
+    height: 90vh;
+  }
+  
+  .knowledge-graph-header {
+    padding: 16px;
+  }
+  
+  .knowledge-graph-title h2 {
+    font-size: 20px;
+  }
+  
+  .knowledge-graph-subtitle {
+    display: none;
+  }
+  
+  .knowledge-graph-legend,
+  .knowledge-graph-stats {
+    position: static;
+    margin: 10px;
+  }
+  
+  .knowledge-graph-stats {
+    justify-content: center;
+  }
+}
+
+/* Custom scrollbar for any scrollable content */
+.knowledge-graph-modal ::-webkit-scrollbar {
+  width: 6px;
+}
+
+.knowledge-graph-modal ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.knowledge-graph-modal ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.knowledge-graph-modal ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* External Node List Panel - NEW */
+.knowledge-graph-node-list {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  bottom: 20px;
+  width: 280px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 15;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Hide any default tooltips from react-force-graph */
+.knowledge-graph-container canvas {
+  outline: none;
+}
+
+.knowledge-graph-container .scene-tooltip {
+  display: none !important;
+}
+
+/* Graph hover tooltip */
+.graph-hover-tooltip {
+  animation: fadeIn 0.2s ease-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.knowledge-graph-node-list h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.node-list-items {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.node-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.node-list-item:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.2);
+  transform: translateX(4px);
+}
+
+.node-list-item.hovered {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.4);
+  transform: translateX(8px);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+.node-list-item.current {
+  background: rgba(37, 99, 235, 0.1);
+  border-color: rgba(37, 99, 235, 0.3);
+  font-weight: 600;
+}
+
+.node-color-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.node-name {
+  flex: 1;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.current-badge {
+  background: #3b82f6;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
