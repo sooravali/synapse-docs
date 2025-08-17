@@ -177,11 +177,18 @@ export const insightsAPI = {
 
 export const podcastAPI = {
   // Generate podcast script and audio
-  generate: async (mainText, recommendations) => {
-    const response = await api.post('/api/v1/insights/podcast', {
+  generate: async (mainText, recommendations, insights = null) => {
+    const payload = {
       content: mainText,
       related_content: Array.isArray(recommendations) ? recommendations.join('\n') : (recommendations || ""),
-    });
+    };
+    
+    // Include pre-generated insights if available to avoid duplicate generation
+    if (insights) {
+      payload.insights = insights;
+    }
+    
+    const response = await api.post('/api/v1/insights/podcast', payload);
     return response.data;
   },
 
