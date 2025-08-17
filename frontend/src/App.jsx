@@ -386,18 +386,6 @@ function App() {
       )}
       
       <div className="app-layout">
-        {/* External Synapse View Button (visible when sidebar is collapsed) */}
-        {isSidebarCollapsed && documents.length >= 2 && (
-          <div className="external-synapse-view">
-            <button
-              onClick={handleOpenKnowledgeGraph}
-              className="external-synapse-button"
-              title="Open Synapse View - See how your documents connect"
-            >
-              <Network size={16} />
-            </button>
-          </div>
-        )}
         
         {/* Left Panel: The Workspace */}
         <div className={`panel panel-left ${isSidebarCollapsed ? 'collapsed' : ''}`}>
