@@ -7,7 +7,7 @@
  * - Pending: Gray outline with gray icon
  */
 import { useState, useEffect } from 'react';
-import { FileText, Network, Lightbulb } from 'lucide-react';
+import { FileText, Network, Lightbulb, ChevronRight, ChevronDown } from 'lucide-react';
 import './FlowStatusBar.css';
 
 const FlowStatusBar = ({ 
@@ -104,8 +104,14 @@ const FlowStatusBar = ({
             )}
           </div>
           
-          {/* Connector 1 */}
-          <div className={`status-connector ${getConnectorStatus('upload')}`} />
+          {/* Connector 1 - Arrow pointing to next step */}
+          <div className={`status-connector ${getConnectorStatus('upload')}`}>
+            {isVertical ? (
+              <ChevronDown size={16} className="connector-arrow" />
+            ) : (
+              <ChevronRight size={16} className="connector-arrow" />
+            )}
+          </div>
           
           {/* Connect Step */}
           <div 
@@ -128,8 +134,14 @@ const FlowStatusBar = ({
             )}
           </div>
           
-          {/* Connector 2 */}
-          <div className={`status-connector ${getConnectorStatus('connect')}`} />
+          {/* Connector 2 - Arrow pointing to next step */}
+          <div className={`status-connector ${getConnectorStatus('connect')}`}>
+            {isVertical ? (
+              <ChevronDown size={16} className="connector-arrow" />
+            ) : (
+              <ChevronRight size={16} className="connector-arrow" />
+            )}
+          </div>
           
           {/* Generate Step */}
           <div 
