@@ -273,48 +273,84 @@ class LLMService:
 llm_service = LLMService()
 
 # Insights generation functions for the hackathon features
-async def generate_insights(text: str, context: str = "") -> Dict[str, Any]:
+async def generate_insights(text: str, context: str = "", snippets: list = None) -> Dict[str, Any]:
     """
-    Generate insights using the configured LLM provider.
-    This implements the "Insights Bulb" feature from the hackathon requirements.
-    """
-    # Get configurable system prompt from environment or use default
-    base_system_prompt = os.environ.get("INSIGHTS_SYSTEM_PROMPT", 
-        """You are an intelligent document analyst with access to a comprehensive document library. 
-        Generate deep, context-aware insights for the given text.
-        
-        When analyzing the text, consider:
-        1. Key themes and concepts
-        2. Connections to related content from the document library
-        3. Potential contradictions or nuances
-        4. Surprising facts or lesser-known details
-        5. Cross-references and relationships
-        
-        Provide your response in the following JSON structure:
-        {
-            "key_insights": ["insight 1", "insight 2", "insight 3"],
-            "did_you_know": ["interesting fact 1", "interesting fact 2"],
-            "contradictions": ["contradiction or nuance 1"],
-            "connections": ["connection to related content 1", "connection 2"]
-        }
-        
-        Make insights actionable and thought-provoking. Each insight should be 1-2 sentences maximum.
-        When related content is provided, explicitly reference and analyze connections."""
-    )
+    Enhanced insights generation using semantic search snippets as foundation.
+    Implements the sophisticated "Insights Bulb" feature with structured analysis.
     
-    # Enhanced user prompt that includes context
-    user_content = f"""MAIN TEXT TO ANALYZE:
+    Args:
+        text: The user's selected text (main topic)
+        context: Additional context (legacy parameter)
+        snippets: List of relevant snippets from semantic search
+    """
+    # Enhanced system prompt for sophisticated analysis
+    insights_system_prompt = """### ROLE
+
+You are a meticulous Research Analyst AI. Your expertise is in performing comparative analysis of technical and business documents. You are objective, precise, and your entire analysis is based *strictly* on the evidence provided.
+
+### TASK
+
+You will be given a "Selected Text" from a document a user is reading. You will also be given a list of "Relevant Snippets" from other documents in their library. Your task is to analyze these snippets in relation to the selected text and generate a structured set of insights.
+
+### INSTRUCTIONS
+
+1. **Analyze the Core Claim:** First, deeply understand the main assertion, method, or finding presented in the "Selected Text".
+2. **Comparative Analysis:** For each "Relevant Snippet", determine its relationship to the "Selected Text". Categorize it as:
+   - A **Contradiction**: It presents opposing findings, challenges the assumptions, or offers a counter-argument.
+   - A **Supporting Example**: It provides a concrete example, a successful implementation, or data that reinforces the core claim.
+   - A **Related Concept**: It discusses a similar technique, an extension of the idea, or an alternative approach without directly contradicting or supporting it.
+   - A **Key Takeaway**: It offers a high-level summary or implication derived from combining the information.
+3. **Synthesize and Format:** Consolidate your findings into a single JSON object. For each insight, provide a concise explanation and cite the source PDF it came from.
+
+### CRITICAL CONSTRAINTS
+
+- **GROUNDING:** You MUST base your entire analysis ONLY on the "Selected Text" and "Relevant Snippets" provided.
+- **NO EXTERNAL KNOWLEDGE:** Do not use any information you were trained on that is not present in the provided context. Do not invent facts, figures, or sources.
+- **SOURCE CITATION:** Always cite the source document for each insight using the format "according to [document_name]"
+
+### OUTPUT FORMAT
+
+Provide your response as a JSON object with this exact structure:
+{
+    "contradictions": [
+        {"insight": "Description of contradiction...", "source": "document_name.pdf", "explanation": "Why this contradicts the main text"}
+    ],
+    "supporting_examples": [
+        {"insight": "Description of supporting example...", "source": "document_name.pdf", "explanation": "How this supports the main claim"}
+    ],
+    "related_concepts": [
+        {"insight": "Description of related concept...", "source": "document_name.pdf", "explanation": "Connection to the main text"}
+    ],
+    "key_takeaways": [
+        {"insight": "High-level takeaway...", "source": "Multiple sources or specific source", "explanation": "Synthesis of multiple insights"}
+    ]
+}"""
+    
+    # Prepare snippets content for analysis
+    snippets_content = ""
+    if snippets and len(snippets) > 0:
+        snippets_content = "**<Reference_Snippets>**\n"
+        for i, snippet in enumerate(snippets[:5], 1):  # Limit to top 5 as per requirements
+            doc_name = snippet.get('document_name', 'Unknown Document')
+            text_chunk = snippet.get('text_chunk', snippet.get('content', ''))
+            snippets_content += f"{i}. Source: {doc_name}\n   Content: {text_chunk[:300]}...\n\n"
+        snippets_content += "**</Reference_Snippets>**"
+    else:
+        snippets_content = "**<Reference_Snippets>**\nNo relevant snippets found in the document library.\n**</Reference_Snippets>**"
+    
+    # Enhanced user prompt following your specification
+    user_content = f"""**<Main_Topic>**
 {text}
+**</Main_Topic>**
 
-RELATED CONTENT FROM DOCUMENT LIBRARY:
-{context if context else "No related content provided."}
+{snippets_content}
 
-Please analyze the main text and provide insights, taking into account any connections to the related content."""
+Please analyze the main topic in relation to the reference snippets and provide a structured set of insights following the JSON format specified."""
 
     messages = [
         {
             "role": "system",
-            "content": base_system_prompt
+            "content": insights_system_prompt
         },
         {
             "role": "user",
@@ -324,32 +360,69 @@ Please analyze the main text and provide insights, taking into account any conne
     
     try:
         response = await llm_service.chat_with_llm(messages)
-        logger.info(f"LLM insights response: {response}")
+        logger.info(f"Enhanced insights response generated successfully")
         
-        # Try to parse JSON response, fallback to simple format if needed
+        # TERMINAL LOG: Print raw LLM response for debugging
+        print("🧠 ENHANCED INSIGHTS - Raw LLM Response:")
+        print("=" * 60)
+        print(response[:500] + "..." if len(response) > 500 else response)
+        print("=" * 60)
+        
+        # Try to parse JSON response
         try:
             import json
-            parsed_insights = json.loads(response)
+            # Clean up any markdown formatting
+            clean_response = response.strip()
+            if clean_response.startswith('```json'):
+                clean_response = clean_response.replace('```json', '').replace('```', '').strip()
+            
+            parsed_insights = json.loads(clean_response)
+            
+            # TERMINAL LOG: Print parsed insights structure
+            print("✅ PARSED INSIGHTS:")
+            for key, value in parsed_insights.items():
+                if isinstance(value, list):
+                    print(f"  {key}: {len(value)} items")
+                    for i, item in enumerate(value[:2]):  # Show first 2 items
+                        if isinstance(item, dict):
+                            print(f"    {i+1}. {item.get('insight', 'N/A')[:100]}...")
+                        else:
+                            print(f"    {i+1}. {str(item)[:100]}...")
+                else:
+                    print(f"  {key}: {value}")
+            print()
+            
+            # Validate structure
+            expected_keys = ['contradictions', 'supporting_examples', 'related_concepts', 'key_takeaways']
+            for key in expected_keys:
+                if key not in parsed_insights:
+                    parsed_insights[key] = []
+            
             return {
                 "insights": parsed_insights,
-                "status": "success"
+                "status": "success",
+                "snippets_used": len(snippets) if snippets else 0
             }
-        except json.JSONDecodeError:
-            # Fallback to simple format
+            
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse insights JSON: {e}")
+            # Fallback to structured format
             return {
                 "insights": {
-                    "key_insights": [response],
-                    "did_you_know": [],
                     "contradictions": [],
-                    "connections": []
+                    "supporting_examples": [{"insight": response, "source": "AI Analysis", "explanation": "Generated analysis"}],
+                    "related_concepts": [],
+                    "key_takeaways": []
                 },
-                "status": "success"
+                "status": "success",
+                "snippets_used": len(snippets) if snippets else 0
             }
+            
     except Exception as e:
-        logger.error(f"Error generating insights: {e}")
+        logger.error(f"Error generating enhanced insights: {e}")
         error_message = str(e)
         
-        # Make error messages more user-friendly
+        # User-friendly error messages
         if "503" in error_message or "Service Unavailable" in error_message:
             user_message = "The AI service is temporarily busy. Please try again in a moment."
         elif "429" in error_message or "rate limit" in error_message.lower():
@@ -361,50 +434,187 @@ Please analyze the main text and provide insights, taking into account any conne
         
         return {
             "insights": {
-                "key_insights": [user_message],
-                "did_you_know": ["AI insights are temporarily unavailable."],
                 "contradictions": [],
-                "connections": []
+                "supporting_examples": [{"insight": user_message, "source": "System", "explanation": "Error occurred during analysis"}],
+                "related_concepts": [],
+                "key_takeaways": []
             },
             "status": "error",
-            "error": error_message
+            "error": error_message,
+            "snippets_used": 0
         }
 
-async def generate_podcast_script(content: str, related_content: str = "") -> str:
+async def generate_podcast_script(content: str, related_content: str = "", insights: dict = None) -> str:
     """
-    Generate a podcast script for the "Podcast Mode" feature.
-    Creates a 2-5 minute narrated overview as required by hackathon.
+    Enhanced podcast script generation for two-speaker format.
+    Creates a 2-4 minute conversational script based on content, related snippets, and insights.
+    
+    Args:
+        content: The main content/selected text
+        related_content: Related snippets from the document library  
+        insights: Structured insights from the insights generation step
     """
-    # Get configurable podcast prompt from environment or use default
-    system_prompt = os.environ.get("PODCAST_SYSTEM_PROMPT",
-        """You are a podcast script writer. Create a 2-5 minute engaging narrated script 
-        based on the provided content. The script should:
-        1. Be conversational and engaging
-        2. Include the main content points
-        3. Incorporate related content naturally
-        4. Use natural speech patterns suitable for text-to-speech
-        5. Be approximately 300-500 words for 2-5 minute duration"""
-    )
+    # Enhanced system prompt for two-speaker podcast format
+    podcast_system_prompt = """### ROLE
+
+You are a professional podcast producer and scriptwriter for an acclaimed educational show. Your expertise is in transforming complex information into clear, engaging, and conversational audio scripts. Your style is informative yet accessible.
+
+### TASK
+
+You will be provided with a "Main Topic", a set of "Key Insights", and the "Reference Snippets" they were derived from. Your task is to write a 2-4 minute podcast script for two speakers:
+
+- **Host:** Guides the conversation, introduces the topic, asks clarifying questions, and provides summaries.
+- **Analyst:** Provides the deep-dive details, presents the evidence, and explains the contradictions and examples, citing the sources.
+
+### SCRIPT STRUCTURE
+
+1. **Introduction (15-20 seconds):** The Host introduces the main topic in an engaging way.
+2. **Main Discussion (2-3 minutes):** The Host and Analyst discuss the key insights. The Analyst should explicitly mention the source of their information (e.g., "...according to a study in Paper_A.pdf..."). This builds credibility. The dialogue should flow logically, often presenting the core idea first, then a supporting example, and then a counterpoint or contradiction.
+3. **Conclusion (15-20 seconds):** The Host summarizes the key points and concludes the segment.
+
+### CRITICAL CONSTRAINTS
+
+- **GROUNDING:** The entire script MUST be based ONLY on the provided Topic, Insights, and Snippets. Do not invent any information or go off-topic.
+- **NO AUDIO CUES:** The script must NOT include any references to music, sound effects, jingles, intros, outros, or any audio production cues. Your output must only contain the speaker labels and their dialogue.
+- **FORMAT:** The output must be plain text, strictly following the `Speaker: Dialogue` format. Do not add any other text, titles, or explanations.
+- **TONE:** The dialogue must be conversational and natural, not robotic. Avoid overly academic language.
+- **SOURCE CITATION:** The Analyst must cite sources naturally in conversation (e.g., "According to the research in TechReport.pdf...")"""
+
+    # Prepare insights content for the script
+    insights_content = ""
+    if insights and isinstance(insights, dict):
+        # Format structured insights for script generation
+        insight_sections = []
+        
+        if insights.get('contradictions'):
+            contradictions_text = "\n".join([f"- {item.get('insight', '')} (from {item.get('source', 'unknown source')})" 
+                                           for item in insights['contradictions']])
+            insight_sections.append(f"**Contradictions:**\n{contradictions_text}")
+        
+        if insights.get('supporting_examples'):
+            examples_text = "\n".join([f"- {item.get('insight', '')} (from {item.get('source', 'unknown source')})" 
+                                     for item in insights['supporting_examples']])
+            insight_sections.append(f"**Supporting Examples:**\n{examples_text}")
+        
+        if insights.get('related_concepts'):
+            concepts_text = "\n".join([f"- {item.get('insight', '')} (from {item.get('source', 'unknown source')})" 
+                                     for item in insights['related_concepts']])
+            insight_sections.append(f"**Related Concepts:**\n{concepts_text}")
+        
+        if insights.get('key_takeaways'):
+            takeaways_text = "\n".join([f"- {item.get('insight', '')} (from {item.get('source', 'unknown source')})" 
+                                      for item in insights['key_takeaways']])
+            insight_sections.append(f"**Key Takeaways:**\n{takeaways_text}")
+        
+        insights_content = "\n\n".join(insight_sections)
     
-    # Get configurable duration from environment
-    target_duration = os.environ.get("PODCAST_DURATION_MINUTES", "2-5")
-    word_count_range = os.environ.get("PODCAST_WORD_COUNT", "300-500")
+    # Prepare reference snippets
+    reference_snippets = ""
+    if related_content:
+        # Parse related content if it's formatted as snippets
+        reference_snippets = f"**<Reference_Snippets>**\n{related_content}\n**</Reference_Snippets>**"
     
-    # Update prompt with configurable parameters
-    user_prompt = f"Main content: {content}\n\nRelated content: {related_content}\n\nPlease create a {target_duration} minute script (approximately {word_count_range} words)."
+    # User prompt following your specification
+    user_content = f"""**<Main_Topic>**
+{content}
+**</Main_Topic>**
+
+**<Key_Insights_To_Discuss>**
+{insights_content if insights_content else "No structured insights available."}
+**</Key_Insights_To_Discuss>**
+
+{reference_snippets}
+
+Generate a 2-4 minute podcast script following the two-speaker format specified."""
+
     messages = [
         {
-            "role": "system",
-            "content": system_prompt
+            "role": "system", 
+            "content": podcast_system_prompt
         },
         {
             "role": "user",
-            "content": user_prompt
+            "content": user_content
         }
     ]
     
     try:
-        return await llm_service.chat_with_llm(messages)
+        script = await llm_service.chat_with_llm(messages)
+        
+        # TERMINAL LOG: Print podcast script for debugging
+        print("🎙️ ENHANCED PODCAST - Generated Script:")
+        print("=" * 60)
+        print(script)
+        print("=" * 60)
+        
+        # Clean up the script to ensure proper format
+        lines = script.strip().split('\n')
+        cleaned_lines = []
+        
+        host_count = 0
+        analyst_count = 0
+        
+        for line in lines:
+            line = line.strip()
+            if line and (':' in line):
+                # Ensure proper speaker format
+                if line.startswith(('Host:', 'Analyst:')):
+                    cleaned_lines.append(line)
+                    if line.startswith('Host:'):
+                        host_count += 1
+                    else:
+                        analyst_count += 1
+                elif line.lower().startswith('host:') or line.lower().startswith('analyst:'):
+                    # Fix capitalization
+                    speaker, dialogue = line.split(':', 1)
+                    fixed_line = f"{speaker.capitalize()}:{dialogue}"
+                    cleaned_lines.append(fixed_line)
+                    if speaker.lower() == 'host':
+                        host_count += 1
+                    else:
+                        analyst_count += 1
+                else:
+                    # Try to detect speaker patterns
+                    for speaker in ['Host', 'Analyst']:
+                        if line.lower().startswith(speaker.lower() + ':'):
+                            dialogue = line[len(speaker)+1:]
+                            fixed_line = f"{speaker}:{dialogue}"
+                            cleaned_lines.append(fixed_line)
+                            if speaker == 'Host':
+                                host_count += 1
+                            else:
+                                analyst_count += 1
+                            break
+                    else:
+                        # If no speaker detected, treat as Analyst continuation
+                        if cleaned_lines:
+                            cleaned_lines.append(line)
+        
+        final_script = '\n'.join(cleaned_lines)
+        
+        # TERMINAL LOG: Print script analysis
+        print(f"📊 SCRIPT ANALYSIS:")
+        print(f"  Total lines: {len(cleaned_lines)}")
+        print(f"  Host lines: {host_count}")
+        print(f"  Analyst lines: {analyst_count}")
+        print(f"  Two-speaker format: {'✅' if host_count > 0 and analyst_count > 0 else '❌'}")
+        print()
+        
+        return final_script
+        
     except Exception as e:
         logger.error(f"Error generating podcast script: {e}")
-        return "Unable to generate podcast script at this time."
+        # Fallback script
+        return f"""Host: Welcome to Synapse Docs. Today we're exploring an interesting topic from your document library.
+
+Analyst: That's right. We're looking at some fascinating content that touches on {content[:100]}...
+
+Host: What makes this particularly noteworthy?
+
+Analyst: Well, based on the analysis, there are several key points worth highlighting. The content reveals important insights that connect to broader themes in your document collection.
+
+Host: That's really valuable context. Thanks for that analysis.
+
+Analyst: My pleasure. It's always interesting to see how different pieces of information connect and inform each other.
+
+Host: Absolutely. That wraps up our brief analysis for today."""
