@@ -33,6 +33,9 @@
 .vertical-flow-status {
   flex-shrink: 0;
   margin-bottom: 8px;
+  width: 100%;
+  max-width: 56px;
+  overflow: hidden;
 }
 
 .rail-icons {
@@ -189,7 +192,7 @@
 
 /* Synapse View Section - Between Upload and Tabs */
 .synapse-view-section {
-  margin: 16px 20px;
+  margin: 8px 20px 16px 20px;
   display: flex;
   width: calc(100% - 40px);
 }
@@ -197,22 +200,25 @@
 .synapse-view-section .synapse-view-button {
   width: 100%;
   justify-content: center;
-  padding: 10px 16px;
-  background: #6366f1;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 8px;
-  font-weight: 500;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .synapse-view-section .synapse-view-button:hover {
-  background: #5856eb;
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
 }
 
 .library-title-section {
@@ -220,6 +226,12 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+}
+
+.header-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .library-title {
