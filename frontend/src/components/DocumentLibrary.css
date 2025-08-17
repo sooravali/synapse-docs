@@ -17,6 +17,21 @@
   background: white;
 }
 
+/* Synapse View Section - Full Width Above Workspace */
+.synapse-view-section {
+  margin-bottom: 12px;
+  display: flex;
+  width: 100%;
+}
+
+.synapse-view-section .synapse-view-button {
+  width: 100%;
+  justify-content: center;
+  padding: 8px 16px;
+  height: auto;
+  min-height: 32px;
+}
+
 .library-title {
   display: flex;
   align-items: center;
