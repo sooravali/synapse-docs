@@ -309,8 +309,5 @@ def _clean_filename(filename: str) -> str:
     # Remove common prefixes and extensions
     cleaned = filename.replace("doc_", "").replace(".pdf", "")
     
-    # Truncate very long filenames
-    if len(cleaned) > 30:
-        cleaned = cleaned[:27] + "..."
-    
+    # Return full filename without truncation
     return cleaned
