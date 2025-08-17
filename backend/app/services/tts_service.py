@@ -180,30 +180,12 @@ class TTSService:
             return await self._generate_mock_audio(text, output_path)
     
     async def _generate_mock_audio(self, text: str, output_path: str) -> bool:
-        """Generate a mock audio file for development"""
-        try:
-            # Create directory if it doesn't exist
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            
-            # Create a realistic mock MP3 file
-            mp3_header = bytes([
-                0xFF, 0xFB, 0x90, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-            ])
-            
-            with open(output_path, 'wb') as f:
-                # Create a small mock file (~10KB)
-                for _ in range(25):
-                    f.write(mp3_header)
-                    f.write(b'\x00' * 400)  # Silent audio data
-            
-            logger.info(f"Mock audio generated: {output_path} ({len(text)} chars)")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Mock audio generation error: {e}")
-            return False
+        """
+        Mock audio generation removed - real TTS implementation required.
+        This function should not be called in production.
+        """
+        logger.error("Mock audio generation attempted - real TTS service required")
+        raise NotImplementedError("Mock audio generation has been removed. Please configure a real TTS service.")
 
 
 # Async function to generate podcast audio using TTS service
