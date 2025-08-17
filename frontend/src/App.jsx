@@ -23,6 +23,7 @@
  * This separation ensures optimal performance and clear user intent distinction.
  */
 import { useState, useRef, useEffect } from 'react';
+import { Network } from 'lucide-react';
 import DocumentLibrary from './components/DocumentLibrary';
 import DocumentWorkbench from './components/DocumentWorkbench';
 import SynapsePanel from './components/SynapsePanel';
@@ -49,6 +50,7 @@ function App() {
   const [viewerError, setViewerError] = useState(null);
   const [showQuickStart, setShowQuickStart] = useState(false);
   const [hasInsights, setHasInsights] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   // Component References
   const synapsePanelRef = useRef(null);
@@ -361,6 +363,10 @@ function App() {
     localStorage.setItem('synapse_quickstart_seen', 'true');
   };
 
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(!isSidebarCollapsed);
+  };
+
   return (
     <div className="app">
       {showQuickStart && (
@@ -368,8 +374,25 @@ function App() {
       )}
       
       <div className="app-layout">
+        {/* External Synapse View Button (visible when sidebar is collapsed) */}
+        {isSidebarCollapsed && documents.length >= 2 && (
+          <div className="external-synapse-view">
+            <button
+              onClick={() => {
+                // You'll need to access the knowledge graph handler from DocumentLibrary
+                // For now, let's expand the sidebar to access it
+                setIsSidebarCollapsed(false);
+              }}
+              className="external-synapse-button"
+              title="Open Synapse View - See how your documents connect"
+            >
+              <Network size={16} />
+            </button>
+          </div>
+        )}
+        
         {/* Left Panel: The Workspace */}
-        <div className="panel panel-left">
+        <div className={`panel panel-left ${isSidebarCollapsed ? 'collapsed' : ''}`}>
           <DocumentLibrary
             documents={documents}
             selectedDocument={selectedDocument}
@@ -379,6 +402,8 @@ function App() {
             hasInsights={hasInsights}
             isLoadingConnections={isSearching}
             currentContext={currentContext}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={toggleSidebar}
           />
         </div>
 
