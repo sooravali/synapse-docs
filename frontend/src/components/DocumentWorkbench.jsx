@@ -172,14 +172,23 @@ const DocumentWorkbench = forwardRef(({
   useEffect(() => {
     const loadConfig = async () => {
       try {
+        console.log('🔑 Loading Adobe Client ID from configuration service...');
         const clientId = await configService.getAdobeClientId();
+        console.log('🔑 Received Client ID:', clientId ? `${clientId.substring(0, 8)}...` : 'EMPTY');
+        
         setCLIENT_ID(clientId);
         
-        if (!clientId) {
-          console.error(' Adobe Client ID not configured. Please set ADOBE_CLIENT_ID environment variable.');
+        if (!clientId || clientId.trim() === '') {
+          console.error('❌ Adobe Client ID not configured. Please set ADOBE_CLIENT_ID environment variable.');
+          console.error('🔧 For local development: Add VITE_ADOBE_CLIENT_ID to frontend/.env');
+          console.error('🔧 For production: Add ADOBE_CLIENT_ID to backend environment variables');
+        } else {
+          console.log('✅ Adobe Client ID loaded successfully');
         }
       } catch (error) {
-        console.error(' Failed to load configuration:', error);
+        console.error('❌ Failed to load configuration:', error);
+        console.error('🔧 Check backend API is accessible and /api/v1/config/ endpoint is working');
+        setCLIENT_ID('');
       }
     };
     
@@ -694,9 +703,18 @@ const DocumentWorkbench = forwardRef(({
     try {
       // Check if document is available
       if (!document || !document.id) {
-        console.log(' No document provided or document missing ID, skipping viewer initialization');
+        console.log('❌ No document provided or document missing ID, skipping viewer initialization');
         return;
       }
+
+      // Check if CLIENT_ID is available
+      if (!CLIENT_ID || CLIENT_ID.trim() === '') {
+        console.error('❌ Adobe Client ID not available for viewer initialization');
+        return;
+      }
+
+      console.log('🚀 Initializing Adobe PDF viewer for document:', document.file_name);
+      setIsViewerReady(false);
 
       // Cleanup existing viewer
       if (adobeViewRef.current) {
@@ -724,6 +742,8 @@ const DocumentWorkbench = forwardRef(({
         throw new Error('Adobe DC View SDK not loaded');
       }
 
+      console.log('📋 Initializing Adobe DC View with CLIENT_ID:', CLIENT_ID.substring(0, 8) + '...');
+
       // Initialize Adobe DC View with proper configuration
       const adobeDCView = new window.AdobeDC.View({
         clientId: CLIENT_ID,
@@ -738,6 +758,19 @@ const DocumentWorkbench = forwardRef(({
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
         (import.meta.env.PROD ? '' : 'http://localhost:8080');
       const pdfUrl = `${API_BASE_URL}/api/v1/documents/view/${document.id}`;
+      console.log(`📄 Loading PDF from: ${pdfUrl}`);
+
+      // Test if PDF URL is accessible before passing to Adobe viewer
+      try {
+        const response = await fetch(pdfUrl, { method: 'HEAD' });
+        if (!response.ok) {
+          throw new Error(`PDF not accessible: ${response.status} ${response.statusText}`);
+        }
+        console.log('✅ PDF URL is accessible, proceeding with Adobe viewer initialization');
+      } catch (urlError) {
+        console.error('❌ PDF URL not accessible:', urlError);
+        throw new Error(`PDF file not accessible: ${urlError.message}`);
+      }
       console.log(` Loading PDF from: ${pdfUrl}`);
 
       // Configure preview options for full Adobe PDF interface with all standard features
@@ -799,18 +832,51 @@ const DocumentWorkbench = forwardRef(({
 
       // Wait for PDF to be ready and store the adobeViewer reference
       try {
+        console.log('⏳ Waiting for Adobe PDF preview to load...');
         const adobeViewer = await previewFilePromise;
         adobeViewerRef.current = adobeViewer;
-        console.log(' Adobe PDF viewer initialized successfully');
+        console.log('✅ Adobe PDF viewer initialized successfully');
       } catch (previewError) {
-        console.error(' Failed to await previewFile promise:', previewError);
+        console.error('❌ Failed to await previewFile promise:', previewError);
+        
+        // Provide more detailed error information
+        if (previewError && typeof previewError === 'object') {
+          console.error('Error details:', JSON.stringify(previewError, null, 2));
+        }
+        
         throw previewError;
       }
       
       setIsViewerReady(true);
 
     } catch (error) {
-      console.error(' Failed to initialize Adobe viewer:', error);
+      console.error('❌ Failed to initialize Adobe viewer:', error);
+      
+      // Enhanced error logging with detailed diagnosis
+      const errorInfo = {
+        message: error.message || 'Unknown error',
+        stack: error.stack,
+        documentId: document?.id,
+        documentName: document?.file_name,
+        clientIdPresent: !!CLIENT_ID,
+        clientIdLength: CLIENT_ID?.length || 0,
+        adobeSDKLoaded: !!window.AdobeDC,
+        errorType: error.constructor.name
+      };
+      
+      console.error('❌ Adobe viewer initialization failed - Error details:', errorInfo);
+      
+      // Different error messages based on the error type
+      if (error.message.includes('CLIENT_ID')) {
+        console.error('🔧 SOLUTION: Check Adobe Client ID configuration in environment variables');
+      } else if (error.message.includes('PDF not accessible')) {
+        console.error('🔧 SOLUTION: Check backend API is running and PDF file exists');
+      } else if (error.message.includes('Adobe DC View SDK')) {
+        console.error('🔧 SOLUTION: Ensure Adobe PDF Embed API script is loaded in HTML');
+      } else {
+        console.error('🔧 SOLUTION: Check browser console for additional Adobe SDK errors');
+      }
+      
       setIsViewerReady(false);
     }
   };
