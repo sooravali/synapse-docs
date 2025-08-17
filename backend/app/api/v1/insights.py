@@ -32,6 +32,7 @@ class PodcastRequest(BaseModel):
     content: str
     related_content: Optional[str] = ""
     generate_audio: Optional[bool] = True
+    insights: Optional[Dict[str, Any]] = None  # Pre-generated insights to avoid duplication
 
 class InsightsResponse(BaseModel):
     insights: str
@@ -308,20 +309,25 @@ async def generate_podcast(request: PodcastRequest, background_tasks: Background
         else:
             print("🔍 PODCAST GENERATION - Using provided related content")
         
-        # STAGE 2: Generate insights for structured content
-        insights = None
-        try:
-            print("🧠 PODCAST GENERATION - Generating insights...")
-            insights_result = await generate_insights(request.content, request.related_content, snippets)
-            if insights_result.get("status") == "success":
-                insights = insights_result.get("insights")
-                print("  ✅ Insights generated successfully for podcast")
-                logger.info("Generated insights for podcast script")
-            else:
-                print(f"  ⚠️ Insights generation failed: {insights_result.get('error', 'Unknown error')}")
-        except Exception as e:
-            print(f"  💥 Exception generating insights: {e}")
-            logger.warning(f"Failed to generate insights for podcast: {e}")
+        # STAGE 2: Use pre-generated insights or generate new ones if needed
+        insights = request.insights  # Use insights from request if provided
+        
+        if not insights:
+            try:
+                print("🧠 PODCAST GENERATION - Generating new insights...")
+                insights_result = await generate_insights(request.content, request.related_content, snippets)
+                if insights_result.get("status") == "success":
+                    insights = insights_result.get("insights")
+                    print("  ✅ New insights generated successfully for podcast")
+                    logger.info("Generated new insights for podcast script")
+                else:
+                    print(f"  ⚠️ Insights generation failed: {insights_result.get('error', 'Unknown error')}")
+            except Exception as e:
+                print(f"  💥 Exception generating insights: {e}")
+                logger.warning(f"Failed to generate insights for podcast: {e}")
+        else:
+            print("🧠 PODCAST GENERATION - Using pre-generated insights...")
+            logger.info("Using pre-generated insights for podcast script")
         
         # STAGE 3: Generate enhanced podcast script using insights
         print("📝 PODCAST GENERATION - Generating script...")
