@@ -756,7 +756,8 @@ const SynapsePanel = forwardRef(({
           contradictions: [],
           supporting_examples: [{insight: `Parsing failed. Raw content: ${result.insights}`, source: "System", explanation: "JSON parsing error"}],
           related_concepts: [],
-          key_takeaways: []
+          key_takeaways: [],
+          did_you_know: []
         };
       }
       
@@ -764,15 +765,26 @@ const SynapsePanel = forwardRef(({
       const cleanInsightContent = (item) => {
         if (typeof item === 'string') {
           return cleanInsightText(item);
-        } else if (typeof item === 'object' && item.insight) {
+        } else if (typeof item === 'object' && item !== null && item.insight) {
           return {
             ...item,
-            insight: cleanInsightText(item.insight),
-            source: item.source ? cleanInsightText(item.source) : item.source,
-            explanation: item.explanation ? cleanInsightText(item.explanation) : item.explanation
+            insight: cleanInsightText(String(item.insight || '')),
+            source: item.source ? cleanInsightText(String(item.source)) : item.source,
+            explanation: item.explanation ? cleanInsightText(String(item.explanation)) : item.explanation
+          };
+        } else if (typeof item === 'object' && item !== null) {
+          // Handle case where object doesn't have expected structure
+          return {
+            insight: cleanInsightText(String(item.text || item.content || JSON.stringify(item))),
+            source: "Unknown",
+            explanation: ""
           };
         }
-        return item;
+        return {
+          insight: cleanInsightText(String(item || '')),
+          source: "Unknown",
+          explanation: ""
+        };
       };
 
       // Clean filename references in all insight sections
@@ -795,6 +807,9 @@ const SynapsePanel = forwardRef(({
         }
         if (parsedInsights.key_takeaways) {
           parsedInsights.key_takeaways = cleanInsightArray(parsedInsights.key_takeaways);
+        }
+        if (parsedInsights.did_you_know) {
+          parsedInsights.did_you_know = cleanInsightArray(parsedInsights.did_you_know);
         }
         
         // Legacy structure support
@@ -908,7 +923,33 @@ const SynapsePanel = forwardRef(({
         : "";
       
       console.log(` STAGE 2 - Generating podcast with ${connections.length} context connections from Stage 1`);
-      const result = await podcastAPI.generate(content, relatedContent);
+      
+      // Use existing insights if available to avoid duplicate generation
+      let podcastInsights = null;
+      if (insights && insights.parsed) {
+        podcastInsights = insights.parsed;
+        console.log(` STAGE 2 - Using existing parsed insights for podcast generation`);
+        console.log(` STAGE 2 - Insights categories available:`, Object.keys(podcastInsights));
+      } else if (insights && insights.insights) {
+        // Fallback: try to parse insights if they're in string format
+        try {
+          let insightsData = insights.insights;
+          if (typeof insightsData === 'string') {
+            insightsData = insightsData.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+            podcastInsights = JSON.parse(insightsData);
+            console.log(` STAGE 2 - Parsed insights from string format for podcast generation`);
+          } else {
+            podcastInsights = insightsData;
+            console.log(` STAGE 2 - Using insights object directly for podcast generation`);
+          }
+        } catch (e) {
+          console.log(` STAGE 2 - Failed to parse insights, will generate new ones:`, e.message);
+        }
+      } else {
+        console.log(` STAGE 2 - No existing insights found, will generate new ones`);
+      }
+      
+      const result = await podcastAPI.generate(content, relatedContent, podcastInsights);
       
       if (result && result.status !== 'error') {
         setPodcastData(result);
@@ -1355,19 +1396,22 @@ const SynapsePanel = forwardRef(({
                 return (
                   <>
                     <ul className="insight-list compact">
-                      {visible.map((item, index) => (
-                        <li key={index}>
-                          <div className="insight-content">
-                            <span className="insight-text">{typeof item === 'object' ? item.insight : item}</span>
-                            {typeof item === 'object' && item.source && (
-                              <span className="insight-source">— {cleanFileName(item.source)}</span>
+                      {visible.map((item, index) => {
+                        const cleanItem = typeof item === 'object' ? item : { insight: String(item), source: "", explanation: "" };
+                        return (
+                          <li key={index}>
+                            <div className="insight-content">
+                              <span className="insight-text">{String(cleanItem.insight || '')}</span>
+                              {cleanItem.source && (
+                                <span className="insight-source">— {cleanFileName(String(cleanItem.source))}</span>
+                              )}
+                            </div>
+                            {cleanItem.explanation && (
+                              <div className="insight-explanation">{String(cleanItem.explanation)}</div>
                             )}
-                          </div>
-                          {typeof item === 'object' && item.explanation && (
-                            <div className="insight-explanation">{item.explanation}</div>
-                          )}
-                        </li>
-                      ))}
+                          </li>
+                        );
+                      })}
                     </ul>
                     {hasMore && (
                       <button 
@@ -1391,19 +1435,22 @@ const SynapsePanel = forwardRef(({
                 return (
                   <>
                     <ul className="insight-list compact">
-                      {visible.map((item, index) => (
-                        <li key={index}>
-                          <div className="insight-content">
-                            <span className="insight-text">{typeof item === 'object' ? item.insight : item}</span>
-                            {typeof item === 'object' && item.source && (
-                              <span className="insight-source">— {cleanFileName(item.source)}</span>
+                      {visible.map((item, index) => {
+                        const cleanItem = typeof item === 'object' ? item : { insight: String(item), source: "", explanation: "" };
+                        return (
+                          <li key={index}>
+                            <div className="insight-content">
+                              <span className="insight-text">{String(cleanItem.insight || '')}</span>
+                              {cleanItem.source && (
+                                <span className="insight-source">— {cleanFileName(String(cleanItem.source))}</span>
+                              )}
+                            </div>
+                            {cleanItem.explanation && (
+                              <div className="insight-explanation">{String(cleanItem.explanation)}</div>
                             )}
-                          </div>
-                          {typeof item === 'object' && item.explanation && (
-                            <div className="insight-explanation">{item.explanation}</div>
-                          )}
-                        </li>
-                      ))}
+                          </li>
+                        );
+                      })}
                     </ul>
                     {hasMore && (
                       <button 
@@ -1427,19 +1474,22 @@ const SynapsePanel = forwardRef(({
                 return (
                   <>
                     <ul className="insight-list compact">
-                      {visible.map((item, index) => (
-                        <li key={index}>
-                          <div className="insight-content">
-                            <span className="insight-text">{typeof item === 'object' ? item.insight : item}</span>
-                            {typeof item === 'object' && item.source && (
-                              <span className="insight-source">— {cleanFileName(item.source)}</span>
+                      {visible.map((item, index) => {
+                        const cleanItem = typeof item === 'object' ? item : { insight: String(item), source: "", explanation: "" };
+                        return (
+                          <li key={index}>
+                            <div className="insight-content">
+                              <span className="insight-text">{String(cleanItem.insight || '')}</span>
+                              {cleanItem.source && (
+                                <span className="insight-source">— {cleanFileName(String(cleanItem.source))}</span>
+                              )}
+                            </div>
+                            {cleanItem.explanation && (
+                              <div className="insight-explanation">{String(cleanItem.explanation)}</div>
                             )}
-                          </div>
-                          {typeof item === 'object' && item.explanation && (
-                            <div className="insight-explanation">{item.explanation}</div>
-                          )}
-                        </li>
-                      ))}
+                          </li>
+                        );
+                      })}
                     </ul>
                     {hasMore && (
                       <button 
@@ -1463,19 +1513,22 @@ const SynapsePanel = forwardRef(({
                 return (
                   <>
                     <ul className="insight-list compact">
-                      {visible.map((item, index) => (
-                        <li key={index}>
-                          <div className="insight-content">
-                            <span className="insight-text">{typeof item === 'object' ? item.insight : item}</span>
-                            {typeof item === 'object' && item.source && (
-                              <span className="insight-source">— {cleanFileName(item.source)}</span>
+                      {visible.map((item, index) => {
+                        const cleanItem = typeof item === 'object' ? item : { insight: String(item), source: "", explanation: "" };
+                        return (
+                          <li key={index}>
+                            <div className="insight-content">
+                              <span className="insight-text">{String(cleanItem.insight || '')}</span>
+                              {cleanItem.source && (
+                                <span className="insight-source">— {cleanFileName(String(cleanItem.source))}</span>
+                              )}
+                            </div>
+                            {cleanItem.explanation && (
+                              <div className="insight-explanation">{String(cleanItem.explanation)}</div>
                             )}
-                          </div>
-                          {typeof item === 'object' && item.explanation && (
-                            <div className="insight-explanation">{item.explanation}</div>
-                          )}
-                        </li>
-                      ))}
+                          </li>
+                        );
+                      })}
                     </ul>
                     {hasMore && (
                       <button 
@@ -1483,6 +1536,45 @@ const SynapsePanel = forwardRef(({
                         onClick={() => toggleInsightExpansion('key_takeaways')}
                       >
                         {isExpanded ? 'Show less' : `Show ${parsed.key_takeaways.length - 2} more`}
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+
+          {parsed.did_you_know && parsed.did_you_know.length > 0 && (
+            <div className="insight-card compact">
+              <h4 className="insight-card-title">💡 Did You Know?</h4>
+              {(() => {
+                const { visible, hasMore, isExpanded } = getTruncatedInsights(parsed.did_you_know, 'did_you_know', 2);
+                return (
+                  <>
+                    <ul className="insight-list compact">
+                      {visible.map((item, index) => {
+                        const cleanItem = typeof item === 'object' ? item : { insight: String(item), source: "", explanation: "" };
+                        return (
+                          <li key={index}>
+                            <div className="insight-content">
+                              <span className="insight-text">{String(cleanItem.insight || '')}</span>
+                              {cleanItem.source && (
+                                <span className="insight-source">— {cleanFileName(String(cleanItem.source))}</span>
+                              )}
+                            </div>
+                            {cleanItem.explanation && (
+                              <div className="insight-explanation">{String(cleanItem.explanation)}</div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {hasMore && (
+                      <button 
+                        className="expand-toggle"
+                        onClick={() => toggleInsightExpansion('did_you_know')}
+                      >
+                        {isExpanded ? 'Show less' : `Show ${parsed.did_you_know.length - 2} more`}
                       </button>
                     )}
                   </>
@@ -1501,7 +1593,12 @@ const SynapsePanel = forwardRef(({
                   <>
                     <ul className="insight-list compact">
                       {visible.map((insight, index) => (
-                        <li key={index}>{insight}</li>
+                        <li key={index}>
+                          {typeof insight === 'object' && insight !== null ? 
+                            String(insight.insight || insight.text || insight.content || JSON.stringify(insight)) :
+                            String(insight || '')
+                          }
+                        </li>
                       ))}
                     </ul>
                     {hasMore && (
@@ -1510,32 +1607,6 @@ const SynapsePanel = forwardRef(({
                         onClick={() => toggleInsightExpansion('key_insights')}
                       >
                         {isExpanded ? 'Show less' : `Show ${parsed.key_insights.length - 2} more`}
-                      </button>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          )}
-
-          {parsed.did_you_know && parsed.did_you_know.length > 0 && (
-            <div className="insight-card compact">
-              <h4 className="insight-card-title">Did You Know?</h4>
-              {(() => {
-                const { visible, hasMore, isExpanded } = getTruncatedInsights(parsed.did_you_know, 'did_you_know', 2);
-                return (
-                  <>
-                    <ul className="insight-list compact">
-                      {visible.map((fact, index) => (
-                        <li key={index}>{fact}</li>
-                      ))}
-                    </ul>
-                    {hasMore && (
-                      <button 
-                        className="expand-toggle"
-                        onClick={() => toggleInsightExpansion('did_you_know')}
-                      >
-                        {isExpanded ? 'Show less' : `Show ${parsed.did_you_know.length - 2} more`}
                       </button>
                     )}
                   </>
@@ -1553,7 +1624,12 @@ const SynapsePanel = forwardRef(({
                   <>
                     <ul className="insight-list compact">
                       {visible.map((connection, index) => (
-                        <li key={index}>{connection}</li>
+                        <li key={index}>
+                          {typeof connection === 'object' && connection !== null ? 
+                            String(connection.insight || connection.text || connection.content || JSON.stringify(connection)) :
+                            String(connection || '')
+                          }
+                        </li>
                       ))}
                     </ul>
                     {hasMore && (
@@ -1574,7 +1650,7 @@ const SynapsePanel = forwardRef(({
         {/* Integrated Podcast Mode within the panel */}
         <div className="integrated-podcast-section">
           <div className="podcast-header">
-            <h4 className="podcast-section-title">Generate Audio Summary</h4>
+            <h4 className="podcast-section-title">Generate Podcast</h4>
             {(() => {
               // Display page information for podcast section
               const pageInfo = getPageInfoForDisplay(currentContext, connections);
@@ -1616,7 +1692,7 @@ const SynapsePanel = forwardRef(({
               ) : (
                 <>
                   <Zap size={16} />
-                  Generate Audio Summary
+                  Generate Podcast
                 </>
               )}
             </button>
