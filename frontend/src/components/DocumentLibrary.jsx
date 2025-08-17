@@ -8,7 +8,6 @@ import { useState, useEffect } from 'react';
 import { documentAPI, sessionUtils } from '../api';
 import { Upload, Search, CheckCircle, AlertCircle, Clock, FileText, Trash2, Info, MoreVertical, Download, Network, ChevronLeft, ChevronRight } from 'lucide-react';
 import FlowStatusBar from './FlowStatusBar';
-import KnowledgeGraphModal from './KnowledgeGraphModal';
 import './DocumentLibrary.css';
 
 const DocumentLibrary = ({ 
@@ -21,7 +20,8 @@ const DocumentLibrary = ({
   isLoadingConnections,
   currentContext,
   isCollapsed,
-  onToggleCollapse
+  onToggleCollapse,
+  onOpenKnowledgeGraph
 }) => {
   const [uploadProgress, setUploadProgress] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,9 +41,6 @@ const DocumentLibrary = ({
   
   // Tab state management for the new tabbed interface
   const [activeTab, setActiveTab] = useState('recent'); // Default to 'recent' or 'all' based on content
-
-  // Knowledge Graph state
-  const [showKnowledgeGraph, setShowKnowledgeGraph] = useState(false);
 
   // SessionStorage utilities for tracking new files in current session
   const SESSION_STORAGE_KEY = 'synapse_docs_newFileIDs';
@@ -522,27 +519,6 @@ const DocumentLibrary = ({
     setOpenMenuId(openMenuId === documentId ? null : documentId);
   };
 
-  // Knowledge Graph handlers
-  const handleOpenKnowledgeGraph = () => {
-    console.log('🌐 Opening Synapse View (Knowledge Graph)...');
-    setShowKnowledgeGraph(true);
-  };
-
-  const handleCloseKnowledgeGraph = () => {
-    console.log('🌐 Closing Synapse View (Knowledge Graph)');
-    setShowKnowledgeGraph(false);
-  };
-
-  const handleGraphDocumentSelect = (documentId) => {
-    console.log(`🌐 Knowledge Graph: Navigating to document ${documentId}`);
-    
-    // Find the document in our list
-    const document = documents.find(doc => doc.id === documentId);
-    if (document && onDocumentSelect) {
-      onDocumentSelect(document);
-    }
-  };
-
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
@@ -846,62 +822,46 @@ const DocumentLibrary = ({
         // Expanded Full Sidebar View
         <>
           <div className="library-header">
-            {/* Synapse View Button - Full Width Above Workspace */}
-            {documents.length >= 2 && (
-              <div className="synapse-view-section">
-                <button
-                  onClick={handleOpenKnowledgeGraph}
-                  className="synapse-view-button"
-                  title="Open Synapse View - See how your documents connect"
-                >
-                  <Network size={14} />
-                  <span>Synapse View</span>
-                </button>
-              </div>
-            )}
-            
             <div className="library-title-section">
-              <div className="title-with-collapse">
-                <h2 className="library-title">
-                  <FileText size={20} />
-                  Workspace
-                </h2>
-                
-                {/* Collapse Button */}
-                <button 
-                  className="collapse-button"
-                  onClick={onToggleCollapse}
-                  title="Collapse Sidebar"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-              </div>
+              <h2 className="library-title">
+                <FileText size={20} />
+                Workspace
+              </h2>
               
-              {/* Action buttons */}
-              <div className="header-actions">
-                {/* Clear All Button */}
-                {documents.length > 0 && (
-                  <div className="clear-all-section">
-                    {!showClearConfirm ? (
-                      <button
-                        onClick={handleClearAll}
-                        disabled={isClearingAll}
-                        className="clear-all-button"
-                        title="Clear all documents and start fresh"
-                      >
-                        <Trash2 size={12} />
-                        {isClearingAll ? 'Clearing...' : 'Clear All'}
-                      </button>
-                    ) : (
-                      <div className="clear-confirm">
-                        <span className="confirm-text">Delete all {documents.length} documents?</span>
-                        <button onClick={handleClearAll} className="confirm-yes">Yes</button>
-                        <button onClick={cancelClearAll} className="confirm-no">No</button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              {/* Collapse Button - Top Right */}
+              <button 
+                className="collapse-button"
+                onClick={onToggleCollapse}
+                title="Collapse Sidebar"
+              >
+                <ChevronLeft size={16} />
+              </button>
+            </div>
+            
+            {/* Action buttons */}
+            <div className="header-actions">
+              {/* Clear All Button */}
+              {documents.length > 0 && (
+                <div className="clear-all-section">
+                  {!showClearConfirm ? (
+                    <button
+                      onClick={handleClearAll}
+                      disabled={isClearingAll}
+                      className="clear-all-button"
+                      title="Clear all documents and start fresh"
+                    >
+                      <Trash2 size={12} />
+                      {isClearingAll ? 'Clearing...' : 'Clear All'}
+                    </button>
+                  ) : (
+                    <div className="clear-confirm">
+                      <span className="confirm-text">Delete all {documents.length} documents?</span>
+                      <button onClick={handleClearAll} className="confirm-yes">Yes</button>
+                      <button onClick={cancelClearAll} className="confirm-no">No</button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             
             {/* Library Search */}
@@ -937,6 +897,20 @@ const DocumentLibrary = ({
               className="file-input"
             />
           </div>
+
+          {/* Synapse View Button - Between Upload and Document List */}
+          {documents.length >= 2 && (
+            <div className="synapse-view-section">
+              <button
+                onClick={onOpenKnowledgeGraph}
+                className="synapse-view-button"
+                title="Open Synapse View - See how your documents connect"
+              >
+                <Network size={14} />
+                <span>Synapse View</span>
+              </button>
+            </div>
+          )}
 
           {/* Document List with Tabbed Interface */}
           <div className="document-list">
@@ -981,14 +955,6 @@ const DocumentLibrary = ({
               isVertical={false}
             />
           </div>
-
-          {/* Knowledge Graph Modal */}
-          <KnowledgeGraphModal
-            isVisible={showKnowledgeGraph}
-            onClose={handleCloseKnowledgeGraph}
-            onDocumentSelect={handleGraphDocumentSelect}
-            currentDocumentId={selectedDocument?.id}
-          />
         </>
       )}
     </div>
