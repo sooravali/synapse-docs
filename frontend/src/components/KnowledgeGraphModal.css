@@ -387,6 +387,25 @@
   width: 30px;
 }
 
+/* New 3-category color system */
+.legend-line.color-strong-new {
+  background: #000000; /* Black for strong (>0.7) */
+  height: 3px;
+  /* width will be set dynamically via inline styles */
+}
+
+.legend-line.color-medium-new {
+  background: #6b7280; /* Grey for medium (0.4-0.7) */
+  height: 3px;
+  /* width will be set dynamically via inline styles */
+}
+
+.legend-line.color-low-new {
+  background: #d1d5db; /* Light grey for low (<0.4) */
+  height: 3px;
+  /* width will be set dynamically via inline styles */
+}
+
 .legend-node.ready-doc {
   background: #10b981;
 }

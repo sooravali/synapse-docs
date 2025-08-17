@@ -93,12 +93,12 @@ const KnowledgeGraphModal = ({
       const nodeCount = rawData.nodes.length;
       const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // Golden angle in radians
       const angle = index * goldenAngle;
-      const baseRadius = Math.max(600, nodeCount * 100); // Even larger base radius for better spacing
+      const baseRadius = Math.max(800, nodeCount * 150); // Much larger base radius for better initial spacing
       const radius = Math.sqrt(index + 1) * (baseRadius / Math.sqrt(nodeCount));
       
       // Calculate position with golden spiral distribution for optimal spacing
-      const initialX = isCurrentDoc ? 0 : Math.cos(angle) * radius + (Math.random() - 0.5) * 400;
-      const initialY = isCurrentDoc ? 0 : Math.sin(angle) * radius + (Math.random() - 0.5) * 400;
+      const initialX = isCurrentDoc ? 0 : Math.cos(angle) * radius + (Math.random() - 0.5) * 600;
+      const initialY = isCurrentDoc ? 0 : Math.sin(angle) * radius + (Math.random() - 0.5) * 600;
       
       return {
         ...node,
@@ -107,7 +107,7 @@ const KnowledgeGraphModal = ({
         color: getNodeColor(node, isCurrentDoc),
         // Enhanced properties for better layout
         isCurrentDocument: isCurrentDoc,
-        displayName: cleanFileName(node.name || 'Unknown Document'),
+        displayName: node.name || 'Unknown Document', // Use original name without any cleaning
         group: getDocumentGroup(node.name),
         // CRITICAL: Set initial positions VERY far apart
         x: initialX,
@@ -125,8 +125,8 @@ const KnowledgeGraphModal = ({
       color: getLinkColor(link.weight),
       width: getLinkWidth(link.weight),
       opacity: getLinkOpacity(link.weight),
-      // IMPORTANT: Much longer link distances to spread nodes apart
-      distance: Math.max(400, 500 - (link.weight * 100)), // Even longer distances for better spacing
+      // IMPORTANT: Much longer link distances to spread nodes apart like second image
+      distance: Math.max(500, 600 - (link.weight * 100)), // Much longer distances for better initial spread
     }));
 
     return { nodes, links };
@@ -166,11 +166,10 @@ const KnowledgeGraphModal = ({
   };
 
   const getLinkColor = (weight) => {
-    // Use colors for different connection strengths (as requested)
-    if (weight >= 0.7) return '#ef4444'; // Red for very strong connections
-    if (weight >= 0.5) return '#f97316'; // Orange for strong connections  
-    if (weight >= 0.3) return '#eab308'; // Yellow for medium connections
-    return '#10b981'; // Green for weak connections
+    // Use 3-category color system as requested
+    if (weight > 0.7) return '#000000'; // Black for strong connections (>0.7)
+    if (weight >= 0.4) return '#6b7280'; // Grey for medium connections (0.4-0.7)
+    return '#d1d5db'; // Light grey for low connections (<0.4)
   };
 
   const getLinkWidth = (weight) => {
@@ -185,15 +184,28 @@ const KnowledgeGraphModal = ({
   const cleanFileName = (fileName) => {
     if (!fileName) return 'Unknown Document';
     
-    // Remove common prefixes and extensions
-    let cleaned = fileName.replace(/^doc_\d+_/, '').replace(/\.pdf$/, '');
+    // Minimal cleaning - only remove doc_ prefix with numbers and .pdf extension
+    // Keep everything else including full descriptive names
+    let cleaned = fileName;
     
-    // Truncate very long filenames
-    if (cleaned.length > 25) {
-      cleaned = cleaned.substring(0, 22) + '...';
+    // Only remove "doc_[number]_" prefix if it exists
+    cleaned = cleaned.replace(/^doc_\d+_/, '');
+    
+    // Only remove .pdf extension (case insensitive)
+    cleaned = cleaned.replace(/\.pdf$/i, '');
+    
+    // Return full filename without any truncation whatsoever
+    return cleaned || fileName; // Fallback to original if cleaning results in empty string
+  };
+
+  // Calculate legend line width based on number of nodes
+  const calculateLegendLineWidth = (nodeCount) => {
+    // For 2-5 nodes: Fixed bigger length (like reference image)
+    if (nodeCount <= 5) {
+      return 50; // Bigger fixed length like in reference image
     }
-    
-    return cleaned;
+    // For 6+ nodes: Proportional to number of nodes for better view
+    return Math.min(50 + (nodeCount - 5) * 3, 80); // Max 80px to prevent too long lines
   };
 
   // Node interaction handlers with highlighting
@@ -309,11 +321,9 @@ const KnowledgeGraphModal = ({
       const textHeight = labelFontSize;
       const padding = 4 / globalScale;
       
-      // Draw semi-transparent background so lines can pass through (overlay effect)
-      // Use a very light background that allows lines to show through
-      ctx.fillStyle = 'rgba(248, 250, 252, 0.8)'; // Very light gray-white background
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.02)'; // Almost invisible border
-      ctx.lineWidth = 0.2 / globalScale;
+      // Draw completely clear background for labels (no shade/border)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0)'; // Clean white background
+      // No border/stroke for completely clear appearance
       
       // Create rounded rectangle for overlay effect
       const rectX = node.x - textWidth / 2 - padding;
@@ -322,7 +332,7 @@ const KnowledgeGraphModal = ({
       const rectHeight = textHeight + padding * 2;
       const cornerRadius = 3 / globalScale;
       
-      // Draw rounded rectangle background (semi-transparent overlay)
+      // Draw rounded rectangle background (clean, no border)
       ctx.beginPath();
       ctx.moveTo(rectX + cornerRadius, rectY);
       ctx.lineTo(rectX + rectWidth - cornerRadius, rectY);
@@ -335,7 +345,7 @@ const KnowledgeGraphModal = ({
       ctx.quadraticCurveTo(rectX, rectY, rectX + cornerRadius, rectY);
       ctx.closePath();
       ctx.fill();
-      ctx.stroke();
+      // No stroke for clean appearance
       
       // Draw text with better contrast for readability
       ctx.fillStyle = node.isCurrentDocument ? '#1e40af' : '#1f2937'; // Slightly darker for better readability
@@ -614,19 +624,19 @@ const KnowledgeGraphModal = ({
                 // Charge force (repulsion between nodes) - MUCH STRONGER repulsion
                 d3Force={{
                   charge: {
-                    strength: -1200, // Even stronger repulsion to spread nodes further apart
-                    distanceMin: 100,
-                    distanceMax: 1000
+                    strength: -1500, // Even stronger repulsion for better initial spread
+                    distanceMin: 120,
+                    distanceMax: 1200
                   },
                   link: {
-                    distance: (link) => link.distance || 300, // Longer link distances
-                    strength: 0.15 // Even weaker link force so repulsion dominates
+                    distance: (link) => link.distance || 400, // Longer link distances like second image
+                    strength: 0.12 // Weaker link force for more spread
                   },
                   center: {
-                    strength: 0.03 // Very weak centering force
+                    strength: 0.02 // Very weak centering force for more spread
                   },
                   collision: {
-                    radius: (node) => Math.sqrt(node.val) * 4 + 40, // Larger collision radius
+                    radius: (node) => Math.sqrt(node.val) * 5 + 50, // Larger collision radius for better spacing
                     strength: 1.0 // Strong collision prevention
                   }
                 }}
@@ -687,20 +697,25 @@ const KnowledgeGraphModal = ({
                 
                 <h4 style={{ marginTop: '16px' }}>Connection Strength</h4>
                 <div className="legend-item">
-                  <div className="legend-line color-very-strong"></div>
-                  <span>Very Strong (0.7+)</span>
+                  <div 
+                    className="legend-line color-strong-new" 
+                    style={{ width: `${calculateLegendLineWidth(graphData.nodes.length)}px` }}
+                  ></div>
+                  <span>Strong (&gt;0.7)</span>
                 </div>
                 <div className="legend-item">
-                  <div className="legend-line color-strong"></div>
-                  <span>Strong (0.5+)</span>
+                  <div 
+                    className="legend-line color-medium-new" 
+                    style={{ width: `${calculateLegendLineWidth(graphData.nodes.length)}px` }}
+                  ></div>
+                  <span>Medium (0.4-0.7)</span>
                 </div>
                 <div className="legend-item">
-                  <div className="legend-line color-medium"></div>
-                  <span>Medium (0.3+)</span>
-                </div>
-                <div className="legend-item">
-                  <div className="legend-line color-weak"></div>
-                  <span>Weak (&lt;0.3)</span>
+                  <div 
+                    className="legend-line color-low-new" 
+                    style={{ width: `${calculateLegendLineWidth(graphData.nodes.length)}px` }}
+                  ></div>
+                  <span>Low (&lt;0.4)</span>
                 </div>
               </div>
 
