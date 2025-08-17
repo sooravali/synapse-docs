@@ -292,21 +292,29 @@ You are a meticulous Research Analyst AI. Your expertise is in performing compar
 
 You will be given a "Selected Text" from a document a user is reading. You will also be given a list of "Relevant Snippets" from other documents in their library. Your task is to analyze these snippets in relation to the selected text and generate a structured set of insights.
 
+### REQUIRED INSIGHT TYPES
+
+You MUST generate insights in ALL of these categories (even if some are empty arrays):
+
+1. **Contradictions**: Opposing findings, challenges to assumptions, or counter-arguments
+2. **Supporting Examples**: Concrete examples, successful implementations, or reinforcing data  
+3. **Related Concepts**: Similar techniques, extensions, or alternative approaches
+4. **Key Takeaways**: High-level summaries or implications from combining information
+5. **Did You Know Facts**: Interesting, surprising, or lesser-known details from the content
+
 ### INSTRUCTIONS
 
 1. **Analyze the Core Claim:** First, deeply understand the main assertion, method, or finding presented in the "Selected Text".
-2. **Comparative Analysis:** For each "Relevant Snippet", determine its relationship to the "Selected Text". Categorize it as:
-   - A **Contradiction**: It presents opposing findings, challenges the assumptions, or offers a counter-argument.
-   - A **Supporting Example**: It provides a concrete example, a successful implementation, or data that reinforces the core claim.
-   - A **Related Concept**: It discusses a similar technique, an extension of the idea, or an alternative approach without directly contradicting or supporting it.
-   - A **Key Takeaway**: It offers a high-level summary or implication derived from combining the information.
-3. **Synthesize and Format:** Consolidate your findings into a single JSON object. For each insight, provide a concise explanation and cite the source PDF it came from.
+2. **Comparative Analysis:** For each "Relevant Snippet", determine its relationship to the "Selected Text".
+3. **Content-Based Analysis:** Even if no relevant snippets are provided, analyze the selected text itself to extract interesting facts, implications, and insights.
+4. **Synthesize and Format:** Consolidate your findings into a JSON object with ALL required categories.
 
 ### CRITICAL CONSTRAINTS
 
-- **GROUNDING:** You MUST base your entire analysis ONLY on the "Selected Text" and "Relevant Snippets" provided.
-- **NO EXTERNAL KNOWLEDGE:** Do not use any information you were trained on that is not present in the provided context. Do not invent facts, figures, or sources.
-- **SOURCE CITATION:** Always cite the source document for each insight using the format "according to [document_name]"
+- **GROUNDING:** Base your analysis ONLY on the "Selected Text" and "Relevant Snippets" provided.
+- **NO EXTERNAL KNOWLEDGE:** Do not use information not present in the provided context.
+- **SOURCE CITATION:** Always cite the source document for each insight
+- **COMPLETENESS:** Always return ALL 5 insight categories, even if some are empty arrays
 
 ### OUTPUT FORMAT
 
@@ -322,13 +330,18 @@ Provide your response as a JSON object with this exact structure:
         {"insight": "Description of related concept...", "source": "document_name.pdf", "explanation": "Connection to the main text"}
     ],
     "key_takeaways": [
-        {"insight": "High-level takeaway...", "source": "Multiple sources or specific source", "explanation": "Synthesis of multiple insights"}
+        {"insight": "High-level takeaway...", "source": "document_name.pdf", "explanation": "Synthesis of insights"}
+    ],
+    "did_you_know": [
+        {"insight": "Interesting or surprising fact...", "source": "document_name.pdf", "explanation": "Why this fact is noteworthy"}
     ]
 }"""
     
     # Prepare snippets content for analysis
     snippets_content = ""
-    if snippets and len(snippets) > 0:
+    has_snippets = snippets and len(snippets) > 0
+    
+    if has_snippets:
         snippets_content = "**<Reference_Snippets>**\n"
         for i, snippet in enumerate(snippets[:5], 1):  # Limit to top 5 as per requirements
             doc_name = snippet.get('document_name', 'Unknown Document')
@@ -336,16 +349,29 @@ Provide your response as a JSON object with this exact structure:
             snippets_content += f"{i}. Source: {doc_name}\n   Content: {text_chunk[:300]}...\n\n"
         snippets_content += "**</Reference_Snippets>**"
     else:
-        snippets_content = "**<Reference_Snippets>**\nNo relevant snippets found in the document library.\n**</Reference_Snippets>**"
+        snippets_content = "**<Reference_Snippets>**\nNo relevant snippets found in the document library. Focus on analyzing the main topic itself to extract insights, patterns, implications, and interesting facts.\n**</Reference_Snippets>**"
     
     # Enhanced user prompt following your specification
+    analysis_instruction = ""
+    if has_snippets:
+        analysis_instruction = "Please analyze the main topic in relation to the reference snippets and provide a structured set of insights."
+    else:
+        analysis_instruction = """Please analyze the main topic itself and provide structured insights. Even without reference snippets, you should:
+- Look for implicit contradictions or tensions within the topic
+- Identify concrete examples or applications mentioned
+- Find related concepts or themes that emerge
+- Extract key takeaways and implications
+- Discover interesting or surprising facts embedded in the content"""
+
     user_content = f"""**<Main_Topic>**
 {text}
 **</Main_Topic>**
 
 {snippets_content}
 
-Please analyze the main topic in relation to the reference snippets and provide a structured set of insights following the JSON format specified."""
+{analysis_instruction}
+
+IMPORTANT: You MUST generate insights for ALL 5 categories (contradictions, supporting_examples, related_concepts, key_takeaways, did_you_know) even if some are empty arrays. Generate meaningful insights based on the available content."""
 
     messages = [
         {
@@ -392,8 +418,8 @@ Please analyze the main topic in relation to the reference snippets and provide 
                     print(f"  {key}: {value}")
             print()
             
-            # Validate structure
-            expected_keys = ['contradictions', 'supporting_examples', 'related_concepts', 'key_takeaways']
+            # Validate structure - ensure ALL required insight categories are present
+            expected_keys = ['contradictions', 'supporting_examples', 'related_concepts', 'key_takeaways', 'did_you_know']
             for key in expected_keys:
                 if key not in parsed_insights:
                     parsed_insights[key] = []
@@ -412,7 +438,8 @@ Please analyze the main topic in relation to the reference snippets and provide 
                     "contradictions": [],
                     "supporting_examples": [{"insight": response, "source": "AI Analysis", "explanation": "Generated analysis"}],
                     "related_concepts": [],
-                    "key_takeaways": []
+                    "key_takeaways": [],
+                    "did_you_know": []
                 },
                 "status": "success",
                 "snippets_used": len(snippets) if snippets else 0
@@ -437,7 +464,8 @@ Please analyze the main topic in relation to the reference snippets and provide 
                 "contradictions": [],
                 "supporting_examples": [{"insight": user_message, "source": "System", "explanation": "Error occurred during analysis"}],
                 "related_concepts": [],
-                "key_takeaways": []
+                "key_takeaways": [],
+                "did_you_know": []
             },
             "status": "error",
             "error": error_message,
@@ -447,85 +475,118 @@ Please analyze the main topic in relation to the reference snippets and provide 
 async def generate_podcast_script(content: str, related_content: str = "", insights: dict = None) -> str:
     """
     Enhanced podcast script generation for two-speaker format.
-    Creates a 2-4 minute conversational script based on content, related snippets, and insights.
+    Creates a 3-5 minute conversational script focused on discussing actual content, 
+    findings, and insights from documents rather than document analysis process.
     
     Args:
-        content: The main content/selected text
+        content: The main content/selected text to discuss
         related_content: Related snippets from the document library  
         insights: Structured insights from the insights generation step
     """
-    # Enhanced system prompt for two-speaker podcast format
+    # Enhanced system prompt for content-focused podcast with Indian speakers
     podcast_system_prompt = """### ROLE
 
-You are a professional podcast producer and scriptwriter for an acclaimed educational show. Your expertise is in transforming complex information into clear, engaging, and conversational audio scripts. Your style is informative yet accessible.
+You are an expert podcast scriptwriter creating engaging 3-5 minute conversations about interesting content. Your specialty is turning documents, research, and insights into natural discussions between two knowledgeable friends.
 
 ### TASK
 
-You will be provided with a "Main Topic", a set of "Key Insights", and the "Reference Snippets" they were derived from. Your task is to write a 2-4 minute podcast script for two speakers:
+Create a 3-5 minute conversational podcast script where two speakers discuss the actual content, findings, and insights from the provided materials. Focus on what's interesting, practical, or surprising in the content itself.
 
-- **Host:** Guides the conversation, introduces the topic, asks clarifying questions, and provides summaries.
-- **Analyst:** Provides the deep-dive details, presents the evidence, and explains the contradictions and examples, citing the sources.
+**Speakers:**
+- **Pooja:** Curious host who asks thoughtful questions, makes connections, keeps conversation flowing naturally
+- **Arjun:** Knowledgeable analyst who shares specific details from the content, provides examples and explanations
 
-### SCRIPT STRUCTURE
+### CONTENT FOCUS PRINCIPLES
 
-1. **Introduction (15-20 seconds):** The Host introduces the main topic in an engaging way.
-2. **Main Discussion (2-3 minutes):** The Host and Analyst discuss the key insights. The Analyst should explicitly mention the source of their information (e.g., "...according to a study in Paper_A.pdf..."). This builds credibility. The dialogue should flow logically, often presenting the core idea first, then a supporting example, and then a counterpoint or contradiction.
-3. **Conclusion (15-20 seconds):** The Host summarizes the key points and concludes the segment.
+1. **Discuss ACTUAL CONTENT:** Talk about the specific information, methods, recipes, techniques, findings, or concepts found in the materials
+2. **Use SPECIFIC DETAILS:** Reference exact ingredients, measurements, steps, techniques, or data points from the content
+3. **Natural Flow:** Pooja asks genuine questions about interesting details Arjun mentions
+4. **Cross-Reference:** Connect insights and examples from different sources when relevant
+5. **Practical Value:** Highlight what's useful, surprising, or actionable for listeners
 
-### CRITICAL CONSTRAINTS
+### SCRIPT STRUCTURE (3-5 minutes)
 
-- **GROUNDING:** The entire script MUST be based ONLY on the provided Topic, Insights, and Snippets. Do not invent any information or go off-topic.
-- **NO AUDIO CUES:** The script must NOT include any references to music, sound effects, jingles, intros, outros, or any audio production cues. Your output must only contain the speaker labels and their dialogue.
-- **FORMAT:** The output must be plain text, strictly following the `Speaker: Dialogue` format. Do not add any other text, titles, or explanations.
-- **TONE:** The dialogue must be conversational and natural, not robotic. Avoid overly academic language.
-- **SOURCE CITATION:** The Analyst must cite sources naturally in conversation (e.g., "According to the research in TechReport.pdf...")"""
+**Opening (30 seconds):** Pooja introduces the topic based on the main content theme
+**Main Discussion (3-4 minutes):** Deep dive into 2-3 most interesting aspects:
+- Key findings, methods, or techniques from the content
+- Specific examples with concrete details (ingredients, measurements, steps, etc.)
+- Surprising discoveries or interesting contradictions
+- Practical applications or useful tips
+**Wrap-up (30 seconds):** Pooja summarizes main takeaways
+
+### CRITICAL REQUIREMENTS
+
+- **CONTENT-DRIVEN:** Discuss the actual subject matter (recipes, techniques, findings, etc.), not document structure
+- **SPECIFIC DETAILS:** Include concrete examples, exact measurements, specific techniques from the provided materials
+- **GROUNDED:** Use ONLY information from the provided content, insights, and snippets - no external information
+- **FORMAT:** Use exactly "Pooja:" and "Arjun:" followed by their dialogue - no other formatting
+- **NATURAL SPEECH:** Conversational tone with contractions, natural phrases, genuine curiosity
+- **EXACT FORMAT:** Use "Host: [dialogue]" and "Analyst: [dialogue]" only - no markdown, asterisks, or formatting
+- **NATURAL SPEECH:** Conversational tone with contractions, questions, and natural transitions
+- **SOURCE INTEGRATION:** Mention sources naturally ("I saw in the research that..." or "According to the guide...")
+- **GROUNDED ONLY:** Use only the provided content and insights - no external information"""
 
     # Prepare insights content for the script
     insights_content = ""
     if insights and isinstance(insights, dict):
-        # Format structured insights for script generation
+        # Format all insight categories for content-focused conversation
         insight_sections = []
-        
-        if insights.get('contradictions'):
-            contradictions_text = "\n".join([f"- {item.get('insight', '')} (from {item.get('source', 'unknown source')})" 
-                                           for item in insights['contradictions']])
-            insight_sections.append(f"**Contradictions:**\n{contradictions_text}")
-        
-        if insights.get('supporting_examples'):
-            examples_text = "\n".join([f"- {item.get('insight', '')} (from {item.get('source', 'unknown source')})" 
-                                     for item in insights['supporting_examples']])
-            insight_sections.append(f"**Supporting Examples:**\n{examples_text}")
-        
-        if insights.get('related_concepts'):
-            concepts_text = "\n".join([f"- {item.get('insight', '')} (from {item.get('source', 'unknown source')})" 
-                                     for item in insights['related_concepts']])
-            insight_sections.append(f"**Related Concepts:**\n{concepts_text}")
         
         if insights.get('key_takeaways'):
             takeaways_text = "\n".join([f"- {item.get('insight', '')} (from {item.get('source', 'unknown source')})" 
                                       for item in insights['key_takeaways']])
             insight_sections.append(f"**Key Takeaways:**\n{takeaways_text}")
         
+        if insights.get('did_you_know'):
+            did_you_know_text = "\n".join([f"- {item.get('insight', '')} (from {item.get('source', 'unknown source')})" 
+                                         for item in insights['did_you_know']])
+            insight_sections.append(f"**Interesting Facts:**\n{did_you_know_text}")
+        
+        if insights.get('supporting_examples'):
+            examples_text = "\n".join([f"- {item.get('insight', '')} (from {item.get('source', 'unknown source')})" 
+                                     for item in insights['supporting_examples']])
+            insight_sections.append(f"**Specific Examples:**\n{examples_text}")
+        
+        if insights.get('contradictions'):
+            contradictions_text = "\n".join([f"- {item.get('insight', '')} (from {item.get('source', 'unknown source')})" 
+                                           for item in insights['contradictions']])
+            insight_sections.append(f"**Contradictions & Different Perspectives:**\n{contradictions_text}")
+        
+        if insights.get('related_concepts'):
+            concepts_text = "\n".join([f"- {item.get('insight', '')} (from {item.get('source', 'unknown source')})" 
+                                     for item in insights['related_concepts']])
+            insight_sections.append(f"**Connected Ideas:**\n{concepts_text}")
+        
         insights_content = "\n\n".join(insight_sections)
     
-    # Prepare reference snippets
+    # Prepare reference snippets with emphasis on content
     reference_snippets = ""
     if related_content:
-        # Parse related content if it's formatted as snippets
-        reference_snippets = f"**<Reference_Snippets>**\n{related_content}\n**</Reference_Snippets>**"
+        # Make sure snippets are prominently featured for content discussion
+        reference_snippets = f"""**RELATED CONTENT FROM YOUR DOCUMENT LIBRARY:**
+{related_content}
+
+"""
     
-    # User prompt following your specification
-    user_content = f"""**<Main_Topic>**
+    # User prompt focused on actual content discussion with clear instructions
+    user_content = f"""**MAIN TOPIC TO DISCUSS:**
 {content}
-**</Main_Topic>**
 
-**<Key_Insights_To_Discuss>**
-{insights_content if insights_content else "No structured insights available."}
-**</Key_Insights_To_Discuss>**
+{reference_snippets}**KEY INSIGHTS DISCOVERED:**
+{insights_content if insights_content else "Focus on the main content and explore any interesting patterns, methods, techniques, or discoveries."}
 
-{reference_snippets}
+**INSTRUCTIONS FOR Pooja AND ARJUN:**
+Create a 3-5 minute natural conversation where:
+1. Pooja and Arjun discuss the ACTUAL CONTENT from the materials above
+2. Focus on specific details like recipes, techniques, ingredients, methods, findings, or practical information
+3. Use concrete examples and specific details from the content and related snippets
+4. If discussing recipes: mention actual ingredients, measurements, cooking methods
+5. If discussing research: cite specific findings, numbers, or conclusions
+6. If discussing techniques: explain the actual steps or methods described
+7. Connect information from different sources when relevant
+8. Make it conversational and engaging - Pooja asks curious questions, Arjun provides detailed explanations
 
-Generate a 2-4 minute podcast script following the two-speaker format specified."""
+Remember: Discuss the SUBJECT MATTER (what the documents are about), not the documents themselves."""
 
     messages = [
         {
@@ -547,7 +608,7 @@ Generate a 2-4 minute podcast script following the two-speaker format specified.
         print(script)
         print("=" * 60)
         
-        # Clean up the script to ensure proper format
+        # Enhanced script parsing to handle multiple formats
         lines = script.strip().split('\n')
         cleaned_lines = []
         
@@ -557,46 +618,81 @@ Generate a 2-4 minute podcast script following the two-speaker format specified.
         for line in lines:
             line = line.strip()
             if line and (':' in line):
-                # Ensure proper speaker format
-                if line.startswith(('Host:', 'Analyst:')):
+                # Remove markdown formatting and detect speaker patterns
+                cleaned_line = line
+                
+                # Handle markdown bold formatting: **Pooja:** or **Arjun:**
+                if line.startswith('**Pooja:**') or line.startswith('**Arjun:**'):
+                    # Extract speaker and dialogue, removing markdown
+                    if line.startswith('**Pooja:**'):
+                        dialogue = line[10:].strip()  # Remove "**Pooja:**"
+                        cleaned_line = f"Pooja: {dialogue}"
+                        host_count += 1
+                    else:  # **Arjun:**
+                        dialogue = line[10:].strip()  # Remove "**Arjun:**"
+                        cleaned_line = f"Arjun: {dialogue}"
+                        analyst_count += 1
+                    cleaned_lines.append(cleaned_line)
+                    
+                # Handle standard format: Pooja: or Arjun:
+                elif line.startswith(('Pooja:', 'Arjun:')):
                     cleaned_lines.append(line)
-                    if line.startswith('Host:'):
+                    if line.startswith('Pooja:'):
                         host_count += 1
                     else:
                         analyst_count += 1
-                elif line.lower().startswith('host:') or line.lower().startswith('analyst:'):
-                    # Fix capitalization
+                        
+                # Handle case variations: Pooja:, arjun:, Pooja:, ARJUN:
+                elif line.lower().startswith('Pooja:') or line.lower().startswith('arjun:'):
                     speaker, dialogue = line.split(':', 1)
                     fixed_line = f"{speaker.capitalize()}:{dialogue}"
                     cleaned_lines.append(fixed_line)
-                    if speaker.lower() == 'host':
+                    if speaker.lower() == 'Pooja':
                         host_count += 1
                     else:
                         analyst_count += 1
+                        
+                # Try to detect any other speaker patterns (legacy support)
                 else:
-                    # Try to detect speaker patterns
-                    for speaker in ['Host', 'Analyst']:
-                        if line.lower().startswith(speaker.lower() + ':'):
-                            dialogue = line[len(speaker)+1:]
-                            fixed_line = f"{speaker}:{dialogue}"
-                            cleaned_lines.append(fixed_line)
-                            if speaker == 'Host':
-                                host_count += 1
-                            else:
-                                analyst_count += 1
+                    detected = False
+                    for speaker_name, speaker_type in [('Pooja', 'Host'), ('Arjun', 'Analyst'), ('Host', 'Host'), ('Analyst', 'Analyst')]:
+                        speaker_patterns = [
+                            f"{speaker_name.lower()}:",
+                            f"{speaker_name.upper()}:",
+                            f"*{speaker_name}:*",  # Italic markdown
+                            f"_{speaker_name}:_",  # Alternative italic
+                        ]
+                        
+                        for pattern in speaker_patterns:
+                            if line.lower().startswith(pattern.lower()):
+                                dialogue = line[len(pattern):].strip()
+                                # Convert to standard names
+                                standard_name = "Pooja" if speaker_type == "Host" else "Arjun"
+                                fixed_line = f"{standard_name}: {dialogue}"
+                                cleaned_lines.append(fixed_line)
+                                if speaker_type == 'Host':
+                                    host_count += 1
+                                else:
+                                    analyst_count += 1
+                                detected = True
+                                break
+                        if detected:
                             break
-                    else:
-                        # If no speaker detected, treat as Analyst continuation
-                        if cleaned_lines:
-                            cleaned_lines.append(line)
+                    
+                    # If no speaker detected but contains colon, might be continuation
+                    if not detected and cleaned_lines:
+                        cleaned_lines.append(line)
+            elif line and cleaned_lines:
+                # Non-empty line without colon - might be continuation of dialogue
+                cleaned_lines.append(line)
         
         final_script = '\n'.join(cleaned_lines)
         
         # TERMINAL LOG: Print script analysis
         print(f"📊 SCRIPT ANALYSIS:")
         print(f"  Total lines: {len(cleaned_lines)}")
-        print(f"  Host lines: {host_count}")
-        print(f"  Analyst lines: {analyst_count}")
+        print(f"  Pooja lines: {host_count}")
+        print(f"  Arjun lines: {analyst_count}")
         print(f"  Two-speaker format: {'✅' if host_count > 0 and analyst_count > 0 else '❌'}")
         print()
         
@@ -604,17 +700,18 @@ Generate a 2-4 minute podcast script following the two-speaker format specified.
         
     except Exception as e:
         logger.error(f"Error generating podcast script: {e}")
-        # Fallback script
-        return f"""Host: Welcome to Synapse Docs. Today we're exploring an interesting topic from your document library.
+        # Content-focused fallback script with Indian names
+        content_preview = content[:150] if len(content) > 150 else content
+        return f"""Pooja: Hey Arjun, I've been going through some really interesting content, and there's something that caught my attention. It's about {content_preview}...
 
-Analyst: That's right. We're looking at some fascinating content that touches on {content[:100]}...
+Arjun: Oh, that sounds fascinating! What specifically stood out to you?
 
-Host: What makes this particularly noteworthy?
+Pooja: Well, there are some really compelling details in there. Can you walk us through what you're seeing in the material?
 
-Analyst: Well, based on the analysis, there are several key points worth highlighting. The content reveals important insights that connect to broader themes in your document collection.
+Arjun: Absolutely! The content has some great examples and specific information. From what I can see, there are concrete details and practical approaches that are quite useful.
 
-Host: That's really valuable context. Thanks for that analysis.
+Pooja: That's exactly what I was thinking! What would you say are the key things someone should know about this?
 
-Analyst: My pleasure. It's always interesting to see how different pieces of information connect and inform each other.
+Arjun: Great question, Pooja. I think the most valuable parts are the specific techniques and practical information that's laid out. It gives you real actionable insights on the topic.
 
-Host: Absolutely. That wraps up our brief analysis for today."""
+Pooja: Perfect! Thanks for breaking that down, Arjun - there's always something interesting to discover in these materials."""
