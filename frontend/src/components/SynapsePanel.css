@@ -1403,6 +1403,38 @@
   overflow-x: hidden;
   position: relative;
   transition: filter 0.2s ease;
+  /* Add padding to prevent content hiding behind footer */
+  padding-bottom: 20px;
+}
+
+/* Fixed Podcast Footer for Insights Tab Only */
+.insights-podcast-footer {
+  background: white;
+  border-top: 2px solid #e2e8f0;
+  padding: 16px 20px;
+  /* Ensure it doesn't grow too much on small screens */
+  max-height: 40vh;
+  overflow-y: auto;
+  /* Smooth height transitions when content changes */
+  transition: all 0.3s ease;
+}
+
+/* Override podcast section styles for footer context */
+.insights-podcast-footer .integrated-podcast-section {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+/* Ensure podcast section scrolls internally if content becomes very large */
+.insights-podcast-footer .integrated-podcast-player {
+  max-height: 30vh;
+  overflow-y: auto;
+}
+
+.insights-podcast-footer .podcast-error {
+  max-height: 25vh;
+  overflow-y: auto;
 }
 
 /* Professional Confirmation Overlay */
