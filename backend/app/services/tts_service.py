@@ -9,6 +9,7 @@ import os
 import sys
 import asyncio
 import httpx
+import time
 from typing import Optional
 from app.core.config import settings
 import logging
@@ -25,6 +26,26 @@ except ImportError as e:
     GENERATE_AUDIO_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+class RateLimiter:
+    """Simple rate limiter for Azure TTS API calls"""
+    def __init__(self, calls_per_minute=20):
+        self.calls_per_minute = calls_per_minute
+        self.min_interval = 60.0 / calls_per_minute  # 3 seconds between calls for F0 tier
+        self.last_call_time = 0
+    
+    async def wait_if_needed(self):
+        """Wait if we need to respect rate limits"""
+        now = time.time()
+        time_since_last = now - self.last_call_time
+        if time_since_last < self.min_interval:
+            wait_time = self.min_interval - time_since_last
+            logger.info(f"Rate limiting: waiting {wait_time:.1f}s before next TTS call")
+            await asyncio.sleep(wait_time)
+        self.last_call_time = time.time()
+
+# Global rate limiter instance
+_rate_limiter = RateLimiter(calls_per_minute=20)  # Conservative for F0 tier
 
 class TTSService:
     """
@@ -239,68 +260,107 @@ class TTSService:
             return await self._generate_azure_audio_direct_with_voice(text, output_path, voice_name)
     
     async def _generate_azure_audio_direct_with_voice(self, text: str, output_path: str, voice_name: str) -> bool:
-        """Direct Azure TTS implementation with specific voice for fallback"""
-        try:
-            # Create directory if it doesn't exist
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            
-            # Limit text length
-            max_tts_chars = int(os.environ.get("MAX_TTS_CHARACTERS", "10000"))
-            if len(text) > max_tts_chars:
-                text = text[:max_tts_chars-100] + "... [Content truncated for audio generation]"
-                logger.info(f"Text truncated to {len(text)} characters for TTS")
-            
-            # Construct the REST API URL
-            if settings.AZURE_TTS_ENDPOINT:
-                base_url = settings.AZURE_TTS_ENDPOINT.rstrip('/')
-                if 'cognitiveservices/v1' not in base_url:
-                    url = f"{base_url}/tts/cognitiveservices/v1"
-                else:
-                    url = base_url
-            else:
-                raise ValueError("AZURE_TTS_ENDPOINT not configured")
-            
-            # Create SSML for the specific voice
-            voice_lang = voice_name.split('-')[0:2]
-            voice_lang_str = '-'.join(voice_lang) if len(voice_lang) >= 2 else 'en-US'
-            
-            # Escape XML entities in the text
-            import html
-            escaped_text = html.escape(text, quote=True)
-            
-            ssml = f"""<speak version='1.0' xml:lang='{voice_lang_str}'>
-                <voice xml:lang='{voice_lang_str}' name='{voice_name}'>
-                    {escaped_text}
-                </voice>
-            </speak>"""
-            
-            headers = {
-                'Ocp-Apim-Subscription-Key': settings.AZURE_TTS_KEY,
-                'Content-Type': 'application/ssml+xml',
-                'X-Microsoft-OutputFormat': 'audio-16khz-32kbitrate-mono-mp3',
-                'User-Agent': 'SynapseDocs-AudioGeneration'
-            }
-            
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(url, headers=headers, content=ssml)
+        """Direct Azure TTS implementation with specific voice, rate limiting, and retry logic"""
+        max_retries = 3
+        base_delay = 2.0  # Base delay for exponential backoff
+        
+        for attempt in range(max_retries + 1):
+            try:
+                # Apply rate limiting before each attempt
+                await _rate_limiter.wait_if_needed()
                 
-                if response.status_code == 200:
-                    with open(output_path, 'wb') as f:
-                        f.write(response.content)
-                    
-                    if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                        logger.info(f"Azure TTS audio with voice {voice_name} generated successfully: {output_path}")
-                        return True
+                # Create directory if it doesn't exist
+                os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                
+                # Limit text length
+                max_tts_chars = int(os.environ.get("MAX_TTS_CHARACTERS", "10000"))
+                if len(text) > max_tts_chars:
+                    text = text[:max_tts_chars-100] + "... [Content truncated for audio generation]"
+                    logger.info(f"Text truncated to {len(text)} characters for TTS")
+                
+                # Construct the REST API URL
+                if settings.AZURE_TTS_ENDPOINT:
+                    base_url = settings.AZURE_TTS_ENDPOINT.rstrip('/')
+                    if 'cognitiveservices/v1' not in base_url:
+                        url = f"{base_url}/tts/cognitiveservices/v1"
                     else:
-                        logger.error("Azure TTS returned empty response")
-                        return False
+                        url = base_url
                 else:
-                    logger.error(f"Azure TTS API error: {response.status_code} - {response.text}")
-                    return False
+                    raise ValueError("AZURE_TTS_ENDPOINT not configured")
+                
+                # Create SSML for the specific voice
+                voice_lang = voice_name.split('-')[0:2]
+                voice_lang_str = '-'.join(voice_lang) if len(voice_lang) >= 2 else 'en-US'
+                
+                # Escape XML entities in the text
+                import html
+                escaped_text = html.escape(text, quote=True)
+                
+                ssml = f"""<speak version='1.0' xml:lang='{voice_lang_str}'>
+                    <voice xml:lang='{voice_lang_str}' name='{voice_name}'>
+                        {escaped_text}
+                    </voice>
+                </speak>"""
+                
+                headers = {
+                    'Ocp-Apim-Subscription-Key': settings.AZURE_TTS_KEY,
+                    'Content-Type': 'application/ssml+xml',
+                    'X-Microsoft-OutputFormat': 'audio-16khz-32kbitrate-mono-mp3',
+                    'User-Agent': 'SynapseDocs-AudioGeneration'
+                }
+                
+                async with httpx.AsyncClient(timeout=60.0) as client:  # Increased timeout
+                    response = await client.post(url, headers=headers, content=ssml)
                     
-        except Exception as e:
-            logger.error(f"Azure TTS direct implementation error with voice {voice_name}: {e}")
-            return False
+                    if response.status_code == 200:
+                        with open(output_path, 'wb') as f:
+                            f.write(response.content)
+                        
+                        if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                            logger.info(f"Azure TTS audio with voice {voice_name} generated successfully: {output_path}")
+                            return True
+                        else:
+                            logger.error("Azure TTS returned empty response")
+                            return False
+                            
+                    elif response.status_code == 429:
+                        # Rate limit exceeded - extract retry-after if available
+                        retry_after = response.headers.get('Retry-After', '60')
+                        try:
+                            wait_time = int(retry_after)
+                        except ValueError:
+                            wait_time = 60
+                        
+                        if attempt < max_retries:
+                            logger.warning(f"Rate limit hit (429), attempt {attempt + 1}/{max_retries + 1}. Waiting {wait_time}s before retry...")
+                            await asyncio.sleep(wait_time)
+                            continue
+                        else:
+                            logger.error(f"Rate limit exceeded after {max_retries + 1} attempts")
+                            return False
+                            
+                    else:
+                        error_msg = f"Azure TTS API error: {response.status_code} - {response.text}"
+                        if attempt < max_retries:
+                            wait_time = base_delay * (2 ** attempt)  # Exponential backoff
+                            logger.warning(f"{error_msg}. Retrying in {wait_time}s... (attempt {attempt + 1}/{max_retries + 1})")
+                            await asyncio.sleep(wait_time)
+                            continue
+                        else:
+                            logger.error(error_msg)
+                            return False
+                        
+            except Exception as e:
+                if attempt < max_retries:
+                    wait_time = base_delay * (2 ** attempt)
+                    logger.warning(f"Azure TTS error: {e}. Retrying in {wait_time}s... (attempt {attempt + 1}/{max_retries + 1})")
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    logger.error(f"Azure TTS direct implementation error with voice {voice_name} after {max_retries + 1} attempts: {e}")
+                    return False
+        
+        return False
     
     async def concatenate_audio_segments(self, segment_paths: list, output_path: str) -> bool:
         """
