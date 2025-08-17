@@ -1,7 +1,7 @@
 /* Flow Status Bar - Redesigned for Professional UI/UX Integration */
 .flow-status-bar {
   /* Match the app's panel background instead of purple gradient */
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  background: white;
   border-bottom: 1px solid #cbd5e1;
   padding: 8px 0; /* Further reduced height for compact design */
   display: flex;
@@ -296,4 +296,142 @@
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
+}
+
+/* Vertical Layout for Icon Rail */
+.flow-status-bar.vertical {
+  background: transparent;
+  border: none;
+  padding: 0;
+  width: 56px;
+  height: auto;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.flow-status-bar.vertical .status-content {
+  max-width: none;
+  padding: 0;
+  width: 56px;
+}
+
+.flow-status-bar.vertical .status-steps {
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.flow-status-bar.vertical .status-step {
+  width: 32px;
+  height: 32px;
+}
+
+.flow-status-bar.vertical .status-step svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.flow-status-bar.vertical .status-connector {
+  width: 2px;
+  height: 16px;
+  margin-top: 0;
+  align-self: center;
+}
+
+.flow-status-bar.vertical .status-connector.completed {
+  background: linear-gradient(180deg, #3b82f6, #2563eb);
+}
+
+.flow-status-bar.vertical .status-connector.pending {
+  background: linear-gradient(180deg, #e5e7eb, #d1d5db);
+}
+
+.flow-status-bar.vertical .status-connector.pending::after {
+  width: 1px;
+  height: 100%;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  background: repeating-linear-gradient(
+    180deg,
+    #d1d5db 0,
+    #d1d5db 3px,
+    transparent 3px,
+    transparent 6px
+  );
+}
+
+/* Hide labels in vertical mode */
+.flow-status-bar.vertical .status-label {
+  display: none;
+}
+
+/* Vertical tooltips */
+.flow-status-bar.vertical .tooltip {
+  top: 50%;
+  left: calc(100% + 8px);
+  transform: translateY(-50%);
+}
+
+.flow-status-bar.vertical .tooltip::before {
+  left: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 4px solid transparent;
+  border-right-color: rgba(55, 65, 81, 1);
+  border-bottom-color: transparent;
+}
+
+/* Vertical FlowStatusBar for collapsed sidebar */
+.flow-status-bar.vertical {
+  background: none;
+  border: none;
+  padding: 0;
+  width: auto;
+  height: auto;
+}
+
+.flow-status-bar.vertical .status-content {
+  max-width: none;
+  padding: 0;
+}
+
+.flow-status-bar.vertical .status-steps {
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.flow-status-bar.vertical .status-step-container {
+  gap: 0;
+}
+
+.flow-status-bar.vertical .status-step {
+  width: 28px;
+  height: 28px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.flow-status-bar.vertical .status-step svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+.flow-status-bar.vertical .status-connector {
+  width: 2px;
+  height: 8px;
+  margin: 0;
+}
+
+.flow-status-bar.vertical .status-connector.completed {
+  background: #3b82f6;
+}
+
+.flow-status-bar.vertical .status-connector.pending {
+  background: #d1d5db;
+}
+
+/* Hide tooltips in vertical mode to save space */
+.flow-status-bar.vertical .tooltip {
+  display: none;
 }
