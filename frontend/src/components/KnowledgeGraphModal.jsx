@@ -107,7 +107,7 @@ const KnowledgeGraphModal = ({
         color: getNodeColor(node, isCurrentDoc),
         // Enhanced properties for better layout
         isCurrentDocument: isCurrentDoc,
-        displayName: node.name || 'Unknown Document', // Use original name without any cleaning
+        displayName: cleanFileName(node.name || 'Unknown Document'),
         group: getDocumentGroup(node.name),
         // CRITICAL: Set initial positions VERY far apart
         x: initialX,
