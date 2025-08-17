@@ -49,6 +49,43 @@ body {
   border-right: 1px solid #e1e5e9;
   background: #fafafa;
   position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Collapsed state for left panel */
+.panel-left.collapsed {
+  width: 56px;
+  min-width: 56px;
+  max-width: 56px;
+}
+
+/* External Synapse View Button */
+.external-synapse-view {
+  position: absolute;
+  left: 64px;
+  top: 20px;
+  z-index: 1000;
+}
+
+.external-synapse-button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.external-synapse-button:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* Center Panel: The Workbench */
