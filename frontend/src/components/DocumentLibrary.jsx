@@ -2,12 +2,13 @@
  * Left Panel: The Workspace
  * 
  * Implements the user's personal library with bulk upload capabilities,
- * status indicators, and library search functionality.
+ * status indicators, library search functionality, and knowledge graph visualization.
  */
 import { useState, useEffect } from 'react';
 import { documentAPI, sessionUtils } from '../api';
-import { Upload, Search, CheckCircle, AlertCircle, Clock, FileText, Trash2, Info, MoreVertical, Download } from 'lucide-react';
+import { Upload, Search, CheckCircle, AlertCircle, Clock, FileText, Trash2, Info, MoreVertical, Download, Network } from 'lucide-react';
 import FlowStatusBar from './FlowStatusBar';
+import KnowledgeGraphModal from './KnowledgeGraphModal';
 import './DocumentLibrary.css';
 
 const DocumentLibrary = ({ 
@@ -38,6 +39,9 @@ const DocumentLibrary = ({
   
   // Tab state management for the new tabbed interface
   const [activeTab, setActiveTab] = useState('recent'); // Default to 'recent' or 'all' based on content
+
+  // Knowledge Graph state
+  const [showKnowledgeGraph, setShowKnowledgeGraph] = useState(false);
 
   // SessionStorage utilities for tracking new files in current session
   const SESSION_STORAGE_KEY = 'synapse_docs_newFileIDs';
@@ -516,6 +520,27 @@ const DocumentLibrary = ({
     setOpenMenuId(openMenuId === documentId ? null : documentId);
   };
 
+  // Knowledge Graph handlers
+  const handleOpenKnowledgeGraph = () => {
+    console.log('🌐 Opening Synapse View (Knowledge Graph)...');
+    setShowKnowledgeGraph(true);
+  };
+
+  const handleCloseKnowledgeGraph = () => {
+    console.log('🌐 Closing Synapse View (Knowledge Graph)');
+    setShowKnowledgeGraph(false);
+  };
+
+  const handleGraphDocumentSelect = (documentId) => {
+    console.log(`🌐 Knowledge Graph: Navigating to document ${documentId}`);
+    
+    // Find the document in our list
+    const document = documents.find(doc => doc.id === documentId);
+    if (document && onDocumentSelect) {
+      onDocumentSelect(document);
+    }
+  };
+
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
@@ -777,28 +802,43 @@ const DocumentLibrary = ({
             Workspace
           </h2>
           
-          {/* Clear All Button */}
-          {documents.length > 0 && (
-            <div className="clear-all-section">
-              {!showClearConfirm ? (
-                <button
-                  onClick={handleClearAll}
-                  disabled={isClearingAll}
-                  className="clear-all-button"
-                  title="Clear all documents and start fresh"
-                >
-                  <Trash2 size={12} />
-                  {isClearingAll ? 'Clearing...' : 'Clear All'}
-                </button>
-              ) : (
-                <div className="clear-confirm">
-                  <span className="confirm-text">Delete all {documents.length} documents?</span>
-                  <button onClick={handleClearAll} className="confirm-yes">Yes</button>
-                  <button onClick={cancelClearAll} className="confirm-no">No</button>
-                </div>
-              )}
-            </div>
-          )}
+          {/* Action buttons */}
+          <div className="header-actions">
+            {/* Synapse View Button */}
+            {documents.length >= 2 && (
+              <button
+                onClick={handleOpenKnowledgeGraph}
+                className="synapse-view-button"
+                title="Open Synapse View - See how your documents connect"
+              >
+                <Network size={14} />
+                <span>Synapse View</span>
+              </button>
+            )}
+            
+            {/* Clear All Button */}
+            {documents.length > 0 && (
+              <div className="clear-all-section">
+                {!showClearConfirm ? (
+                  <button
+                    onClick={handleClearAll}
+                    disabled={isClearingAll}
+                    className="clear-all-button"
+                    title="Clear all documents and start fresh"
+                  >
+                    <Trash2 size={12} />
+                    {isClearingAll ? 'Clearing...' : 'Clear All'}
+                  </button>
+                ) : (
+                  <div className="clear-confirm">
+                    <span className="confirm-text">Delete all {documents.length} documents?</span>
+                    <button onClick={handleClearAll} className="confirm-yes">Yes</button>
+                    <button onClick={cancelClearAll} className="confirm-no">No</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         
         {/* Library Search */}
@@ -866,6 +906,14 @@ const DocumentLibrary = ({
           {renderDocumentList(getActiveTabDocuments())}
         </div>
       </div>
+
+      {/* Knowledge Graph Modal */}
+      <KnowledgeGraphModal
+        isVisible={showKnowledgeGraph}
+        onClose={handleCloseKnowledgeGraph}
+        onDocumentSelect={handleGraphDocumentSelect}
+        currentDocumentId={selectedDocument?.id}
+      />
     </div>
   );
 };

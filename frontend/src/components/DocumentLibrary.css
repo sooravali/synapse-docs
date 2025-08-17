@@ -536,8 +536,41 @@
   min-height: 24px; /* Ensure consistent height for alignment */
 }
 
-.clear-all-section {
+/* Header Actions Container */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-left: auto;
+}
+
+/* Synapse View Button */
+.synapse-view-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  line-height: 1.2;
+  height: 26px;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+}
+
+.synapse-view-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.synapse-view-button:active {
+  transform: translateY(0);
 }
 
 .clear-all-button {
