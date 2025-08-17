@@ -179,27 +179,224 @@ class TTSService:
             logger.error(f"Azure TTS direct implementation error: {e}")
             return await self._generate_mock_audio(text, output_path)
     
-    async def _generate_mock_audio(self, text: str, output_path: str) -> bool:
+    async def generate_audio_with_voice(self, text: str, output_path: str, voice_name: str) -> bool:
         """
-        Mock audio generation removed - real TTS implementation required.
-        This function should not be called in production.
+        Generate audio from text using a specific voice.
+        
+        Args:
+            text: Text to convert to speech
+            output_path: Path where the audio file will be saved
+            voice_name: Azure TTS voice name (e.g., "en-US-JennyNeural")
+            
+        Returns:
+            bool: True if successful, False otherwise
         """
-        logger.error("Mock audio generation attempted - real TTS service required")
-        raise NotImplementedError("Mock audio generation has been removed. Please configure a real TTS service.")
+        try:
+            print(f"🔊 TTS: Generating audio with voice {voice_name}")
+            print(f"    Text: {text[:100]}...")
+            print(f"    Output: {os.path.basename(output_path)}")
+            
+            if not GENERATE_AUDIO_AVAILABLE:
+                print("⚠️ Sample generate_audio script not available - using fallback")
+                return await self._generate_azure_audio_direct_with_voice(text, output_path, voice_name)
+            
+            # Set environment variables for the sample script with specific voice
+            os.environ["TTS_PROVIDER"] = self.provider
+            if settings.AZURE_TTS_KEY:
+                os.environ["AZURE_TTS_KEY"] = settings.AZURE_TTS_KEY
+            if settings.AZURE_TTS_ENDPOINT:
+                os.environ["AZURE_TTS_ENDPOINT"] = settings.AZURE_TTS_ENDPOINT
+            os.environ["AZURE_TTS_VOICE"] = voice_name  # Override with specific voice
+            
+            print(f"🔧 TTS Config:")
+            print(f"    Provider: {self.provider}")
+            print(f"    Key: {'***' + settings.AZURE_TTS_KEY[-4:] if settings.AZURE_TTS_KEY else 'NOT SET'}")
+            print(f"    Endpoint: {settings.AZURE_TTS_ENDPOINT or 'NOT SET'}")
+            print(f"    Voice: {voice_name}")
+            
+            # Use the sample script function
+            result = await asyncio.get_event_loop().run_in_executor(
+                None, 
+                generate_audio, 
+                text, 
+                output_path, 
+                self.provider
+            )
+            
+            # Check if file was created successfully
+            if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                file_size = os.path.getsize(output_path)
+                print(f"    ✅ Success: {file_size} bytes generated")
+                return True
+            else:
+                print(f"    ❌ Failed: No file created or empty file")
+                return False
+                
+        except Exception as e:
+            print(f"    💥 Exception in sample script: {e}")
+            logger.error(f"Error using sample generate_audio script with voice {voice_name}: {e}")
+            # Fallback to direct implementation
+            return await self._generate_azure_audio_direct_with_voice(text, output_path, voice_name)
+    
+    async def _generate_azure_audio_direct_with_voice(self, text: str, output_path: str, voice_name: str) -> bool:
+        """Direct Azure TTS implementation with specific voice for fallback"""
+        try:
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            
+            # Limit text length
+            max_tts_chars = int(os.environ.get("MAX_TTS_CHARACTERS", "10000"))
+            if len(text) > max_tts_chars:
+                text = text[:max_tts_chars-100] + "... [Content truncated for audio generation]"
+                logger.info(f"Text truncated to {len(text)} characters for TTS")
+            
+            # Construct the REST API URL
+            if settings.AZURE_TTS_ENDPOINT:
+                base_url = settings.AZURE_TTS_ENDPOINT.rstrip('/')
+                if 'cognitiveservices/v1' not in base_url:
+                    url = f"{base_url}/tts/cognitiveservices/v1"
+                else:
+                    url = base_url
+            else:
+                raise ValueError("AZURE_TTS_ENDPOINT not configured")
+            
+            # Create SSML for the specific voice
+            voice_lang = voice_name.split('-')[0:2]
+            voice_lang_str = '-'.join(voice_lang) if len(voice_lang) >= 2 else 'en-US'
+            
+            # Escape XML entities in the text
+            import html
+            escaped_text = html.escape(text, quote=True)
+            
+            ssml = f"""<speak version='1.0' xml:lang='{voice_lang_str}'>
+                <voice xml:lang='{voice_lang_str}' name='{voice_name}'>
+                    {escaped_text}
+                </voice>
+            </speak>"""
+            
+            headers = {
+                'Ocp-Apim-Subscription-Key': settings.AZURE_TTS_KEY,
+                'Content-Type': 'application/ssml+xml',
+                'X-Microsoft-OutputFormat': 'audio-16khz-32kbitrate-mono-mp3',
+                'User-Agent': 'SynapseDocs-AudioGeneration'
+            }
+            
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, headers=headers, content=ssml)
+                
+                if response.status_code == 200:
+                    with open(output_path, 'wb') as f:
+                        f.write(response.content)
+                    
+                    if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                        logger.info(f"Azure TTS audio with voice {voice_name} generated successfully: {output_path}")
+                        return True
+                    else:
+                        logger.error("Azure TTS returned empty response")
+                        return False
+                else:
+                    logger.error(f"Azure TTS API error: {response.status_code} - {response.text}")
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"Azure TTS direct implementation error with voice {voice_name}: {e}")
+            return False
+    
+    async def concatenate_audio_segments(self, segment_paths: list, output_path: str) -> bool:
+        """
+        Concatenate multiple audio segments into a single file.
+        
+        Args:
+            segment_paths: List of paths to audio segments
+            output_path: Path where the concatenated audio will be saved
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Try using ffmpeg if available
+            import subprocess
+            
+            # Check if ffmpeg is available
+            try:
+                subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
+                ffmpeg_available = True
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                ffmpeg_available = False
+            
+            if ffmpeg_available and len(segment_paths) > 1:
+                # Create a temporary file list for ffmpeg
+                import tempfile
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
+                    for segment_path in segment_paths:
+                        f.write(f"file '{segment_path}'\n")
+                    filelist_path = f.name
+                
+                try:
+                    # Use ffmpeg to concatenate
+                    cmd = [
+                        'ffmpeg', '-f', 'concat', '-safe', '0', 
+                        '-i', filelist_path, '-c', 'copy', output_path, '-y'
+                    ]
+                    
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+                    
+                    if result.returncode == 0 and os.path.exists(output_path):
+                        logger.info(f"Audio segments concatenated successfully using ffmpeg: {output_path}")
+                        return True
+                    else:
+                        logger.warning(f"ffmpeg concatenation failed: {result.stderr}")
+                        
+                finally:
+                    # Clean up temporary file list
+                    try:
+                        os.unlink(filelist_path)
+                    except:
+                        pass
+            
+            # Fallback: Simple binary concatenation (works for some MP3s)
+            if len(segment_paths) == 1:
+                # Just copy the single file
+                import shutil
+                shutil.copy2(segment_paths[0], output_path)
+                return True
+            else:
+                # Simple binary concatenation
+                logger.info("Using simple binary concatenation as fallback")
+                with open(output_path, 'wb') as outfile:
+                    for segment_path in segment_paths:
+                        if os.path.exists(segment_path):
+                            with open(segment_path, 'rb') as infile:
+                                outfile.write(infile.read())
+                
+                if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                    logger.info(f"Audio segments concatenated using binary method: {output_path}")
+                    return True
+                else:
+                    logger.error("Binary concatenation failed")
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"Error concatenating audio segments: {e}")
+            return False
 
 
-# Async function to generate podcast audio using TTS service
 async def generate_podcast_audio(script: str) -> tuple[str, bool]:
     """
-    Generate audio from podcast script following Adobe Hackathon 2025 requirements.
+    Enhanced podcast audio generation with two-speaker support.
+    Parses script for Host/Analyst speakers and generates multi-voice audio.
     
     Args:
-        script: The podcast script text
+        script: The podcast script with speaker labels (Host: / Analyst:)
         
     Returns:
         tuple: (audio_file_path, success_boolean)
     """
     try:
+        # TERMINAL LOG: Print audio generation start
+        print("🔊 AUDIO GENERATION - Starting...")
+        print("=" * 50)
+        
         tts_service = TTSService()
         
         # Generate unique filename for this podcast
@@ -214,16 +411,95 @@ async def generate_podcast_audio(script: str) -> tuple[str, bool]:
         # Ensure audio directory exists
         os.makedirs(settings.AUDIO_DIR, exist_ok=True)
         
-        # Generate audio
-        success = await tts_service.generate_audio(script, output_path)
+        # Parse script for speakers
+        script_lines = script.strip().split('\n')
+        audio_segments = []
         
-        if success and os.path.exists(output_path):
-            logger.info(f"Podcast audio generated successfully: {output_path}")
-            return output_path, True
+        host_voice = settings.AZURE_TTS_HOST_VOICE or "en-US-JennyNeural"
+        analyst_voice = settings.AZURE_TTS_ANALYST_VOICE or "en-US-GuyNeural"
+        
+        print(f"🎭 VOICE CONFIGURATION:")
+        print(f"  Host voice: {host_voice}")
+        print(f"  Analyst voice: {analyst_voice}")
+        print(f"  Script lines to process: {len(script_lines)}")
+        print()
+        
+        valid_lines = 0
+        for line_num, line in enumerate(script_lines):
+            line = line.strip()
+            if not line or ':' not in line:
+                continue
+                
+            # Parse speaker and dialogue
+            if line.startswith('Host:'):
+                speaker = 'Host'
+                dialogue = line[5:].strip()
+                voice = host_voice
+            elif line.startswith('Analyst:'):
+                speaker = 'Analyst'
+                dialogue = line[8:].strip()
+                voice = analyst_voice
+            else:
+                # Skip lines that don't match speaker format
+                continue
+            
+            if dialogue:
+                valid_lines += 1
+                print(f"🎯 Processing {speaker} line {valid_lines}: {dialogue[:50]}...")
+                
+                # Generate individual audio segment
+                segment_filename = f"segment_{timestamp}_{line_num}_{speaker.lower()}.mp3"
+                segment_path = os.path.join(settings.AUDIO_DIR, segment_filename)
+                
+                # Generate audio for this segment with specific voice
+                success = await tts_service.generate_audio_with_voice(dialogue, segment_path, voice)
+                
+                if success and os.path.exists(segment_path):
+                    file_size = os.path.getsize(segment_path)
+                    audio_segments.append(segment_path)
+                    print(f"  ✅ Generated {speaker} segment: {segment_filename} ({file_size} bytes)")
+                else:
+                    print(f"  ❌ Failed to generate {speaker} segment: {segment_filename}")
+        
+        print(f"\n📊 AUDIO GENERATION SUMMARY:")
+        print(f"  Valid dialogue lines: {valid_lines}")
+        print(f"  Audio segments created: {len(audio_segments)}")
+        
+        if audio_segments:
+            print(f"🔗 CONCATENATING {len(audio_segments)} segments...")
+            # Concatenate all segments using ffmpeg or fallback method
+            success = await tts_service.concatenate_audio_segments(audio_segments, output_path)
+            
+            # Clean up individual segments
+            print("🧹 Cleaning up temporary segments...")
+            for segment_path in audio_segments:
+                try:
+                    if os.path.exists(segment_path):
+                        os.remove(segment_path)
+                        print(f"  🗑️ Removed: {os.path.basename(segment_path)}")
+                except Exception as e:
+                    print(f"  ⚠️ Failed to clean up {segment_path}: {e}")
+            
+            if success and os.path.exists(output_path):
+                final_size = os.path.getsize(output_path)
+                print(f"🎉 SUCCESS: Multi-speaker podcast generated!")
+                print(f"  File: {filename}")
+                print(f"  Size: {final_size} bytes")
+                print(f"  Path: {output_path}")
+                return output_path, True
+            else:
+                print("❌ FAILED: Could not concatenate audio segments")
+                return "", False
         else:
-            logger.error(f"Failed to generate podcast audio")
+            print("❌ FAILED: No audio segments were generated")
+            print("   This could be due to:")
+            print("   - TTS service configuration issues")
+            print("   - Invalid Azure TTS credentials")
+            print("   - Network connectivity problems")
+            print("   - Script format issues")
             return "", False
             
     except Exception as e:
+        print(f"💥 EXCEPTION in generate_podcast_audio: {e}")
         logger.error(f"Error in generate_podcast_audio: {e}")
         return "", False
