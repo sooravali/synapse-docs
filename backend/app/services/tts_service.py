@@ -418,9 +418,13 @@ async def generate_podcast_audio(script: str) -> tuple[str, bool]:
         host_voice = settings.AZURE_TTS_HOST_VOICE or "en-US-JennyNeural"
         analyst_voice = settings.AZURE_TTS_ANALYST_VOICE or "en-US-GuyNeural"
         
+        # Voice configuration for Indian names
+        host_voice = settings.AZURE_TTS_HOST_VOICE or "en-US-JennyNeural"  # Pooja's voice
+        analyst_voice = settings.AZURE_TTS_ANALYST_VOICE or "en-US-GuyNeural"  # Arjun's voice
+        
         print(f"🎭 VOICE CONFIGURATION:")
-        print(f"  Host voice: {host_voice}")
-        print(f"  Analyst voice: {analyst_voice}")
+        print(f"  Pooja's voice: {host_voice}")
+        print(f"  Arjun's voice: {analyst_voice}")
         print(f"  Script lines to process: {len(script_lines)}")
         print()
         
@@ -430,14 +434,14 @@ async def generate_podcast_audio(script: str) -> tuple[str, bool]:
             if not line or ':' not in line:
                 continue
                 
-            # Parse speaker and dialogue
-            if line.startswith('Host:'):
-                speaker = 'Host'
-                dialogue = line[5:].strip()
+            # Parse speaker and dialogue - support both new names (Pooja/Arjun) and legacy (Host/Analyst)
+            if line.startswith('Host:') or line.startswith('Pooja:'):
+                speaker = 'Pooja' if line.startswith('Pooja:') else 'Host'
+                dialogue = line[5:].strip() if line.startswith('Host:') else line[6:].strip()
                 voice = host_voice
-            elif line.startswith('Analyst:'):
-                speaker = 'Analyst'
-                dialogue = line[8:].strip()
+            elif line.startswith('Analyst:') or line.startswith('Arjun:'):
+                speaker = 'Arjun' if line.startswith('Arjun:') else 'Analyst'
+                dialogue = line[8:].strip() if line.startswith('Analyst:') else line[6:].strip()
                 voice = analyst_voice
             else:
                 # Skip lines that don't match speaker format
