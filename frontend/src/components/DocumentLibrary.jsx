@@ -793,6 +793,17 @@ const DocumentLibrary = ({
               <Upload size={20} />
             </button>
             
+            {/* Synapse View Icon */}
+            {documents.length >= 2 && (
+              <button 
+                className="rail-icon synapse-icon"
+                title="Open Synapse View - See how your documents connect"
+                onClick={onOpenKnowledgeGraph}
+              >
+                <Network size={20} />
+              </button>
+            )}
+            
             {/* Files Icon with Document Count */}
             <button 
               className="rail-icon files-icon"
