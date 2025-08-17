@@ -828,40 +828,39 @@ const DocumentLibrary = ({
                 Workspace
               </h2>
               
-              {/* Collapse Button - Top Right */}
-              <button 
-                className="collapse-button"
-                onClick={onToggleCollapse}
-                title="Collapse Sidebar"
-              >
-                <ChevronLeft size={16} />
-              </button>
-            </div>
-            
-            {/* Action buttons */}
-            <div className="header-actions">
-              {/* Clear All Button */}
-              {documents.length > 0 && (
-                <div className="clear-all-section">
-                  {!showClearConfirm ? (
-                    <button
-                      onClick={handleClearAll}
-                      disabled={isClearingAll}
-                      className="clear-all-button"
-                      title="Clear all documents and start fresh"
-                    >
-                      <Trash2 size={12} />
-                      {isClearingAll ? 'Clearing...' : 'Clear All'}
-                    </button>
-                  ) : (
-                    <div className="clear-confirm">
-                      <span className="confirm-text">Delete all {documents.length} documents?</span>
-                      <button onClick={handleClearAll} className="confirm-yes">Yes</button>
-                      <button onClick={cancelClearAll} className="confirm-no">No</button>
-                    </div>
-                  )}
-                </div>
-              )}
+              <div className="header-buttons">
+                {/* Clear All Button */}
+                {documents.length > 0 && (
+                  <div className="clear-all-section">
+                    {!showClearConfirm ? (
+                      <button
+                        onClick={handleClearAll}
+                        disabled={isClearingAll}
+                        className="clear-all-button"
+                        title="Clear all documents and start fresh"
+                      >
+                        <Trash2 size={12} />
+                        {isClearingAll ? 'Clearing...' : 'Clear All'}
+                      </button>
+                    ) : (
+                      <div className="clear-confirm">
+                        <span className="confirm-text">Delete all {documents.length} documents?</span>
+                        <button onClick={handleClearAll} className="confirm-yes">Yes</button>
+                        <button onClick={cancelClearAll} className="confirm-no">No</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Collapse Button - Top Right */}
+                <button 
+                  className="collapse-button"
+                  onClick={onToggleCollapse}
+                  title="Collapse Sidebar"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+              </div>
             </div>
             
             {/* Library Search */}
