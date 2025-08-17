@@ -324,18 +324,67 @@
 }
 
 .legend-line.very-strong {
-  background: #ef4444;
+  background: #d1d5db;
   height: 3px;
 }
 
 .legend-line.strong {
-  background: #f59e0b;
+  background: #d1d5db;
   height: 2px;
 }
 
 .legend-line.medium {
-  background: #10b981;
+  background: #d1d5db;
   height: 1px;
+}
+
+.legend-line.thickness-very-strong {
+  background: #6b7280;
+  height: 4px;
+  width: 30px;
+}
+
+.legend-line.thickness-strong {
+  background: #6b7280;
+  height: 3px;
+  width: 30px;
+}
+
+.legend-line.thickness-medium {
+  background: #6b7280;
+  height: 2px;
+  width: 30px;
+}
+
+.legend-line.thickness-weak {
+  background: #6b7280;
+  height: 1px;
+  width: 30px;
+}
+
+/* Color-based legend for connection strength */
+.legend-line.color-very-strong {
+  background: #ef4444; /* Red */
+  height: 3px;
+  width: 30px;
+}
+
+.legend-line.color-strong {
+  background: #f97316; /* Orange */
+  height: 3px;
+  width: 30px;
+}
+
+.legend-line.color-medium {
+  background: #eab308; /* Yellow */
+  height: 3px;
+  width: 30px;
+}
+
+.legend-line.color-weak {
+  background: #10b981; /* Green */
+  height: 3px;
+  width: 30px;
 }
 
 .legend-node.ready-doc {
@@ -507,7 +556,15 @@
   background: #94a3b8;
 }
 
-/* External Node List Panel - NEW */
+/* Node label styling for better visibility */
+.knowledge-graph-container canvas {
+  outline: none;
+}
+
+/* Hide any default tooltips from react-force-graph */
+.knowledge-graph-container .scene-tooltip {
+  display: none !important;
+}
 .knowledge-graph-node-list {
   position: absolute;
   left: 20px;

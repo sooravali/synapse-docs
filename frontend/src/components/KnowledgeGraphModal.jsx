@@ -93,12 +93,12 @@ const KnowledgeGraphModal = ({
       const nodeCount = rawData.nodes.length;
       const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // Golden angle in radians
       const angle = index * goldenAngle;
-      const baseRadius = Math.max(400, nodeCount * 60); // Much larger base radius
+      const baseRadius = Math.max(600, nodeCount * 100); // Even larger base radius for better spacing
       const radius = Math.sqrt(index + 1) * (baseRadius / Math.sqrt(nodeCount));
       
       // Calculate position with golden spiral distribution for optimal spacing
-      const initialX = isCurrentDoc ? 0 : Math.cos(angle) * radius + (Math.random() - 0.5) * 200;
-      const initialY = isCurrentDoc ? 0 : Math.sin(angle) * radius + (Math.random() - 0.5) * 200;
+      const initialX = isCurrentDoc ? 0 : Math.cos(angle) * radius + (Math.random() - 0.5) * 400;
+      const initialY = isCurrentDoc ? 0 : Math.sin(angle) * radius + (Math.random() - 0.5) * 400;
       
       return {
         ...node,
@@ -126,7 +126,7 @@ const KnowledgeGraphModal = ({
       width: getLinkWidth(link.weight),
       opacity: getLinkOpacity(link.weight),
       // IMPORTANT: Much longer link distances to spread nodes apart
-      distance: Math.max(200, 300 - (link.weight * 100)), // Much longer distances
+      distance: Math.max(400, 500 - (link.weight * 100)), // Even longer distances for better spacing
     }));
 
     return { nodes, links };
@@ -166,14 +166,16 @@ const KnowledgeGraphModal = ({
   };
 
   const getLinkColor = (weight) => {
+    // Use colors for different connection strengths (as requested)
     if (weight >= 0.7) return '#ef4444'; // Red for very strong connections
-    if (weight >= 0.5) return '#f59e0b'; // Amber for strong connections
-    if (weight >= 0.3) return '#10b981'; // Green for medium connections
-    return '#6b7280'; // Gray for weak connections
+    if (weight >= 0.5) return '#f97316'; // Orange for strong connections  
+    if (weight >= 0.3) return '#eab308'; // Yellow for medium connections
+    return '#10b981'; // Green for weak connections
   };
 
   const getLinkWidth = (weight) => {
-    return Math.max(weight * 4, 1); // Scale link width by strength
+    // Keep consistent thin line width for all connections
+    return 2; // Consistent thin width for all links
   };
 
   const getLinkOpacity = (weight) => {
@@ -292,8 +294,54 @@ const KnowledgeGraphModal = ({
     
     ctx.shadowColor = 'transparent'; // Reset shadow
     
-    // REMOVE LABELS FROM HERE - they will be rendered separately
-    // No more label rendering inside nodes to prevent clustering
+    // Draw label below the node (like in reference image)
+    if (globalScale > 0.4 && node.displayName) {
+      const labelY = node.y + finalRadius + 20 / globalScale;
+      const labelFontSize = Math.max(10 / globalScale, 8);
+      
+      ctx.font = `${labelFontSize}px Arial, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      
+      // Measure text to create background
+      const textMetrics = ctx.measureText(node.displayName);
+      const textWidth = textMetrics.width;
+      const textHeight = labelFontSize;
+      const padding = 4 / globalScale;
+      
+      // Draw semi-transparent background so lines can pass through (overlay effect)
+      // Use a very light background that allows lines to show through
+      ctx.fillStyle = 'rgba(248, 250, 252, 0.8)'; // Very light gray-white background
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.02)'; // Almost invisible border
+      ctx.lineWidth = 0.2 / globalScale;
+      
+      // Create rounded rectangle for overlay effect
+      const rectX = node.x - textWidth / 2 - padding;
+      const rectY = labelY - padding;
+      const rectWidth = textWidth + padding * 2;
+      const rectHeight = textHeight + padding * 2;
+      const cornerRadius = 3 / globalScale;
+      
+      // Draw rounded rectangle background (semi-transparent overlay)
+      ctx.beginPath();
+      ctx.moveTo(rectX + cornerRadius, rectY);
+      ctx.lineTo(rectX + rectWidth - cornerRadius, rectY);
+      ctx.quadraticCurveTo(rectX + rectWidth, rectY, rectX + rectWidth, rectY + cornerRadius);
+      ctx.lineTo(rectX + rectWidth, rectY + rectHeight - cornerRadius);
+      ctx.quadraticCurveTo(rectX + rectWidth, rectY + rectHeight, rectX + rectWidth - cornerRadius, rectY + rectHeight);
+      ctx.lineTo(rectX + cornerRadius, rectY + rectHeight);
+      ctx.quadraticCurveTo(rectX, rectY + rectHeight, rectX, rectY + rectHeight - cornerRadius);
+      ctx.lineTo(rectX, rectY + cornerRadius);
+      ctx.quadraticCurveTo(rectX, rectY, rectX + cornerRadius, rectY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      
+      // Draw text with better contrast for readability
+      ctx.fillStyle = node.isCurrentDocument ? '#1e40af' : '#1f2937'; // Slightly darker for better readability
+      ctx.font = `600 ${labelFontSize}px Arial, sans-serif`; // Make text slightly bolder
+      ctx.fillText(node.displayName, node.x, labelY);
+    }
     
     ctx.restore();
   }, [highlightNodes, hoveredNode]);
@@ -315,45 +363,16 @@ const KnowledgeGraphModal = ({
     
     ctx.save();
     
-    // Enhanced link appearance
-    ctx.globalAlpha = isHighlighted ? 0.9 : (link.opacity || 0.6);
-    ctx.strokeStyle = isHighlighted ? '#3b82f6' : (link.color || '#6b7280');
+    // Use the correct colors based on connection strength from the legend
+    ctx.globalAlpha = isHighlighted ? 0.9 : (link.opacity || 0.7);
+    ctx.strokeStyle = isHighlighted ? '#3b82f6' : (link.color || '#d1d5db'); // Use link.color for proper coloring
     ctx.lineWidth = isHighlighted ? (link.width || 2) * 1.5 : (link.width || 2);
     
-    // Draw the link with optional curvature
-    if (link.curvature && Math.abs(link.curvature) > 0.01) {
-      // Curved link for visual variety
-      const midX = (source.x + target.x) / 2;
-      const midY = (source.y + target.y) / 2;
-      const dx = target.x - source.x;
-      const dy = target.y - source.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      
-      if (isFinite(distance) && distance > 0) {
-        const curvature = link.curvature * distance;
-        const controlX = midX - dy * curvature / distance;
-        const controlY = midY + dx * curvature / distance;
-        
-        if (isFinite(controlX) && isFinite(controlY)) {
-          ctx.beginPath();
-          ctx.moveTo(source.x, source.y);
-          ctx.quadraticCurveTo(controlX, controlY, target.x, target.y);
-          ctx.stroke();
-        } else {
-          // Fallback to straight line if curve calculation fails
-          ctx.beginPath();
-          ctx.moveTo(source.x, source.y);
-          ctx.lineTo(target.x, target.y);
-          ctx.stroke();
-        }
-      }
-    } else {
-      // Straight link
-      ctx.beginPath();
-      ctx.moveTo(source.x, source.y);
-      ctx.lineTo(target.x, target.y);
-      ctx.stroke();
-    }
+    // Draw straight links only for cleaner appearance
+    ctx.beginPath();
+    ctx.moveTo(source.x, source.y);
+    ctx.lineTo(target.x, target.y);
+    ctx.stroke();
     
     ctx.restore();
   }, [highlightLinks]);
@@ -595,29 +614,25 @@ const KnowledgeGraphModal = ({
                 // Charge force (repulsion between nodes) - MUCH STRONGER repulsion
                 d3Force={{
                   charge: {
-                    strength: -800, // Much stronger repulsion to spread nodes apart
-                    distanceMin: 80,
-                    distanceMax: 800
+                    strength: -1200, // Even stronger repulsion to spread nodes further apart
+                    distanceMin: 100,
+                    distanceMax: 1000
                   },
                   link: {
-                    distance: (link) => link.distance || 200, // Longer link distances
-                    strength: 0.2 // Even weaker link force so repulsion dominates
+                    distance: (link) => link.distance || 300, // Longer link distances
+                    strength: 0.15 // Even weaker link force so repulsion dominates
                   },
                   center: {
-                    strength: 0.05 // Very weak centering force
+                    strength: 0.03 // Very weak centering force
                   },
                   collision: {
-                    radius: (node) => Math.sqrt(node.val) * 3 + 30, // Larger collision radius
+                    radius: (node) => Math.sqrt(node.val) * 4 + 40, // Larger collision radius
                     strength: 1.0 // Strong collision prevention
                   }
                 }}
                 onEngineStop={() => {
-                  // Auto-fit after simulation settles with generous padding
-                  setTimeout(() => {
-                    if (forceGraphRef.current) {
-                      forceGraphRef.current.zoomToFit(2000, 100);
-                    }
-                  }, 1000);
+                  // Remove auto-zoom to prevent automatic zooming when panning nodes
+                  // User can manually use zoom controls if needed
                 }}
               />
               
@@ -670,18 +685,22 @@ const KnowledgeGraphModal = ({
                   <span>Dinner Sides</span>
                 </div>
                 
-                <h4 style={{ marginTop: '16px' }}>Connections</h4>
+                <h4 style={{ marginTop: '16px' }}>Connection Strength</h4>
                 <div className="legend-item">
-                  <div className="legend-line very-strong"></div>
+                  <div className="legend-line color-very-strong"></div>
                   <span>Very Strong (0.7+)</span>
                 </div>
                 <div className="legend-item">
-                  <div className="legend-line strong"></div>
+                  <div className="legend-line color-strong"></div>
                   <span>Strong (0.5+)</span>
                 </div>
                 <div className="legend-item">
-                  <div className="legend-line medium"></div>
+                  <div className="legend-line color-medium"></div>
                   <span>Medium (0.3+)</span>
+                </div>
+                <div className="legend-item">
+                  <div className="legend-line color-weak"></div>
+                  <span>Weak (&lt;0.3)</span>
                 </div>
               </div>
 
