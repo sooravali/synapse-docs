@@ -238,6 +238,25 @@ export const searchAPI = {
   }
 };
 
+// API functions for knowledge graph
+export const graphAPI = {
+  // Get document connectivity graph
+  getConnectivity: async (options = {}) => {
+    const params = new URLSearchParams();
+    
+    if (options.similarityThreshold) {
+      params.append('similarity_threshold', options.similarityThreshold);
+    }
+    if (options.maxConnectionsPerDoc) {
+      params.append('max_connections_per_doc', options.maxConnectionsPerDoc);
+    }
+    
+    const url = `/api/v1/graph/connectivity${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await api.get(url);
+    return response.data;
+  }
+};
+
 // Export session utilities for debugging and testing
 export const sessionUtils = {
   clearUserSession,
