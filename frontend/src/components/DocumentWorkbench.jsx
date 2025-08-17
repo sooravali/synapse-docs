@@ -501,24 +501,84 @@ const DocumentWorkbench = forwardRef(({
         }
       }
       
-      // Method 3: Intelligent content generation based on document context
+      // Method 3: Enhanced fallback content detection using document structure
       if (!centralText) {
-        const documentTitle = document.title || document.file_name || 'document';
-        const pageContext = `reading ${documentTitle}`;
+        console.log(' Primary content detection failed - trying enhanced fallback approaches...');
         
-        // Generate realistic paragraph content that would trigger meaningful connections
-        const contextualParagraphs = [
-          `The analysis of ${documentTitle} reveals key insights into modern business practices and strategic implementation. This approach demonstrates how organizations can leverage technology to improve operational efficiency while maintaining focus on core objectives and stakeholder value.`,
+        try {
+          // First, try to get content from our backend document data
+          if (document && document.id) {
+            // Request the first chunk of document content from our backend
+            console.log(' Requesting document content from backend for context...');
+            try {
+              const response = await fetch(`/api/v1/documents/${document.id}/chunks?limit=1`);
+              if (response.ok) {
+                const data = await response.json();
+                if (data.chunks && data.chunks.length > 0) {
+                  const firstChunk = data.chunks[0];
+                  if (firstChunk.text_chunk && firstChunk.text_chunk.length > 50) {
+                    centralText = firstChunk.text_chunk.substring(0, 300);
+                    console.log(' Using backend document content as context:', centralText.substring(0, 50) + '...');
+                  }
+                }
+              }
+            } catch (apiError) {
+              console.warn(' Failed to fetch document content from backend:', apiError);
+            }
+          }
           
-          `In examining ${documentTitle}, we observe significant trends in industry standards and best practices. The document outlines methodologies for effective decision-making processes and highlights the importance of data-driven approaches in contemporary business environments.`,
+          // Fallback: Try to get any text content from the viewer container
+          if (!centralText) {
+            const viewerElement = viewerRef.current;
+            if (viewerElement) {
+              // Look for any text content in the PDF viewer
+              const allTextElements = viewerElement.querySelectorAll('*');
+              let textContent = '';
+              
+              for (let element of allTextElements) {
+                const text = element.textContent?.trim();
+                if (text && text.length > 30 && 
+                    !text.includes('adobe.com') && 
+                    !text.includes('loading') && 
+                    !text.includes('DevTools') &&
+                    !text.includes('chunk-')) {
+                  textContent = text.substring(0, 300);
+                  break;
+                }
+              }
+              
+              if (textContent) {
+                centralText = textContent;
+                console.log(' Found content via enhanced text extraction:', centralText.substring(0, 50) + '...');
+              }
+            }
+          }
           
-          `The research presented in ${documentTitle} explores fundamental principles of organizational development and change management. Key findings suggest that successful implementation requires careful consideration of both technical requirements and human factors in the workplace.`,
+          // If still no content, create meaningful context from document metadata
+          if (!centralText && document) {
+            // Create context from document metadata that's meaningful for search
+            const docTitle = document.file_name?.replace(/\.pdf$/i, '').replace(/^doc_\d+_/, '') || 'Unknown Document';
+            const sections = document.section_count ? `${document.section_count} sections` : 'multiple sections';
+            const pages = document.page_count ? `${document.page_count} pages` : 'several pages';
+            
+            centralText = `This document "${docTitle}" contains ${sections} across ${pages}. `;
+            if (document.file_size_mb) {
+              centralText += `File size: ${document.file_size_mb}MB. `;
+            }
+            centralText += `Analyzing content to find relevant information and connections.`;
+            
+            console.log(' Using enhanced document metadata as context for search functionality:', centralText);
+          }
+        } catch (error) {
+          console.warn(' Enhanced fallback content detection failed:', error);
           
-          `This comprehensive study within ${documentTitle} addresses critical challenges facing modern enterprises. The analysis provides frameworks for understanding complex business dynamics and offers practical solutions for improving performance metrics and operational outcomes.`
-        ];
-        
-        centralText = contextualParagraphs[Math.floor(Math.random() * contextualParagraphs.length)];
-        console.log(' Generated contextual central paragraph:', centralText.substring(0, 50) + '...');
+          // Absolute fallback to enable search functionality with meaningful context
+          if (document) {
+            const docTitle = document.file_name?.replace(/\.pdf$/i, '').replace(/^doc_\d+_/, '') || 'Document';
+            centralText = `Analyzing document "${docTitle}" for relevant content and connections. This document contains information that may be related to other documents in the library.`;
+            console.log(' Using absolute fallback context with enhanced metadata for search functionality');
+          }
+        }
       }
       
       // OPTIMIZATION: Only proceed if we found substantial content and it's different from current context
@@ -940,35 +1000,8 @@ const DocumentWorkbench = forwardRef(({
       
       case 'PDF_VIEWER_CLICK':
       case 'PREVIEW_CLICK':
-        console.log(' PDF clicked - enabling test mode');
-        // Since Adobe doesn't provide text selection reliably, use clicks to trigger workflows
-        if (event.data) {
-          console.log(' PDF click detected, triggering sample connections with realistic content');
-          // Use content that would realistically be found in these PDFs
-          const sampleContexts = [
-            "Adobe Acrobat document management and PDF editing features",
-            "Generative AI integration in Adobe Acrobat for document processing",
-            "PDF collaboration tools and real-time editing capabilities",
-            "Document accessibility features and compliance standards",
-            "Advanced PDF security and digital signature workflows"
-          ];
-          const randomContext = sampleContexts[Math.floor(Math.random() * sampleContexts.length)];
-          console.log(` Using sample context: "${randomContext}"`);
-          
-          if (onContextChange) {
-            onContextChange(randomContext);
-            
-            // Show action halo to indicate the feature is working
-            setShowActionHalo(true);
-            setActionHaloPosition({ top: 200, left: 300 });
-            setSelectedText(randomContext);
-            
-            // Auto-hide action halo after 8 seconds
-            setTimeout(() => {
-              setShowActionHalo(false);
-            }, 8000);
-          }
-        }
+        console.log(' PDF clicked - click events not used for content extraction');
+        // Do not generate fake content on clicks - let real text selection handle content
         break;
         
       default:
@@ -994,22 +1027,9 @@ const DocumentWorkbench = forwardRef(({
   };
 
   const useFallbackTextSelection = () => {
-    console.log(' Using fallback text selection strategy');
-    
-    // Strategy 1: Generate meaningful sample text based on document context
-    const contextualSamples = [
-      "Adobe Acrobat AI-powered document analysis and intelligent content recognition",
-      "PDF collaboration features enabling real-time editing and review workflows", 
-      "Advanced document security with digital signatures and encryption capabilities",
-      "Automated form recognition and data extraction from structured documents",
-      "Cloud-based document management with seamless cross-platform synchronization"
-    ];
-    
-    const sampleText = contextualSamples[Math.floor(Math.random() * contextualSamples.length)];
-    console.log(' Using contextual sample for demonstration:', sampleText);
-    
-    // Trigger the workflow with sample text
-    handleTextSelectionEvent({ selection: sampleText });
+    console.log(' Text selection failed - no fallback content generated');
+    console.log(' Real text selection is required for meaningful content analysis');
+    // Do not generate fake content - require actual text selection from PDF
   };
 
   const setupFallbackScrollDetection = () => {
