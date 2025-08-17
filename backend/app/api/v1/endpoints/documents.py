@@ -437,16 +437,49 @@ async def upload_document(
         
         # Create uploads directory if it doesn't exist (use environment-configurable path)
         uploads_dir = os.environ.get("UPLOADS_DIR", "uploads")
-        os.makedirs(uploads_dir, exist_ok=True)
+        
+        # Ensure uploads directory exists in various possible locations
+        possible_upload_dirs = [
+            uploads_dir,
+            os.path.join("/app", uploads_dir), 
+            os.path.join(".", uploads_dir),
+            "uploads",
+            "/app/uploads"
+        ]
+        
+        upload_dir_path = None
+        for dir_path in possible_upload_dirs:
+            try:
+                os.makedirs(dir_path, exist_ok=True)
+                # Test write access
+                test_file = os.path.join(dir_path, ".test_write")
+                with open(test_file, 'w') as f:
+                    f.write("test")
+                os.remove(test_file)
+                upload_dir_path = dir_path
+                logger.info(f"Using uploads directory: {upload_dir_path}")
+                break
+            except Exception as e:
+                logger.debug(f"Cannot use directory {dir_path}: {e}")
+                continue
+        
+        if not upload_dir_path:
+            logger.error("No writable uploads directory found")
+            raise HTTPException(status_code=500, detail="Unable to create uploads directory")
         
         # Use document ID in filename to avoid conflicts
         file_extension = os.path.splitext(file.filename)[1]
         safe_filename = f"doc_{document.id}_{file.filename}"
-        file_path = os.path.join(uploads_dir, safe_filename)
+        file_path = os.path.join(upload_dir_path, safe_filename)
         
         # Save the PDF file to disk for viewing
-        with open(file_path, "wb") as f:
-            f.write(file_content)
+        try:
+            with open(file_path, "wb") as f:
+                f.write(file_content)
+            logger.info(f"Successfully saved PDF file: {file_path}")
+        except Exception as save_error:
+            logger.error(f"Failed to save PDF file: {save_error}")
+            raise HTTPException(status_code=500, detail=f"Failed to save PDF file: {save_error}")
         
         # Update document record with the actual stored filename
         document.file_name = safe_filename
@@ -928,6 +961,49 @@ async def reprocess_document(
         raise HTTPException(status_code=500, detail="Failed to reprocess document")
 
 
+@router.get("/debug/filesystem")
+async def debug_filesystem():
+    """
+    Debug endpoint to check filesystem structure and permissions.
+    Useful for diagnosing file access issues in different deployment environments.
+    """
+    try:
+        debug_info = {
+            "current_working_directory": os.getcwd(),
+            "environment_uploads_dir": os.environ.get("UPLOADS_DIR", "uploads"),
+            "directories": {},
+            "files": {}
+        }
+        
+        # Check various possible directories
+        dirs_to_check = [
+            ".",
+            "uploads", 
+            "/app",
+            "/app/uploads",
+            "data",
+            "data/uploads"
+        ]
+        
+        for dir_path in dirs_to_check:
+            try:
+                if os.path.exists(dir_path):
+                    debug_info["directories"][dir_path] = {
+                        "exists": True,
+                        "is_dir": os.path.isdir(dir_path),
+                        "writable": os.access(dir_path, os.W_OK),
+                        "contents": os.listdir(dir_path) if os.path.isdir(dir_path) else None
+                    }
+                else:
+                    debug_info["directories"][dir_path] = {"exists": False}
+            except Exception as e:
+                debug_info["directories"][dir_path] = {"error": str(e)}
+        
+        return debug_info
+    except Exception as e:
+        return {"error": f"Debug filesystem check failed: {e}"}
+
+
 @router.get("/view/{document_id}")
 @router.head("/view/{document_id}")
 async def view_document(
@@ -937,22 +1013,51 @@ async def view_document(
     """Serve PDF file for viewing in Adobe PDF Embed API."""
     document = get_document(session, document_id)
     if not document:
+        logger.error(f"Document {document_id} not found in database")
         raise HTTPException(status_code=404, detail="Document not found")
     
-    # Use configurable uploads directory
+    # Use configurable uploads directory with multiple fallback paths
     uploads_dir = os.environ.get("UPLOADS_DIR", "uploads")
     
-    # Check if file exists in uploads directory - use proper paths for different environments
-    file_path = os.path.join(uploads_dir, document.file_name)
+    # Try multiple possible file paths in order of preference
+    possible_paths = [
+        # 1. Relative path from current working directory
+        os.path.join(uploads_dir, document.file_name),
+        
+        # 2. Absolute path in Docker container
+        os.path.join("/app", uploads_dir, document.file_name),
+        
+        # 3. Relative to app directory  
+        os.path.join(".", uploads_dir, document.file_name),
+        
+        # 4. In current directory
+        os.path.join(".", document.file_name),
+        
+        # 5. Data directory fallback
+        os.path.join("data", "uploads", document.file_name),
+        os.path.join("/app/data/uploads", document.file_name)
+    ]
     
-    # For Docker environments, also try absolute path
-    if not os.path.exists(file_path):
-        docker_uploads_path = os.path.join("/app", uploads_dir)
-        docker_file_path = os.path.join(docker_uploads_path, document.file_name)
-        if os.path.exists(docker_file_path):
-            file_path = docker_file_path
-        else:
-            raise HTTPException(status_code=404, detail="PDF file not found on disk")
+    file_path = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            file_path = path
+            logger.info(f"Found PDF file at: {file_path}")
+            break
+    
+    if not file_path:
+        # Log all attempted paths for debugging
+        logger.error(f"PDF file not found for document {document_id} (filename: {document.file_name})")
+        logger.error(f"Attempted paths: {possible_paths}")
+        logger.error(f"Current working directory: {os.getcwd()}")
+        logger.error(f"Directory listing of current dir: {os.listdir('.')}")
+        
+        # Try to list uploads directory if it exists
+        for possible_upload_dir in [uploads_dir, os.path.join("/app", uploads_dir)]:
+            if os.path.exists(possible_upload_dir):
+                logger.error(f"Contents of {possible_upload_dir}: {os.listdir(possible_upload_dir)}")
+        
+        raise HTTPException(status_code=404, detail=f"PDF file not found on disk: {document.file_name}")
     
     # Return the PDF file with proper content type and cleaned filename
     # Extract original filename by removing the "doc_X_" prefix for display
