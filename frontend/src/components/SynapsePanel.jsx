@@ -316,8 +316,8 @@ const SynapsePanel = forwardRef(({
   useEffect(() => {
     console.log(` SynapsePanel: STAGE 1 - Context changed to: "${currentContext?.substring(0, 50)}..."`);
     
-    if (!currentContext || currentContext.length <= 10) {
-      console.log(` SynapsePanel: Context too short or empty, not searching`);
+    if (!currentContext || currentContext.length <= 20) {
+      console.log(` SynapsePanel: Context too short or empty (${currentContext?.length || 0} chars), not searching`);
       // Clear insights when context becomes empty
       if (insights) {
         console.log(` SynapsePanel: Clearing insights due to empty context`);
