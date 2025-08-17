@@ -169,10 +169,10 @@ class LLMService:
                 payload = {
                     "contents": [{"parts": [{"text": content}]}],
                     "generationConfig": {
-                        "temperature": 0.7,
-                        "topK": 40,
-                        "topP": 0.95,
-                        "maxOutputTokens": 1024
+                        "temperature": 1.0,  # Gemini 2.5 Flash default
+                        "topK": 64,         # Gemini 2.5 Flash fixed value
+                        "topP": 0.95,       # Gemini 2.5 Flash default
+                        "maxOutputTokens": 4096  # Increased for better responses
                     }
                 }
                 

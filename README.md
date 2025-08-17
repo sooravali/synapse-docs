@@ -42,7 +42,7 @@ docker run \
 docker run \
   -e LLM_PROVIDER=gemini \
   -e GOOGLE_API_KEY=<YOUR_GOOGLE_API_KEY> \
-  -e GEMINI_MODEL=gemini-2.0-flash \
+  -e GEMINI_MODEL=gemini-2.5-flash \
   -e TTS_PROVIDER=azure \
   -e AZURE_TTS_KEY=<YOUR_AZURE_TTS_KEY> \
   -e AZURE_TTS_ENDPOINT=<YOUR_AZURE_TTS_ENDPOINT> \

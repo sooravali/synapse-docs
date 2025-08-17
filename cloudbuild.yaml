@@ -49,7 +49,7 @@ steps:
       
       # Set regular environment variables
       - '--set-env-vars=LLM_PROVIDER=gemini'
-      - '--set-env-vars=GEMINI_MODEL=gemini-2.0-flash'
+      - '--set-env-vars=GEMINI_MODEL=gemini-2.5-flash'
       - '--set-env-vars=TTS_PROVIDER=azure'
 
 # Tell Cloud Build which images were created to store them.

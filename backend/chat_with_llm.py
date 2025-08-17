@@ -26,7 +26,7 @@ LLM_PROVIDER (default: "gemini")
 For Gemini (Google Generative AI):
     GOOGLE_API_KEY: Your Google API key (recommended)
     GOOGLE_APPLICATION_CREDENTIALS: Path to service account JSON file (preferred for hackathon)
-    GEMINI_MODEL (default: "gemini-2.0-flash"): Model name to use, will be overridden to "gemini-2.5-flash" during evaluation
+    GEMINI_MODEL (default: "gemini-2.5-flash"): Model name - using Gemini 2.5 Flash for best price/performance with thinking capabilities
 
 For Azure OpenAI:
     AZURE_OPENAI_KEY: Your Azure OpenAI API key
@@ -60,7 +60,7 @@ def get_llm_response(messages):
     if provider == "gemini":
         api_key = os.getenv("GOOGLE_API_KEY")
         credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-        model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
         if not api_key and not credentials_path:
             raise ValueError("Either GOOGLE_API_KEY or GOOGLE_APPLICATION_CREDENTIALS must be set.")
