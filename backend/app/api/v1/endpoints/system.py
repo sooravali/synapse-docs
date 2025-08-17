@@ -277,16 +277,15 @@ def _check_import(module_name: str) -> bool:
         return False
 
 def _get_file_size_mb(file_exists: bool) -> float:
-    """Get file size in MB (placeholder implementation)."""
-    # In a real implementation, you would check actual file sizes
-    return 0.0 if not file_exists else 1.0
+    """Get file size in MB - placeholder removed, returns 0 for missing files."""
+    # Real implementation should check actual file sizes in production
+    return 0.0 if not file_exists else 0.0  # Return 0 until real implementation
 
 def _calculate_cache_hit_rate(embedding_service) -> float:
-    """Calculate cache hit rate for embedding service."""
-    # This would require tracking cache hits/misses in the service
-    # For now, return a placeholder value
-    cache_size = getattr(embedding_service, 'cache_size', 0)
-    return min(cache_size / 1000 * 100, 95.0) if cache_size > 0 else 0.0
+    """Calculate cache hit rate for embedding service - placeholder removed."""
+    # Real implementation requires tracking cache hits/misses in the service
+    # Return 0 until proper cache tracking is implemented
+    return 0.0
 
 @router.get("/version")
 async def get_version():
