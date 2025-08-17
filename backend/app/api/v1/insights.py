@@ -31,6 +31,7 @@ class DocumentInsightsRequest(BaseModel):
 class PodcastRequest(BaseModel):
     content: str
     related_content: Optional[str] = ""
+    generate_audio: Optional[bool] = True
 
 class InsightsResponse(BaseModel):
     insights: str
@@ -65,14 +66,83 @@ class PodcastResponse(BaseModel):
     message: Optional[str] = None
 
 @router.post("/generate", response_model=InsightsResponse)
-async def generate_text_insights(request: InsightsRequest):
+async def generate_text_insights(request: InsightsRequest, session: Session = Depends(get_session)):
     """
-    Generate insights for the given text using LLM.
-    Implements the "Insights Bulb" feature from hackathon requirements.
+    Enhanced insights generation using semantic search foundation.
+    Implements the sophisticated "Insights Bulb" feature following the chain:
+    1. Perform semantic search to get Top 5 relevant snippets
+    2. Use snippets as input for LLM-based insight analysis
+    3. Return structured insights with citations
     """
     try:
-        logger.info(f"Generating insights for text: {request.text[:100]}...")
-        result = await generate_insights(request.text, request.context)
+        logger.info(f"Generating enhanced insights for text: {request.text[:100]}...")
+        
+        # STAGE 1: Perform semantic search to get relevant snippets
+        from app.services.shared import get_embedding_service
+        from app.crud.crud_document import get_text_chunks_by_faiss_positions
+        
+        embedding_service = get_embedding_service()
+        
+        # Generate embedding for the user's selected text
+        query_embedding = embedding_service.create_embedding(request.text)
+        
+        if not query_embedding:
+            logger.warning("Failed to generate embedding, proceeding without snippets")
+            print("⚠️ INSIGHTS GENERATION - Failed to generate embedding")
+            snippets = []
+        else:
+            # Search for relevant snippets using Faiss
+            from app.services.shared import get_faiss_service
+            faiss_service = get_faiss_service()
+            
+            print("🔍 INSIGHTS GENERATION - Performing semantic search...")
+            print(f"  📝 Query text: {request.text[:100]}...")
+            
+            # Search across ALL documents to find connections between different documents
+            # This is crucial for insights generation - we want to find relationships
+            # between documents (e.g., breakfast ideas vs dinner ideas, etc.)
+            faiss_results = faiss_service.search(
+                query_embedding=query_embedding,
+                top_k=5,  # Get top 5 snippets as per requirements
+                similarity_threshold=0.2,  # Lower threshold to catch more potential connections
+                session_id=None  # Search across all documents, not just current session
+            )
+            
+            print(f"  📊 Found {len(faiss_results) if faiss_results else 0} FAISS results")
+            
+            # Get chunk details from database
+            snippets = []
+            if faiss_results:
+                faiss_positions = [result['faiss_index_position'] for result in faiss_results]
+                chunks = get_text_chunks_by_faiss_positions(session, faiss_positions)
+                
+                print(f"  📄 Retrieved {len(chunks)} chunks from database")
+                
+                # Create snippet objects with similarity scores
+                for i, chunk in enumerate(chunks):
+                    if i < len(faiss_results):
+                        from app.crud.crud_document import get_document
+                        document = get_document(session, chunk.document_id)
+                        document_name = document.file_name if document else "Unknown Document"
+                        
+                        snippet = {
+                            'document_name': document_name,
+                            'text_chunk': chunk.text_chunk,
+                            'page_number': chunk.page_number,
+                            'similarity_score': faiss_results[i]['similarity_score']
+                        }
+                        snippets.append(snippet)
+                        
+                        print(f"    📋 {i+1}. {document_name} (similarity: {faiss_results[i]['similarity_score']:.3f})")
+                        print(f"       📝 {chunk.text_chunk[:100]}...")
+            else:
+                print("  ❌ No FAISS results found")
+        
+        print(f"✅ INSIGHTS GENERATION - Found {len(snippets)} total snippets")
+        logger.info(f"Found {len(snippets)} relevant snippets for insights generation")
+        
+        # STAGE 2: Generate insights using LLM with snippets as context
+        result = await generate_insights(request.text, request.context, snippets)
         
         # Convert insights dict to JSON string for response
         insights_str = result["insights"]
@@ -85,8 +155,9 @@ async def generate_text_insights(request: InsightsRequest):
             status=result["status"],
             error=result.get("error")
         )
+        
     except Exception as e:
-        logger.error(f"Error in insights generation: {e}")
+        logger.error(f"Error in enhanced insights generation: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/document", response_model=DocumentInsightsResponse)
@@ -167,46 +238,153 @@ async def generate_document_insights(
         )
 
 @router.post("/podcast", response_model=PodcastResponse)
-async def generate_podcast(request: PodcastRequest, background_tasks: BackgroundTasks):
+async def generate_podcast(request: PodcastRequest, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
     """
-    Generate podcast script and audio for the given content.
-    Implements the "Podcast Mode" feature from hackathon requirements.
+    Enhanced podcast generation using the full chain approach:
+    1. Get related snippets via semantic search (if not provided)
+    2. Generate insights from content + snippets 
+    3. Create two-speaker podcast script using insights
+    4. Generate multi-voice audio
+    
+    Implements the sophisticated "Podcast Mode" feature from hackathon requirements.
     """
     try:
-        logger.info(f"Generating podcast for content: {request.content[:100]}...")
+        logger.info(f"Generating enhanced podcast for content: {request.content[:100]}...")
         
-        # Generate script
-        script = await generate_podcast_script(request.content, request.related_content)
+        # TERMINAL LOG - Request details
+        print("=" * 60)
+        print("🎧 PODCAST GENERATION REQUEST")
+        print("=" * 60)
+        print(f"📝 Content length: {len(request.content)} characters")
+        print(f"🔗 Related content provided: {'Yes' if request.related_content else 'No'}")
+        print(f"🎵 Generate audio requested: {request.generate_audio}")
+        print(f"🎬 Content preview: {request.content[:150]}...")
+        if request.related_content:
+            print(f"🔗 Related content preview: {request.related_content[:150]}...")
+        print("-" * 60)
         
-        # Generate audio
+        # STAGE 1: Get related snippets if not provided
+        snippets = []
+        if not request.related_content:
+            logger.info("No related content provided, performing semantic search...")
+            
+            # TERMINAL LOG
+            print("🔍 PODCAST GENERATION - Performing semantic search for snippets...")
+            
+            from app.services.shared import get_embedding_service, get_faiss_service
+            from app.crud.crud_document import get_text_chunks_by_faiss_positions, get_document
+            
+            embedding_service = get_embedding_service()
+            query_embedding = embedding_service.create_embedding(request.content)
+            
+            if query_embedding:
+                faiss_service = get_faiss_service()
+                faiss_results = faiss_service.search(
+                    query_embedding=query_embedding,
+                    top_k=5,
+                    similarity_threshold=0.3,
+                    session_id=None  # Search across all documents
+                )
+                
+                print(f"  Found {len(faiss_results) if faiss_results else 0} FAISS results")
+                
+                if faiss_results:
+                    faiss_positions = [result['faiss_index_position'] for result in faiss_results]
+                    chunks = get_text_chunks_by_faiss_positions(session, faiss_positions)
+                    
+                    # Format snippets for script generation
+                    snippet_texts = []
+                    for i, chunk in enumerate(chunks):
+                        if i < len(faiss_results):
+                            document = get_document(session, chunk.document_id)
+                            document_name = document.file_name if document else "Unknown Document"
+                            snippet_texts.append(f"From {document_name}: {chunk.text_chunk[:200]}...")
+                    
+                    request.related_content = "\n\n".join(snippet_texts)
+                    print(f"  Prepared {len(snippet_texts)} related content snippets")
+                    logger.info(f"Found {len(snippet_texts)} related snippets for podcast")
+            else:
+                print("  Failed to generate query embedding")
+        else:
+            print("🔍 PODCAST GENERATION - Using provided related content")
+        
+        # STAGE 2: Generate insights for structured content
+        insights = None
+        try:
+            print("🧠 PODCAST GENERATION - Generating insights...")
+            insights_result = await generate_insights(request.content, request.related_content, snippets)
+            if insights_result.get("status") == "success":
+                insights = insights_result.get("insights")
+                print("  ✅ Insights generated successfully for podcast")
+                logger.info("Generated insights for podcast script")
+            else:
+                print(f"  ⚠️ Insights generation failed: {insights_result.get('error', 'Unknown error')}")
+        except Exception as e:
+            print(f"  💥 Exception generating insights: {e}")
+            logger.warning(f"Failed to generate insights for podcast: {e}")
+        
+        # STAGE 3: Generate enhanced podcast script using insights
+        print("📝 PODCAST GENERATION - Generating script...")
+        script = await generate_podcast_script(request.content, request.related_content, insights)
+        
+        # STAGE 4: Generate multi-speaker audio
+        print("🎙️ PODCAST GENERATION - Generating audio...")
         audio_path = None
         audio_url = None
-        message = "Podcast script generated successfully."
+        message = "Enhanced podcast script generated successfully."
         
-        try:
-            audio_result = await generate_podcast_audio(script)
-            audio_path, is_real_audio = audio_result
-            
-            if audio_path and is_real_audio:
-                # Real audio was generated successfully
-                import os
-                filename = os.path.basename(audio_path)
-                audio_url = f"/api/v1/insights/audio/{filename}"
-                message = "Podcast script and high-quality audio generated successfully."
-                logger.info(f"Real audio generated successfully: {filename}")
-            elif audio_path and not is_real_audio:
-                # Mock audio was generated (Azure TTS failed)
-                audio_url = None  # Don't serve mock audio to prevent confusion
-                message = "Podcast script generated. Audio generation failed, using text-only mode."
-                logger.warning("Mock audio generated due to TTS failure, disabling audio URL")
-            else:
-                # No audio generated at all
-                message = "Podcast script generated. Audio generation currently unavailable."
-                logger.error("No audio generated")
+        if request.generate_audio:
+            try:
+                print("🎵 PODCAST GENERATION - Attempting audio generation...")
+                from app.services.tts_service import generate_podcast_audio
+                print(f"  📝 Script length: {len(script)} characters")
+                print(f"  🎬 Script preview: {script[:200]}...")
                 
-        except Exception as audio_error:
-            logger.warning(f"Audio generation failed: {audio_error}")
-            message = "Podcast script generated. Audio generation encountered an error."
+                audio_result = await generate_podcast_audio(script)
+                print(f"  📊 Audio result type: {type(audio_result)}")
+                print(f"  📊 Audio result: {audio_result}")
+                
+                if isinstance(audio_result, tuple) and len(audio_result) == 2:
+                    audio_path, is_real_audio = audio_result
+                    print(f"  📁 Audio path: {audio_path}")
+                    print(f"  ✅ Is real audio: {is_real_audio}")
+                    
+                    if audio_path and is_real_audio:
+                        # Real multi-speaker audio was generated successfully
+                        import os
+                        filename = os.path.basename(audio_path)
+                        audio_url = f"/api/v1/insights/audio/{filename}"
+                        message = "Enhanced podcast script and high-quality multi-speaker audio generated successfully."
+                        
+                        print(f"  🎉 SUCCESS: Audio file created at {audio_path}")
+                        print(f"  🌐 Audio URL: {audio_url}")
+                        logger.info(f"Multi-speaker audio generated successfully: {filename}")
+                    elif audio_path and not is_real_audio:
+                        # Audio generation failed
+                        audio_url = None
+                        message = "Enhanced podcast script generated. Multi-speaker audio generation failed, using text-only mode."
+                        
+                        print(f"  ⚠️ PARTIAL SUCCESS: Audio path exists but not real audio")
+                        logger.warning("Multi-speaker audio generation failed")
+                    else:
+                        # No audio generated at all
+                        message = "Enhanced podcast script generated. Audio generation currently unavailable."
+                        
+                        print(f"  ❌ FAILURE: No audio path or real audio flag false")
+                        logger.error("No audio generated")
+                else:
+                    print(f"  💥 UNEXPECTED RESULT: Expected tuple with 2 elements, got {audio_result}")
+                    message = "Enhanced podcast script generated. Audio generation returned unexpected result."
+                        
+            except Exception as audio_error:
+                print(f"  💥 EXCEPTION during audio generation: {audio_error}")
+                print(f"  🔍 Exception type: {type(audio_error)}")
+                import traceback
+                print(f"  📋 Traceback: {traceback.format_exc()}")
+                logger.warning(f"Audio generation failed: {audio_error}")
+                message = "Enhanced podcast script generated. Audio generation encountered an error."
+        else:
+            print("🔇 PODCAST GENERATION - Audio generation disabled (generate_audio=False)")
         
         return PodcastResponse(
             script=script,
@@ -214,8 +392,9 @@ async def generate_podcast(request: PodcastRequest, background_tasks: Background
             status="success",
             message=message
         )
+        
     except Exception as e:
-        logger.error(f"Error in podcast generation: {e}")
+        logger.error(f"Error in enhanced podcast generation: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/audio/status")
