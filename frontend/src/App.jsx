@@ -28,6 +28,7 @@ import DocumentLibrary from './components/DocumentLibrary';
 import DocumentWorkbench from './components/DocumentWorkbench';
 import SynapsePanel from './components/SynapsePanel';
 import QuickStartGuide from './components/QuickStartGuide';
+import KnowledgeGraphModal from './components/KnowledgeGraphModal';
 import { documentAPI, searchAPI, insightsAPI } from './api';
 import './App.css';
 
@@ -51,6 +52,9 @@ function App() {
   const [showQuickStart, setShowQuickStart] = useState(false);
   const [hasInsights, setHasInsights] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  
+  // Knowledge Graph Modal state
+  const [showKnowledgeGraph, setShowKnowledgeGraph] = useState(false);
   
   // Component References
   const synapsePanelRef = useRef(null);
@@ -367,6 +371,14 @@ function App() {
     setIsSidebarCollapsed(!isSidebarCollapsed);
   };
 
+  const handleOpenKnowledgeGraph = () => {
+    setShowKnowledgeGraph(true);
+  };
+
+  const handleCloseKnowledgeGraph = () => {
+    setShowKnowledgeGraph(false);
+  };
+
   return (
     <div className="app">
       {showQuickStart && (
@@ -378,11 +390,7 @@ function App() {
         {isSidebarCollapsed && documents.length >= 2 && (
           <div className="external-synapse-view">
             <button
-              onClick={() => {
-                // You'll need to access the knowledge graph handler from DocumentLibrary
-                // For now, let's expand the sidebar to access it
-                setIsSidebarCollapsed(false);
-              }}
+              onClick={handleOpenKnowledgeGraph}
               className="external-synapse-button"
               title="Open Synapse View - See how your documents connect"
             >
@@ -404,6 +412,7 @@ function App() {
             currentContext={currentContext}
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={toggleSidebar}
+            onOpenKnowledgeGraph={handleOpenKnowledgeGraph}
           />
         </div>
 
@@ -437,6 +446,14 @@ function App() {
           />
         </div>
       </div>
+
+      {/* Knowledge Graph Modal */}
+      <KnowledgeGraphModal
+        isVisible={showKnowledgeGraph}
+        onClose={handleCloseKnowledgeGraph}
+        onDocumentSelect={handleDocumentSelect}
+        currentDocumentId={selectedDocument?.id}
+      />
     </div>
   );
 }
