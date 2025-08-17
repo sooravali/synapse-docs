@@ -753,29 +753,56 @@ const SynapsePanel = forwardRef(({
         
         // Simple fallback: just show the raw text for now to identify the issue
         parsedInsights = {
-          key_insights: [`Parsing failed. Raw content: ${result.insights}`],
-          did_you_know: [],
           contradictions: [],
-          connections: []
+          supporting_examples: [{insight: `Parsing failed. Raw content: ${result.insights}`, source: "System", explanation: "JSON parsing error"}],
+          related_concepts: [],
+          key_takeaways: []
         };
       }
       
-      // Clean filename references in all insight text content
+      // Helper function to clean insights that may be in object or string format
+      const cleanInsightContent = (item) => {
+        if (typeof item === 'string') {
+          return cleanInsightText(item);
+        } else if (typeof item === 'object' && item.insight) {
+          return {
+            ...item,
+            insight: cleanInsightText(item.insight),
+            source: item.source ? cleanInsightText(item.source) : item.source,
+            explanation: item.explanation ? cleanInsightText(item.explanation) : item.explanation
+          };
+        }
+        return item;
+      };
+
+      // Clean filename references in all insight sections
       const cleanInsightArray = (insights) => {
         if (!Array.isArray(insights)) return insights;
-        return insights.map(insight => cleanInsightText(insight));
+        return insights.map(cleanInsightContent);
       };
 
       // Apply cleaning to all insight sections
       if (parsedInsights) {
+        // Handle both new structure and legacy structure
+        if (parsedInsights.contradictions) {
+          parsedInsights.contradictions = cleanInsightArray(parsedInsights.contradictions);
+        }
+        if (parsedInsights.supporting_examples) {
+          parsedInsights.supporting_examples = cleanInsightArray(parsedInsights.supporting_examples);
+        }
+        if (parsedInsights.related_concepts) {
+          parsedInsights.related_concepts = cleanInsightArray(parsedInsights.related_concepts);
+        }
+        if (parsedInsights.key_takeaways) {
+          parsedInsights.key_takeaways = cleanInsightArray(parsedInsights.key_takeaways);
+        }
+        
+        // Legacy structure support
         if (parsedInsights.key_insights) {
           parsedInsights.key_insights = cleanInsightArray(parsedInsights.key_insights);
         }
         if (parsedInsights.did_you_know) {
           parsedInsights.did_you_know = cleanInsightArray(parsedInsights.did_you_know);
-        }
-        if (parsedInsights.contradictions) {
-          parsedInsights.contradictions = cleanInsightArray(parsedInsights.contradictions);
         }
         if (parsedInsights.connections) {
           parsedInsights.connections = cleanInsightArray(parsedInsights.connections);
@@ -1319,6 +1346,152 @@ const SynapsePanel = forwardRef(({
         </div>
         
         <div className="insights-cards">
+          {/* Enhanced Insights Structure */}
+          {parsed.supporting_examples && parsed.supporting_examples.length > 0 && (
+            <div className="insight-card compact">
+              <h4 className="insight-card-title">Supporting Examples</h4>
+              {(() => {
+                const { visible, hasMore, isExpanded } = getTruncatedInsights(parsed.supporting_examples, 'supporting_examples', 2);
+                return (
+                  <>
+                    <ul className="insight-list compact">
+                      {visible.map((item, index) => (
+                        <li key={index}>
+                          <div className="insight-content">
+                            <span className="insight-text">{typeof item === 'object' ? item.insight : item}</span>
+                            {typeof item === 'object' && item.source && (
+                              <span className="insight-source">— {cleanFileName(item.source)}</span>
+                            )}
+                          </div>
+                          {typeof item === 'object' && item.explanation && (
+                            <div className="insight-explanation">{item.explanation}</div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    {hasMore && (
+                      <button 
+                        className="expand-toggle"
+                        onClick={() => toggleInsightExpansion('supporting_examples')}
+                      >
+                        {isExpanded ? 'Show less' : `Show ${parsed.supporting_examples.length - 2} more`}
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+
+          {parsed.contradictions && parsed.contradictions.length > 0 && (
+            <div className="insight-card compact">
+              <h4 className="insight-card-title">Contradictions & Counterpoints</h4>
+              {(() => {
+                const { visible, hasMore, isExpanded } = getTruncatedInsights(parsed.contradictions, 'contradictions', 2);
+                return (
+                  <>
+                    <ul className="insight-list compact">
+                      {visible.map((item, index) => (
+                        <li key={index}>
+                          <div className="insight-content">
+                            <span className="insight-text">{typeof item === 'object' ? item.insight : item}</span>
+                            {typeof item === 'object' && item.source && (
+                              <span className="insight-source">— {cleanFileName(item.source)}</span>
+                            )}
+                          </div>
+                          {typeof item === 'object' && item.explanation && (
+                            <div className="insight-explanation">{item.explanation}</div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    {hasMore && (
+                      <button 
+                        className="expand-toggle"
+                        onClick={() => toggleInsightExpansion('contradictions')}
+                      >
+                        {isExpanded ? 'Show less' : `Show ${parsed.contradictions.length - 2} more`}
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+
+          {parsed.related_concepts && parsed.related_concepts.length > 0 && (
+            <div className="insight-card compact">
+              <h4 className="insight-card-title">Related Concepts</h4>
+              {(() => {
+                const { visible, hasMore, isExpanded } = getTruncatedInsights(parsed.related_concepts, 'related_concepts', 2);
+                return (
+                  <>
+                    <ul className="insight-list compact">
+                      {visible.map((item, index) => (
+                        <li key={index}>
+                          <div className="insight-content">
+                            <span className="insight-text">{typeof item === 'object' ? item.insight : item}</span>
+                            {typeof item === 'object' && item.source && (
+                              <span className="insight-source">— {cleanFileName(item.source)}</span>
+                            )}
+                          </div>
+                          {typeof item === 'object' && item.explanation && (
+                            <div className="insight-explanation">{item.explanation}</div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    {hasMore && (
+                      <button 
+                        className="expand-toggle"
+                        onClick={() => toggleInsightExpansion('related_concepts')}
+                      >
+                        {isExpanded ? 'Show less' : `Show ${parsed.related_concepts.length - 2} more`}
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+
+          {parsed.key_takeaways && parsed.key_takeaways.length > 0 && (
+            <div className="insight-card compact">
+              <h4 className="insight-card-title">Key Takeaways</h4>
+              {(() => {
+                const { visible, hasMore, isExpanded } = getTruncatedInsights(parsed.key_takeaways, 'key_takeaways', 2);
+                return (
+                  <>
+                    <ul className="insight-list compact">
+                      {visible.map((item, index) => (
+                        <li key={index}>
+                          <div className="insight-content">
+                            <span className="insight-text">{typeof item === 'object' ? item.insight : item}</span>
+                            {typeof item === 'object' && item.source && (
+                              <span className="insight-source">— {cleanFileName(item.source)}</span>
+                            )}
+                          </div>
+                          {typeof item === 'object' && item.explanation && (
+                            <div className="insight-explanation">{item.explanation}</div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    {hasMore && (
+                      <button 
+                        className="expand-toggle"
+                        onClick={() => toggleInsightExpansion('key_takeaways')}
+                      >
+                        {isExpanded ? 'Show less' : `Show ${parsed.key_takeaways.length - 2} more`}
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* Legacy structure support */}
           {parsed.key_insights && parsed.key_insights.length > 0 && (
             <div className="insight-card compact">
               <h4 className="insight-card-title">Key Insights</h4>
@@ -1363,32 +1536,6 @@ const SynapsePanel = forwardRef(({
                         onClick={() => toggleInsightExpansion('did_you_know')}
                       >
                         {isExpanded ? 'Show less' : `Show ${parsed.did_you_know.length - 2} more`}
-                      </button>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          )}
-
-          {parsed.contradictions && parsed.contradictions.length > 0 && (
-            <div className="insight-card compact">
-              <h4 className="insight-card-title">Contradictions & Nuances</h4>
-              {(() => {
-                const { visible, hasMore, isExpanded } = getTruncatedInsights(parsed.contradictions, 'contradictions', 2);
-                return (
-                  <>
-                    <ul className="insight-list compact">
-                      {visible.map((contradiction, index) => (
-                        <li key={index}>{contradiction}</li>
-                      ))}
-                    </ul>
-                    {hasMore && (
-                      <button 
-                        className="expand-toggle"
-                        onClick={() => toggleInsightExpansion('contradictions')}
-                      >
-                        {isExpanded ? 'Show less' : `Show ${parsed.contradictions.length - 2} more`}
                       </button>
                     )}
                   </>
