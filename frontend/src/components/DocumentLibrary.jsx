@@ -591,11 +591,14 @@ const DocumentLibrary = ({
         <button
           className={`tab-button ${isActive ? 'active' : ''}`}
           onClick={() => onClick(tabName)}
-          onMouseEnter={() => setShowTooltip(true)}
-          onMouseLeave={() => setShowTooltip(false)}
         >
           <span className="tab-text">{getTabDisplayName(tabName)}</span>
-          <Info size={12} className="tab-info-icon" />
+          <Info 
+            size={12} 
+            className="tab-info-icon" 
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+          />
         </button>
         {showTooltip && (
           <div className="tab-tooltip">
