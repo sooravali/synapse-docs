@@ -81,6 +81,12 @@
   background: #ecfdf5;
 }
 
+.rail-icon.synapse-icon:hover {
+  color: #667eea;
+  border-color: #667eea;
+  background: #f0f4ff;
+}
+
 /* Document count badge */
 .doc-count {
   position: absolute;
