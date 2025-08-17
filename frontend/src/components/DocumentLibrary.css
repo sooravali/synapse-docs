@@ -9,6 +9,176 @@
   max-width: 100%;
   overflow-x: visible; /* Allow dropdowns to be visible */
   overflow-y: hidden; /* Only prevent vertical overflow */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Collapsed state for document library */
+.document-library.collapsed {
+  overflow: visible;
+}
+
+/* Icon Rail for collapsed state */
+.icon-rail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 56px;
+  background: #fafafa;
+  border-right: 1px solid #e1e5e9;
+  align-items: center;
+  padding: 8px 0;
+  justify-content: space-between;
+}
+
+.vertical-flow-status {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+
+.rail-icons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  align-items: center;
+  padding: 20px 0;
+}
+
+.rail-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: white;
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #6b7280;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.rail-icon:hover {
+  background: #f3f4f6;
+  color: #374151;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+}
+
+.rail-icon.upload-icon:hover {
+  color: #3b82f6;
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.rail-icon.files-icon:hover {
+  color: #10b981;
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+/* Document count badge */
+.doc-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #3b82f6;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Expand button at top of collapsed rail */
+.expand-button {
+  background: white;
+  border: 1px solid #e1e5e9;
+  border-radius: 6px;
+  width: 40px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #6b7280;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+}
+
+.expand-button:hover {
+  background: #f3f4f6;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.rail-icon:hover {
+  background: #f3f4f6;
+  color: #3b82f6;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.rail-icon.upload-icon:hover {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.rail-icon.files-icon:hover {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.expand-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: auto;
+}
+
+.expand-button:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+/* Title section with collapse button */
+.title-with-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.collapse-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.collapse-button:hover {
+  background: #f3f4f6;
+  color: #3b82f6;
 }
 
 .library-header {
@@ -1084,4 +1254,13 @@
 .delete-item:hover {
   background: #fef2f2;
   color: #dc2626;
+}
+
+/* Bottom Flow Status Bar for expanded state */
+.bottom-flow-status {
+  margin-top: auto;
+  padding: 12px 20px;
+  border-top: 1px solid #e1e5e9;
+  background: white;
+  flex-shrink: 0;
 }
