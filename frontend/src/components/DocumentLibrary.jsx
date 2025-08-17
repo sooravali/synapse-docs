@@ -799,6 +799,20 @@ const DocumentLibrary = ({
       />
       
       <div className="library-header">
+        {/* Synapse View Button - Full Width Above Workspace */}
+        {documents.length >= 2 && (
+          <div className="synapse-view-section">
+            <button
+              onClick={handleOpenKnowledgeGraph}
+              className="synapse-view-button"
+              title="Open Synapse View - See how your documents connect"
+            >
+              <Network size={14} />
+              <span>Synapse View</span>
+            </button>
+          </div>
+        )}
+        
         <div className="library-title-section">
           <h2 className="library-title">
             <FileText size={20} />
@@ -807,18 +821,6 @@ const DocumentLibrary = ({
           
           {/* Action buttons */}
           <div className="header-actions">
-            {/* Synapse View Button */}
-            {documents.length >= 2 && (
-              <button
-                onClick={handleOpenKnowledgeGraph}
-                className="synapse-view-button"
-                title="Open Synapse View - See how your documents connect"
-              >
-                <Network size={14} />
-                <span>Synapse View</span>
-              </button>
-            )}
-            
             {/* Clear All Button */}
             {documents.length > 0 && (
               <div className="clear-all-section">
