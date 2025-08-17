@@ -111,43 +111,29 @@
   font-weight: 500;
 }
 
-/* CONNECTORS */
+/* CONNECTORS - Now using directional arrows */
 .status-connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 32px; /* Smaller to match reduced icons */
-  height: 2px; /* Thinner line */
+  height: 42px; /* Same height as steps for vertical centering */
   position: relative;
-  border-radius: 1px;
   transition: all 0.4s ease;
-  /* Align with center of the circle icon (42px height) - now positioned from top */
-  margin-top: 20px; /* Center of 42px icon: 42px/2 - 1px (half connector height) = 21px - 1px = 20px */
+  /* Align with center of the circle icon */
   align-self: flex-start; /* Ensure it starts from the top */
 }
 
-.status-connector.completed {
-  background: linear-gradient(90deg, #3b82f6, #2563eb);
-  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+.connector-arrow {
+  transition: all 0.4s ease;
 }
 
-.status-connector.pending {
-  background: linear-gradient(90deg, #e5e7eb, #d1d5db);
-  position: relative;
+.status-connector.completed .connector-arrow {
+  color: #3b82f6; /* Blue arrow for completed */
 }
 
-.status-connector.pending::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: repeating-linear-gradient(
-    90deg,
-    #d1d5db 0,
-    #d1d5db 4px,
-    transparent 4px,
-    transparent 8px
-  );
-  transform: translateY(-50%);
+.status-connector.pending .connector-arrow {
+  color: #d1d5db; /* Gray arrow for pending */
 }
 
 /* HOVER EFFECTS for better interactivity */
@@ -334,33 +320,20 @@
 }
 
 .flow-status-bar.vertical .status-connector {
-  width: 2px;
-  height: 16px;
-  margin-top: 0;
-  align-self: center;
+  width: 28px; /* Match step width */
+  height: 16px; /* Height for vertical spacing */
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.flow-status-bar.vertical .status-connector.completed {
-  background: linear-gradient(180deg, #3b82f6, #2563eb);
+.flow-status-bar.vertical .status-connector.completed .connector-arrow {
+  color: #3b82f6; /* Blue arrow for completed */
 }
 
-.flow-status-bar.vertical .status-connector.pending {
-  background: linear-gradient(180deg, #e5e7eb, #d1d5db);
-}
-
-.flow-status-bar.vertical .status-connector.pending::after {
-  width: 1px;
-  height: 100%;
-  left: 50%;
-  top: 0;
-  transform: translateX(-50%);
-  background: repeating-linear-gradient(
-    180deg,
-    #d1d5db 0,
-    #d1d5db 3px,
-    transparent 3px,
-    transparent 6px
-  );
+.flow-status-bar.vertical .status-connector.pending .connector-arrow {
+  color: #d1d5db; /* Gray arrow for pending */
 }
 
 /* Hide labels in vertical mode */
@@ -417,20 +390,6 @@
 .flow-status-bar.vertical .status-step svg {
   width: 14px !important;
   height: 14px !important;
-}
-
-.flow-status-bar.vertical .status-connector {
-  width: 2px;
-  height: 8px;
-  margin: 0;
-}
-
-.flow-status-bar.vertical .status-connector.completed {
-  background: #3b82f6;
-}
-
-.flow-status-bar.vertical .status-connector.pending {
-  background: #d1d5db;
 }
 
 /* Hide tooltips in vertical mode to save space */
