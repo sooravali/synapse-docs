@@ -6,7 +6,7 @@
  */
 import { useState, useEffect } from 'react';
 import { documentAPI, sessionUtils } from '../api';
-import { Upload, Search, CheckCircle, AlertCircle, Clock, FileText, Trash2, Info, MoreVertical, Download, Network } from 'lucide-react';
+import { Upload, Search, CheckCircle, AlertCircle, Clock, FileText, Trash2, Info, MoreVertical, Download, Network, ChevronLeft, ChevronRight } from 'lucide-react';
 import FlowStatusBar from './FlowStatusBar';
 import KnowledgeGraphModal from './KnowledgeGraphModal';
 import './DocumentLibrary.css';
@@ -19,7 +19,9 @@ const DocumentLibrary = ({
   connectionsCount,
   hasInsights,
   isLoadingConnections,
-  currentContext
+  currentContext,
+  isCollapsed,
+  onToggleCollapse
 }) => {
   const [uploadProgress, setUploadProgress] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
@@ -788,137 +790,207 @@ const DocumentLibrary = ({
   };
 
   return (
-    <div className="document-library">
-      {/* Flow Status Bar */}
-      <FlowStatusBar 
-        document={selectedDocument}
-        connectionsCount={connectionsCount}
-        hasInsights={hasInsights}
-        isLoadingConnections={isLoadingConnections}
-        currentContext={currentContext}
-      />
-      
-      <div className="library-header">
-        {/* Synapse View Button - Full Width Above Workspace */}
-        {documents.length >= 2 && (
-          <div className="synapse-view-section">
-            <button
-              onClick={handleOpenKnowledgeGraph}
-              className="synapse-view-button"
-              title="Open Synapse View - See how your documents connect"
+    <div className={`document-library ${isCollapsed ? 'collapsed' : ''}`}>
+      {isCollapsed ? (
+        // Collapsed Icon Rail View
+        <div className="icon-rail">
+          {/* Expand Button at Top */}
+          <button 
+            className="expand-button"
+            onClick={onToggleCollapse}
+            title="Expand Sidebar"
+          >
+            <ChevronRight size={16} />
+          </button>
+          
+          {/* Essential Icons in Middle */}
+          <div className="rail-icons">
+            {/* Upload Icon */}
+            <button 
+              className="rail-icon upload-icon"
+              title="Upload Documents"
+              onClick={() => {
+                // Expand sidebar and focus on upload area
+                onToggleCollapse();
+              }}
             >
-              <Network size={14} />
-              <span>Synapse View</span>
+              <Upload size={20} />
+            </button>
+            
+            {/* Files Icon with Document Count */}
+            <button 
+              className="rail-icon files-icon"
+              title={`${documents.length} documents in library`}
+              onClick={onToggleCollapse}
+            >
+              <FileText size={20} />
+              {documents.length > 0 && (
+                <span className="doc-count">{documents.length}</span>
+              )}
             </button>
           </div>
-        )}
-        
-        <div className="library-title-section">
-          <h2 className="library-title">
-            <FileText size={20} />
-            Workspace
-          </h2>
           
-          {/* Action buttons */}
-          <div className="header-actions">
-            {/* Clear All Button */}
-            {documents.length > 0 && (
-              <div className="clear-all-section">
-                {!showClearConfirm ? (
-                  <button
-                    onClick={handleClearAll}
-                    disabled={isClearingAll}
-                    className="clear-all-button"
-                    title="Clear all documents and start fresh"
-                  >
-                    <Trash2 size={12} />
-                    {isClearingAll ? 'Clearing...' : 'Clear All'}
-                  </button>
-                ) : (
-                  <div className="clear-confirm">
-                    <span className="confirm-text">Delete all {documents.length} documents?</span>
-                    <button onClick={handleClearAll} className="confirm-yes">Yes</button>
-                    <button onClick={cancelClearAll} className="confirm-no">No</button>
+          {/* Vertical Flow Status Bar at Bottom */}
+          <div className="vertical-flow-status">
+            <FlowStatusBar 
+              document={selectedDocument}
+              connectionsCount={connectionsCount}
+              hasInsights={hasInsights}
+              isLoadingConnections={isLoadingConnections}
+              currentContext={currentContext}
+              isVertical={true}
+            />
+          </div>
+        </div>
+      ) : (
+        // Expanded Full Sidebar View
+        <>
+          <div className="library-header">
+            {/* Synapse View Button - Full Width Above Workspace */}
+            {documents.length >= 2 && (
+              <div className="synapse-view-section">
+                <button
+                  onClick={handleOpenKnowledgeGraph}
+                  className="synapse-view-button"
+                  title="Open Synapse View - See how your documents connect"
+                >
+                  <Network size={14} />
+                  <span>Synapse View</span>
+                </button>
+              </div>
+            )}
+            
+            <div className="library-title-section">
+              <div className="title-with-collapse">
+                <h2 className="library-title">
+                  <FileText size={20} />
+                  Workspace
+                </h2>
+                
+                {/* Collapse Button */}
+                <button 
+                  className="collapse-button"
+                  onClick={onToggleCollapse}
+                  title="Collapse Sidebar"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+              </div>
+              
+              {/* Action buttons */}
+              <div className="header-actions">
+                {/* Clear All Button */}
+                {documents.length > 0 && (
+                  <div className="clear-all-section">
+                    {!showClearConfirm ? (
+                      <button
+                        onClick={handleClearAll}
+                        disabled={isClearingAll}
+                        className="clear-all-button"
+                        title="Clear all documents and start fresh"
+                      >
+                        <Trash2 size={12} />
+                        {isClearingAll ? 'Clearing...' : 'Clear All'}
+                      </button>
+                    ) : (
+                      <div className="clear-confirm">
+                        <span className="confirm-text">Delete all {documents.length} documents?</span>
+                        <button onClick={handleClearAll} className="confirm-yes">Yes</button>
+                        <button onClick={cancelClearAll} className="confirm-no">No</button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Library Search */}
-        <div className="library-search">
-          <Search size={16} className="search-icon" />
-          <input
-            type="text"
-            placeholder="Filter documents..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-input"
-          />
-        </div>
-      </div>
-
-      {/* Bulk Upload Area */}
-      <div 
-        className={`upload-zone ${isDragOver ? 'drag-over' : ''}`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <Upload size={24} className="upload-icon" />
-        <div className="upload-text">
-          <strong>Upload Documents</strong>
-          <span>Drag & drop PDFs here or click to browse</span>
-        </div>
-        <input
-          type="file"
-          multiple
-          accept=".pdf"
-          onChange={(e) => handleFileUpload(e.target.files)}
-          className="file-input"
-        />
-      </div>
-
-      {/* Document List with Tabbed Interface */}
-      <div className="document-list">
-        {/* Tab Container */}
-        <div className="tab-container">
-          <TabButton
-            tabName="recent"
-            isActive={activeTab === 'recent'}
-            onClick={handleTabClick}
-            tooltip="Documents uploaded in this session. They will be moved to 'All Documents' on your next visit."
-          />
-          <TabButton
-            tabName="all"
-            isActive={activeTab === 'all'}
-            onClick={handleTabClick}
-            tooltip="Your permanent library. Insights are generated by connecting information across all documents here."
-          />
-        </div>
-
-        {/* Tab Content */}
-        <div className="tab-content">
-          {searchTerm ? (
-            // When searching, show all results with search indicator
-            <div className="search-results-header">
-              <h4 className="search-results-title">SEARCH RESULTS</h4>
             </div>
-          ) : null}
-          
-          {/* Render the active tab's content */}
-          {renderDocumentList(getActiveTabDocuments())}
-        </div>
-      </div>
+            
+            {/* Library Search */}
+            <div className="library-search">
+              <Search size={16} className="search-icon" />
+              <input
+                type="text"
+                placeholder="Filter documents..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="search-input"
+              />
+            </div>
+          </div>
 
-      {/* Knowledge Graph Modal */}
-      <KnowledgeGraphModal
-        isVisible={showKnowledgeGraph}
-        onClose={handleCloseKnowledgeGraph}
-        onDocumentSelect={handleGraphDocumentSelect}
-        currentDocumentId={selectedDocument?.id}
-      />
+          {/* Bulk Upload Area */}
+          <div 
+            className={`upload-zone ${isDragOver ? 'drag-over' : ''}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <Upload size={24} className="upload-icon" />
+            <div className="upload-text">
+              <strong>Upload Documents</strong>
+              <span>Drag & drop PDFs here or click to browse</span>
+            </div>
+            <input
+              type="file"
+              multiple
+              accept=".pdf"
+              onChange={(e) => handleFileUpload(e.target.files)}
+              className="file-input"
+            />
+          </div>
+
+          {/* Document List with Tabbed Interface */}
+          <div className="document-list">
+            {/* Tab Container */}
+            <div className="tab-container">
+              <TabButton
+                tabName="recent"
+                isActive={activeTab === 'recent'}
+                onClick={handleTabClick}
+                tooltip="Documents uploaded in this session. They will be moved to 'All Documents' on your next visit."
+              />
+              <TabButton
+                tabName="all"
+                isActive={activeTab === 'all'}
+                onClick={handleTabClick}
+                tooltip="Your permanent library. Insights are generated by connecting information across all documents here."
+              />
+            </div>
+
+            {/* Tab Content */}
+            <div className="tab-content">
+              {searchTerm ? (
+                // When searching, show all results with search indicator
+                <div className="search-results-header">
+                  <h4 className="search-results-title">SEARCH RESULTS</h4>
+                </div>
+              ) : null}
+              
+              {/* Render the active tab's content */}
+              {renderDocumentList(getActiveTabDocuments())}
+            </div>
+          </div>
+
+          {/* Flow Status Bar at Bottom - Horizontal */}
+          <div className="bottom-flow-status">
+            <FlowStatusBar 
+              document={selectedDocument}
+              connectionsCount={connectionsCount}
+              hasInsights={hasInsights}
+              isLoadingConnections={isLoadingConnections}
+              currentContext={currentContext}
+              isVertical={false}
+            />
+          </div>
+
+          {/* Knowledge Graph Modal */}
+          <KnowledgeGraphModal
+            isVisible={showKnowledgeGraph}
+            onClose={handleCloseKnowledgeGraph}
+            onDocumentSelect={handleGraphDocumentSelect}
+            currentDocumentId={selectedDocument?.id}
+          />
+        </>
+      )}
     </div>
   );
 };
