@@ -187,30 +187,69 @@
   background: white;
 }
 
-/* Synapse View Section - Full Width Above Workspace */
+/* Synapse View Section - Between Upload and Tabs */
 .synapse-view-section {
-  margin-bottom: 12px;
+  margin: 16px 20px;
   display: flex;
-  width: 100%;
+  width: calc(100% - 40px);
 }
 
 .synapse-view-section .synapse-view-button {
   width: 100%;
   justify-content: center;
-  padding: 8px 16px;
-  height: auto;
-  min-height: 32px;
+  padding: 10px 16px;
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.synapse-view-section .synapse-view-button:hover {
+  background: #5856eb;
+  transform: translateY(-1px);
+}
+
+.library-title-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
 }
 
 .library-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0; /* Remove all margins to ensure perfect alignment */
+  margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: #1a1a1a;
-  line-height: 1.2; /* Explicit line-height for consistency */
+  line-height: 1.2;
+}
+
+.collapse-button {
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: #6b7280;
+}
+
+.collapse-button:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  color: #374151;
 }
 
 .library-search {
