@@ -999,6 +999,35 @@
   transition: all 0.2s ease;
 }
 
+/* Enhanced Insights Structure Styles */
+.insight-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.insight-text {
+  color: #1a1a1a;
+  line-height: 1.5;
+}
+
+.insight-source {
+  font-size: 11px;
+  color: #6b7280;
+  font-style: italic;
+  font-weight: 500;
+}
+
+.insight-explanation {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 4px;
+  padding-left: 8px;
+  border-left: 2px solid #e5e7eb;
+  font-style: italic;
+  line-height: 1.4;
+}
+
 .expand-toggle:hover {
   background: #e2e8f0;
   color: #2563eb;
