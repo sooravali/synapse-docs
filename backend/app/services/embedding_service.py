@@ -567,22 +567,11 @@ class EmbeddingService:
         markers = metadata.get('semantic_markers', [])
         marker_boost = len(markers) * 0.02  # Small boost for semantic richness
         
-        # Enhanced keyword matching boost
+        # Keyword matching boost (simple implementation)
         query_words = set(query.lower().split())
         chunk_words = set(chunk_text.lower().split())
-        
-        # Exact word matches
-        exact_matches = len(query_words.intersection(chunk_words))
-        keyword_boost = (exact_matches / max(1, len(query_words))) * 0.15
-        
-        # Phrase matching bonus
-        query_phrases = []
-        query_tokens = query.lower().split()
-        for i in range(len(query_tokens) - 1):
-            query_phrases.append(' '.join(query_tokens[i:i+2]))
-        
-        phrase_matches = sum(1 for phrase in query_phrases if phrase in chunk_text.lower())
-        phrase_boost = (phrase_matches / max(1, len(query_phrases))) * 0.1
+        keyword_overlap = len(query_words.intersection(chunk_words)) / max(1, len(query_words))
+        keyword_boost = keyword_overlap * 0.15
         
         # Extraction method boost
         extraction_method = metadata.get('extraction_method', 'unknown')
@@ -592,7 +581,7 @@ class EmbeddingService:
         elif extraction_method == 'enhanced_pipeline':
             method_boost = 0.05
         
-        enhanced_score = base_score + quality_boost + type_boost + marker_boost + keyword_boost + phrase_boost + method_boost
+        enhanced_score = base_score + quality_boost + type_boost + marker_boost + keyword_boost + method_boost
         return min(enhanced_score, 1.0)  # Cap at 1.0
     
     def _generate_match_explanation(self, query: str, chunk_text: str, similarity: float) -> str:

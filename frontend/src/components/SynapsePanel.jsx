@@ -457,11 +457,11 @@ const SynapsePanel = forwardRef(({
 
       console.log(`📤 SynapsePanel: Clean query (${cleanQuery.length} chars): "${cleanQuery.substring(0, 100)}..."`);
       
-      // Make API call with optimized parameters for hackathon requirements
+      // Make API call
       const results = await searchAPI.semantic({
         query_text: cleanQuery,
-        top_k: 8,  // Get more candidates for better filtering
-        similarity_threshold: 0.15  // Slightly higher threshold for quality
+        top_k: 6,
+        similarity_threshold: 0.1
       });
       
       console.log(`📥 SynapsePanel: API response:`, results);
@@ -474,30 +474,11 @@ const SynapsePanel = forwardRef(({
         return;
       }
       
-      // Enhanced filtering for hackathon requirements - ensure 5 high-quality snippets
-      const highAccuracyConnections = connections.filter(conn => conn.similarity_score > 0.7);
-      const moderateAccuracyConnections = connections.filter(conn => conn.similarity_score > 0.4 && conn.similarity_score <= 0.7);
-      
-      let finalConnections = [];
-      
-      // Strategy: Get best mix of high and moderate accuracy connections
-      if (highAccuracyConnections.length >= 5) {
-        // Enough high-quality connections
-        finalConnections = highAccuracyConnections.slice(0, 5);
-      } else if (highAccuracyConnections.length >= 3) {
-        // Mix high-quality with some moderate ones
-        finalConnections = highAccuracyConnections.slice(0, 3);
-        const remainingSlots = 5 - finalConnections.length;
-        finalConnections.push(...moderateAccuracyConnections.slice(0, remainingSlots));
-      } else {
-        // Take all high-quality plus fill with moderate quality up to 5 total
-        finalConnections = [...highAccuracyConnections];
-        const remainingSlots = 5 - finalConnections.length;
-        finalConnections.push(...moderateAccuracyConnections.slice(0, remainingSlots));
-      }
-      
-      // Ensure we have exactly 5 or fewer high-quality connections as per hackathon requirements
-      finalConnections = finalConnections.slice(0, 5);
+      // Filter for quality connections
+      const highAccuracyConnections = connections.filter(conn => conn.similarity_score > 0.8);
+      const finalConnections = highAccuracyConnections.length >= 3 
+        ? highAccuracyConnections.slice(0, 3)
+        : connections.slice(0, Math.max(3, connections.length));
       
       console.log(`✅ SynapsePanel: Found ${finalConnections.length} connections`);
       console.log(`📈 Accuracy scores:`, finalConnections.map(c => `${Math.round(c.similarity_score * 100)}%`));

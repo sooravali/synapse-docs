@@ -140,13 +140,13 @@ async def semantic_search(
             if not document:
                 continue
             
-            # Create enhanced search result item with focused preview optimized for hackathon snippets
+            # Create enhanced search result item with focused preview instead of full chunk
             result_item = SearchResultItem(
                 chunk_id=chunk.id,
                 document_id=chunk.document_id,
                 document_name=document.file_name,
                 similarity_score=enhanced_result.get('enhanced_score', enhanced_result.get('similarity_score', 0.0)),
-                text_chunk=enhanced_result.get('content_preview', chunk.text_chunk),  # Use full preview for better snippets
+                text_chunk=enhanced_result.get('content_preview', chunk.text_chunk[:200] + '...'),
                 page_number=chunk.page_number,
                 chunk_index=chunk.chunk_index,
                 chunk_type=chunk.chunk_type,
