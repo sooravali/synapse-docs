@@ -6,7 +6,7 @@
  * Uses Adobe PDF Embed API with proper event handling and text selection.
  */
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { Play, Pause, MessageSquare, Volume2, Eye, Lightbulb, Radio, Network, X } from 'lucide-react';
+import { Play, Pause, MessageSquare, Volume2, Eye, Lightbulb, Radio, Network, X, RefreshCw } from 'lucide-react';
 import { searchAPI, insightsAPI, podcastAPI } from '../api';
 import { configService } from '../services/configService';
 import './DocumentWorkbench.css';
@@ -408,23 +408,20 @@ const DocumentWorkbench = forwardRef(({
     }, 3000);
   };
 
-  // HELPER: Manual connection generation for current page
-  const generateConnectionsForCurrentPage = async () => {
+  // HELPER: Force reload reading context for current page
+  const reloadCurrentPageContext = async () => {
     try {
-      console.log(`🔄 DocumentWorkbench: Manual connection generation triggered`);
+      console.log(`🔄 DocumentWorkbench: Force reloading reading context for current page`);
       
-      let currentPageNum = 1;
-      if (adobeViewerRef.current) {
-        try {
-          const apis = await adobeViewerRef.current.getAPIs();
-          if (apis?.getCurrentPage) {
-            currentPageNum = await apis.getCurrentPage();
-          }
-        } catch (error) {
-          console.log(`⚠️ DocumentWorkbench: Could not get page for manual generation:`, error.message);
-        }
+      // Skip selection mode check and force context reload
+      if (isSelectionActiveRef.current) {
+        console.log(`🔄 DocumentWorkbench: Skipping reload - text selection is active`);
+        return;
       }
 
+      // Reset the cooldown to force immediate context detection
+      lastPageDetected.current = { page: null, timestamp: 0 };
+      
       // Force reading context detection
       await detectReadingContext();
       
@@ -432,7 +429,7 @@ const DocumentWorkbench = forwardRef(({
       showSelectionFeedback();
       
     } catch (error) {
-      console.error(`❌ DocumentWorkbench: Manual connection generation failed:`, error);
+      console.error(`❌ DocumentWorkbench: Failed to reload context:`, error);
     }
   };
 
@@ -1131,32 +1128,17 @@ const DocumentWorkbench = forwardRef(({
         className={`pdf-viewer-container ${isViewerReady ? 'ready' : 'loading'}`}
       />
 
-      {/* Manual Connection Generation Button */}
+      {/* Manual Context Reload Button */}
       {isViewerReady && (
-        <div className="manual-connections-trigger">
+        <div className="manual-context-trigger">
           <button 
-            onClick={generateConnectionsForCurrentPage}
-            className="generate-connections-btn"
-            title="Generate connections for current page content"
+            onClick={reloadCurrentPageContext}
+            className="reload-context-btn"
+            title="Force reload reading context for current page"
           >
-            <Network size={16} />
-            <span>Find Connections</span>
+            <RefreshCw size={16} />
+            <span>Reload Context</span>
           </button>
-          {/* Debug: Manual Reading Context Button */}
-          {process.env.NODE_ENV === 'development' && (
-            <button 
-              onClick={() => {
-                console.log(`🐛 Debug: Manual reading context trigger`);
-                detectReadingContext();
-              }}
-              className="generate-connections-btn"
-              style={{ marginLeft: '10px', backgroundColor: '#e74c3c' }}
-              title="Debug: Force reading context detection"
-            >
-              <Eye size={16} />
-              <span>Debug: Reading Context</span>
-            </button>
-          )}
         </div>
       )}
 
@@ -1174,26 +1156,6 @@ const DocumentWorkbench = forwardRef(({
           <div className="notification-content">
             <Network size={16} />
             <span>Connections Generated!</span>
-          </div>
-        </div>
-      )}
-
-      {/* STATE PRIORITY FIX: Exit Selection Mode UI */}
-      {isSelectionActive && (
-        <div className="selection-mode-controls">
-          <div className="selection-mode-bar">
-            <div className="selection-mode-info">
-              <span className="selection-icon">🎯</span>
-              <span className="selection-text">Text Selection Active</span>
-            </div>
-            <button 
-              onClick={exitSelectionMode}
-              className="exit-selection-btn"
-              title="Exit text selection mode and return to reading context"
-            >
-              <X size={14} />
-              Exit Selection
-            </button>
           </div>
         </div>
       )}
