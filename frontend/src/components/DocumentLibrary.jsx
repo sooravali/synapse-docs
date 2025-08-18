@@ -914,10 +914,11 @@ const DocumentLibrary = ({
               <button
                 onClick={onOpenKnowledgeGraph}
                 className="synapse-view-button"
-                title="Open Synapse View - See how your documents connect"
+                title="Toggle Synapse View - See how your documents connect (⌘K or Ctrl+K)"
               >
                 <Network size={14} />
                 <span>Synapse View</span>
+                <span className="keyboard-shortcut">⌘K</span>
               </button>
             </div>
           )}
