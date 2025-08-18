@@ -92,7 +92,7 @@ class TextChunkPublic(TextChunkBase):
 
 class SearchQuery(BaseModel):
     """Request schema for semantic search queries."""
-    query_text: str = Field(..., min_length=1, max_length=1000, description="Search query text")
+    query_text: str = Field(..., min_length=1, max_length=5000, description="Search query text")
     top_k: int = Field(5, ge=1, le=50, description="Number of results to return")
     document_ids: Optional[List[int]] = Field(None, description="Limit search to specific documents")
     similarity_threshold: Optional[float] = Field(0.3, ge=0.0, le=1.0, description="Minimum similarity score")

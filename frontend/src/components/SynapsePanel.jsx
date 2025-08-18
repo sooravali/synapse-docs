@@ -457,9 +457,22 @@ const SynapsePanel = forwardRef(({
 
       console.log(`📤 SynapsePanel: Clean query (${cleanQuery.length} chars): "${cleanQuery.substring(0, 100)}..."`);
       
+      // Smart truncation for very long queries to optimize search quality
+      let searchQuery = cleanQuery;
+      if (cleanQuery.length > 4000) {
+        // For very long texts, use the first part (most relevant context)
+        searchQuery = cleanQuery.substring(0, 4000).trim();
+        // Try to cut at a sentence boundary
+        const lastSentence = searchQuery.lastIndexOf('.');
+        if (lastSentence > 3000) {
+          searchQuery = searchQuery.substring(0, lastSentence + 1);
+        }
+        console.log(`📝 SynapsePanel: Truncated long query from ${cleanQuery.length} to ${searchQuery.length} chars`);
+      }
+      
       // Make API call
       const results = await searchAPI.semantic({
-        query_text: cleanQuery,
+        query_text: searchQuery,
         top_k: 6,
         similarity_threshold: 0.1
       });

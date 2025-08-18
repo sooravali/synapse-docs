@@ -105,36 +105,68 @@ const DocumentWorkbench = forwardRef(({
           if (apis?.getSelectedContent) {
             const selectionData = await apis.getSelectedContent();
             console.log(`📋 DocumentWorkbench: Adobe selection data:`, selectionData);
+            console.log(`📋 DocumentWorkbench: Adobe selection data type:`, typeof selectionData);
+            console.log(`📋 DocumentWorkbench: Adobe selection data keys:`, selectionData ? Object.keys(selectionData) : 'null');
             
             // Comprehensive Adobe response parsing
             if (selectionData?.data?.selectedContent) {
               selectedText = selectionData.data.selectedContent.trim();
+              console.log(`📋 DocumentWorkbench: Found text in data.selectedContent`);
             } else if (selectionData?.selectedText) {
               selectedText = selectionData.selectedText.trim();
+              console.log(`📋 DocumentWorkbench: Found text in selectedText`);
             } else if (selectionData?.content) {
               selectedText = selectionData.content.trim();
+              console.log(`📋 DocumentWorkbench: Found text in content`);
             } else if (selectionData?.text) {
               selectedText = selectionData.text.trim();
+              console.log(`📋 DocumentWorkbench: Found text in text`);
             } else if (typeof selectionData === 'string') {
               selectedText = selectionData.trim();
+              console.log(`📋 DocumentWorkbench: Found text as string`);
             } else if (selectionData?.data?.text) {
               selectedText = selectionData.data.text.trim();
+              console.log(`📋 DocumentWorkbench: Found text in data.text`);
+            } else if (Array.isArray(selectionData?.data)) {
+              // Handle direct array of characters
+              selectedText = selectionData.data.join('').trim();
+              console.log(`📋 DocumentWorkbench: Found text as direct array`);
             }
             
-            // Check nested objects
+            // Check nested objects - Adobe often returns character arrays
             if (!selectedText && selectionData?.data) {
               const dataKeys = Object.keys(selectionData.data);
-              for (const key of dataKeys) {
-                if (typeof selectionData.data[key] === 'string' && selectionData.data[key].trim()) {
-                  selectedText = selectionData.data[key].trim();
-                  console.log(`📋 DocumentWorkbench: Found text in data.${key}: "${selectedText.substring(0, 30)}..."`);
-                  break;
+              console.log(`📋 DocumentWorkbench: Checking nested data keys:`, dataKeys);
+              
+              // Check if data is an array of characters (common Adobe behavior)
+              if (Array.isArray(selectionData.data) || (dataKeys.length > 0 && !isNaN(dataKeys[0]))) {
+                console.log(`📋 DocumentWorkbench: Data appears to be character array, concatenating...`);
+                const characters = [];
+                for (const key of dataKeys) {
+                  if (typeof selectionData.data[key] === 'string') {
+                    characters.push(selectionData.data[key]);
+                  }
+                }
+                if (characters.length > 0) {
+                  selectedText = characters.join('').trim();
+                  console.log(`📋 DocumentWorkbench: Concatenated ${characters.length} characters: "${selectedText.substring(0, 50)}..."`);
+                }
+              } else {
+                // Original logic for non-array data
+                for (const key of dataKeys) {
+                  if (typeof selectionData.data[key] === 'string' && selectionData.data[key].trim()) {
+                    selectedText = selectionData.data[key].trim();
+                    console.log(`📋 DocumentWorkbench: Found text in data.${key}: "${selectedText.substring(0, 30)}..."`);
+                    break;
+                  }
                 }
               }
             }
             
             if (selectedText) {
               console.log(`📋 DocumentWorkbench: Adobe API extracted: "${selectedText.substring(0, 50)}..."`);
+            } else {
+              console.log(`❌ DocumentWorkbench: Adobe API returned no usable text content`);
             }
           }
         } catch (apiError) {
@@ -148,6 +180,8 @@ const DocumentWorkbench = forwardRef(({
         if (browserSelection && browserSelection.toString().trim()) {
           selectedText = browserSelection.toString().trim();
           console.log(`📋 DocumentWorkbench: Browser selection extracted: "${selectedText.substring(0, 50)}..."`);
+        } else {
+          console.log(`📋 DocumentWorkbench: No browser selection found`);
         }
       }
 
@@ -180,16 +214,12 @@ const DocumentWorkbench = forwardRef(({
       }
 
       // Enhanced validation with lower threshold
-      if (!selectedText || selectedText.length < 5) {
+      if (!selectedText || selectedText.length < 3) {
         console.log(`❌ DocumentWorkbench: No valid text selected (${selectedText?.length || 0} chars)`);
         
-        // If no text selected but Adobe event fired, generate synthetic selection based on current view
-        if (currentPageNum > 0) {
-          console.log(`🔄 DocumentWorkbench: No selection but generating context for current page ${currentPageNum}`);
-          selectedText = `Selected content from page ${currentPageNum} of "${cleanFileName(document?.file_name) || 'document'}" - viewing section discussing travel destinations, cultural experiences, and geographical insights relevant to this region.`;
-        } else {
-          return;
-        }
+        // FIXED: Don't generate fake content - just return early if no text is selected
+        console.log(`� DocumentWorkbench: No text selection found, aborting insights generation`);
+        return;
       }
 
       console.log(`✅ DocumentWorkbench: Valid text selection (${selectedText.length} chars): "${selectedText.substring(0, 50)}..."`);
@@ -379,12 +409,13 @@ const DocumentWorkbench = forwardRef(({
         }
       }
 
-      // Method 2: Fallback - create meaningful context from document metadata
-      const docName = cleanFileName(document?.file_name) || 'document';
-      const fallbackContext = `This document "${docName}" discusses topics relevant to travel and geography. The content on page ${pageNumber} contains information that may connect to other documents discussing similar themes such as destinations, cultural experiences, travel planning, and regional characteristics. This contextual reading helps identify connections across your document library for comprehensive research and knowledge discovery.`;
+      // Method 2: Reading context fallback when Adobe API fails
+      // Note: This is ONLY for reading context detection, NOT text selection
+      // Generate generic page-based context to maintain functionality
+      const pageContext = `Content from page ${pageNumber} of ${cleanFileName(document?.file_name) || 'document'}. This document appears to contain structured information that may relate to various topics and concepts. Reading context detection is active to find connections with other documents in the knowledge base.`;
       
-      console.log(`🔄 DocumentWorkbench: Using fallback context for page ${pageNumber}`);
-      return fallbackContext;
+      console.log(`⚠️ DocumentWorkbench: Adobe text extraction failed, using reading context fallback for page ${pageNumber}`);
+      return pageContext;
 
     } catch (error) {
       console.error(`❌ DocumentWorkbench: Context extraction failed:`, error);
@@ -1040,11 +1071,12 @@ const DocumentWorkbench = forwardRef(({
           // Use our robust text selection handler with error protection
           setTimeout(() => {
             try {
+              console.log(`🎯 DocumentWorkbench: Processing selection after 100ms delay...`);
               handleTextSelection();
             } catch (selectionError) {
               console.warn(`⚠️ DocumentWorkbench: Selection handling failed:`, selectionError.message);
             }
-          }, 100);
+          }, 150); // Increased delay to ensure Adobe API is ready
           break;
           
         case 'PREVIEW_PAGE_VIEW_SCROLLED':
