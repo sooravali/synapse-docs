@@ -170,6 +170,37 @@ function App() {
     loadDocuments();
   }, []);
 
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // Cmd+K (Mac) or Ctrl+K (Windows/Linux) for Knowledge Graph toggle
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+        event.preventDefault();
+        setShowKnowledgeGraph(prev => {
+          const newState = !prev;
+          console.log(`🌐 Knowledge Graph ${newState ? 'opened' : 'closed'} via keyboard shortcut`);
+          return newState;
+        });
+      }
+      
+      // Cmd+Shift+K (Mac) or Ctrl+Shift+K (Windows/Linux) for alternative toggle
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === 'K') {
+        event.preventDefault();
+        setShowKnowledgeGraph(prev => {
+          const newState = !prev;
+          console.log(`🌐 Knowledge Graph ${newState ? 'opened' : 'closed'} via alternative keyboard shortcut`);
+          return newState;
+        });
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   const loadDocuments = async () => {
     if (isLoadingDocuments) return;
     
