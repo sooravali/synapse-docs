@@ -499,28 +499,6 @@ const KnowledgeGraphModal = ({
             </div>
           ) : (
             <div className="knowledge-graph-container">
-              {/* Hover Tooltip */}
-              {hoveredNode && (
-                <div className="graph-hover-tooltip" style={{
-                  position: 'absolute',
-                  top: '20px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  background: 'rgba(0, 0, 0, 0.8)',
-                  color: 'white',
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  zIndex: 20,
-                  pointerEvents: 'none',
-                  whiteSpace: 'nowrap'
-                }}>
-                  🔍 {hoveredNode.displayName}
-                  {hoveredNode.isCurrentDocument && ' (Current)'}
-                </div>
-              )}
-              
               <ForceGraph2D
                 ref={forceGraphRef}
                 graphData={graphData}
@@ -628,13 +606,17 @@ const KnowledgeGraphModal = ({
                   <span className="stat-value">{graphData.links.length}</span>
                   <span className="stat-label">Connections</span>
                 </div>
-                {hoveredNode && (
+              </div>
+
+              {/* Viewing Status - positioned below stats */}
+              {hoveredNode && (
+                <div className="knowledge-graph-viewing-status">
                   <div className="stat hovered">
                     <span className="stat-value">{hoveredNode.displayName}</span>
                     <span className="stat-label">Viewing</span>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -645,7 +627,7 @@ const KnowledgeGraphModal = ({
             <strong>💡 Navigate:</strong> Click documents to open • Drag to explore • Scroll to zoom • Hover to highlight connections
           </p>
           <p className="shortcuts">
-            <strong>⌨️ Shortcuts:</strong> F = Fit to view • R = Reset layout • ESC = Close
+            <strong>⌨️ Shortcuts:</strong> ⌘K/Ctrl+K = Toggle Synapse View • F = Fit to view • R = Reset layout • ESC = Close
           </p>
         </div>
       </div>
