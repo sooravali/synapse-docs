@@ -1515,7 +1515,7 @@ const SynapsePanel = forwardRef(({
     return (
       <div className="integrated-podcast-section">
         <div className="podcast-header">
-          <h4 className="podcast-section-title">Generate Audio Summary</h4>
+          <h4 className="podcast-section-title">Ready for the briefing?</h4>
           {(() => {
             // Display page information for podcast section
             const pageInfo = getPageInfoForDisplay(contextInfo, connections);
@@ -1562,7 +1562,7 @@ const SynapsePanel = forwardRef(({
             ) : (
               <>
                 <Zap size={16} />
-                Podcast Mode
+                Generate Podcast
               </>
             )}
           </button>
