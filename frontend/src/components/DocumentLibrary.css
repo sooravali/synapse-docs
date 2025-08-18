@@ -207,9 +207,9 @@
   width: 100%;
   justify-content: center;
   padding: 14px 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%); /* Match knowledge graph header */
+  color: #60a5fa; /* Bright blue to match Synapse View title */
+  border: 1px solid #475569; /* Subtle border */
   border-radius: 10px;
   font-weight: 600;
   font-size: 16px;
@@ -218,13 +218,30 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(30, 41, 59, 0.4); /* Blue-tinted shadow */
+  position: relative;
+}
+
+.synapse-view-section .synapse-view-button .keyboard-shortcut {
+  position: absolute;
+  right: 16px;
+  background: rgba(96, 165, 250, 0.15); /* Blue-tinted background */
+  color: #60a5fa; /* Match the button text color */
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(96, 165, 250, 0.2); /* Blue-tinted border */
 }
 
 .synapse-view-section .synapse-view-button:hover {
-  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  background: linear-gradient(135deg, #334155 0%, #475569 100%); /* Lighter gradient on hover */
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 6px 16px rgba(96, 165, 250, 0.3); /* Enhanced blue-tinted shadow */
+  border-color: #60a5fa; /* Blue border on hover */
+  color: #93c5fd; /* Lighter blue on hover */
 }
 
 .library-title-section {
