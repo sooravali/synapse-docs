@@ -25,8 +25,8 @@ LLM_PROVIDER (default: "gemini")
 
 For Gemini (Google Generative AI):
     GOOGLE_API_KEY: Your Google API key (recommended)
-    GOOGLE_APPLICATION_CREDENTIALS: Path to service account JSON file (preferred for hackathon)
-    GEMINI_MODEL (default: "gemini-2.5-flash"): Model name - using Gemini 2.5 Flash for best price/performance with thinking capabilities
+    GOOGLE_APPLICATION_CREDENTIALS: Path to service account JSON file (alternative)
+    GEMINI_MODEL (default: "gemini-2.0-flash-exp"): Model name to use
 
 For Azure OpenAI:
     AZURE_OPENAI_KEY: Your Azure OpenAI API key
@@ -60,13 +60,19 @@ def get_llm_response(messages):
     if provider == "gemini":
         api_key = os.getenv("GOOGLE_API_KEY")
         credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-        model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp")
 
         if not api_key and not credentials_path:
             raise ValueError("Either GOOGLE_API_KEY or GOOGLE_APPLICATION_CREDENTIALS must be set.")
 
-        # For hackathon compliance, prioritize service account authentication
-        if credentials_path:
+        # Use API key if available, otherwise use service account credentials
+        if api_key:
+            llm = ChatGoogleGenerativeAI(
+                model=model_name,
+                google_api_key=api_key,
+                temperature=0.7
+            )
+        else:
             # For service account credentials, we need to set the environment variable
             # and let the Google client library handle authentication
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
@@ -74,14 +80,6 @@ def get_llm_response(messages):
                 model=model_name,
                 temperature=0.7
             )
-        elif api_key:
-            llm = ChatGoogleGenerativeAI(
-                model=model_name,
-                google_api_key=api_key,
-                temperature=0.7
-            )
-        else:
-            raise ValueError("Either GOOGLE_APPLICATION_CREDENTIALS (preferred for hackathon) or GOOGLE_API_KEY must be set.")
 
         try:
             response = llm.invoke(messages)
