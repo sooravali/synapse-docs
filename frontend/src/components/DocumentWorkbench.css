@@ -339,50 +339,55 @@
   }
 }
 
-/* Text Selection Mode Indicator */
+/* Text Selection Mode Indicator - Minimal and Professional */
 .text-selection-indicator {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 15px;
+  left: 20px;
   z-index: 25;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: rgba(59, 130, 246, 0.95);
   color: white;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 13px;
+  border-radius: 20px;
+  padding: 6px 10px;
+  font-size: 11px;
   font-weight: 500;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
   animation: slideInFromTop 0.3s ease-out;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .selection-status {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .status-icon {
-  font-size: 14px;
+  font-size: 10px;
 }
 
 .status-text {
   font-weight: 500;
+  font-size: 10px;
 }
 
 .deselect-btn {
   background: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.3);
   color: white;
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 11px;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 9px;
   cursor: pointer;
   transition: all 0.2s ease;
+  margin-left: 2px;
 }
 
 .deselect-btn:hover {
   background: rgba(255, 255, 255, 0.3);
   border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.05);
 }
 
 @keyframes slideInFromTop {
@@ -810,51 +815,50 @@
   }
 }
 
-/* Manual Connection Generation Button */
+/* Manual Connection Generation Button - Right aligned below text selection button */
 .manual-connections-trigger {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
+  bottom: 20px; /* Below the text selection button */
+  right: 60px; /* Moved slightly left to match text selection button */
   z-index: 100;
 }
 
 .generate-connections-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
+  gap: 6px; /* Reduced gap for minimal design */
+  padding: 8px 12px; /* Smaller padding */
   background: #3b82f6;
   color: white;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 6px; /* Smaller border radius */
+  font-size: 12px; /* Smaller font size */
   font-weight: 500;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25); /* Subtle shadow */
   transition: all 0.2s ease;
 }
 
 .generate-connections-btn:hover {
   background: #2563eb;
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35); /* Slightly more pronounced on hover */
 }
 
 .generate-connections-btn:active {
   transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 1px 4px rgba(59, 130, 246, 0.25);
 }
 
 .generate-connections-btn svg {
   flex-shrink: 0;
 }
 
-/* STATE PRIORITY FIX: Selection Mode Controls */
+/* STATE PRIORITY FIX: Selection Mode Controls - Minimal & Professional */
 .selection-mode-controls {
   position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 80px;
+  right: 60px; /* Moved slightly left from right edge */
   z-index: 200; /* Higher than other controls */
   animation: slideUp 0.3s ease-out;
 }
@@ -862,67 +866,67 @@
 .selection-mode-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 20px;
+  gap: 8px; /* Reduced gap for minimal design */
+  padding: 8px 12px; /* Reduced padding for smaller size */
   background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
   color: white;
-  border-radius: 24px;
-  box-shadow: 0 8px 24px rgba(251, 191, 36, 0.4);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
+  border-radius: 8px; /* Smaller border radius */
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3); /* Subtle shadow */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* Thinner border */
+  backdrop-filter: blur(8px);
 }
 
 .selection-mode-info {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
+  gap: 6px; /* Reduced gap */
+  font-size: 12px; /* Smaller font size */
+  font-weight: 500; /* Reduced weight for minimal look */
 }
 
 .selection-icon {
-  font-size: 16px;
+  font-size: 14px; /* Smaller icon */
   animation: pulse 2s infinite;
 }
 
 .selection-text {
-  letter-spacing: 0.025em;
+  letter-spacing: 0.02em;
 }
 
 .exit-selection-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  background: rgba(255, 255, 255, 0.2);
+  gap: 4px; /* Reduced gap */
+  padding: 4px 8px; /* Smaller padding */
+  background: rgba(255, 255, 255, 0.25);
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 16px;
-  font-size: 13px;
-  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 12px; /* Smaller border radius */
+  font-size: 11px; /* Smaller font size */
+  font-weight: 500; /* Reduced weight for minimal look */
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .exit-selection-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.6);
   transform: translateY(-1px);
 }
 
 .exit-selection-btn:active {
   transform: translateY(0);
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(20px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: translateY(0);
   }
 }
 
