@@ -483,48 +483,46 @@ async def generate_podcast_script(content: str, related_content: str = "", insig
         related_content: Related snippets from the document library  
         insights: Structured insights from the insights generation step
     """
-    # Enhanced system prompt for content-focused podcast with Indian speakers
+    # Enhanced system prompt for insight-focused podcast with Indian speakers
     podcast_system_prompt = """### ROLE
 
-You are an expert podcast scriptwriter creating engaging 3-5 minute conversations about interesting content. Your specialty is turning documents, research, and insights into natural discussions between two knowledgeable friends.
+You are an expert podcast scriptwriter who specializes in creating engaging 3-5 minute conversations that transform research insights into compelling discussions between two knowledgeable friends.
 
 ### TASK
 
-Create a 3-5 minute conversational podcast script where two speakers discuss the actual content, findings, and insights from the provided materials. Focus on what's interesting, practical, or surprising in the content itself.
+Create a 3-5 minute conversational podcast script where two speakers focus primarily on discussing the KEY INSIGHTS and DISCOVERIES from the provided analysis. Make the conversation natural, engaging, and insight-driven.
 
 **Speakers:**
-- **Pooja:** Curious host who asks thoughtful questions, makes connections, keeps conversation flowing naturally
-- **Arjun:** Knowledgeable analyst who shares specific details from the content, provides examples and explanations
+- **Pooja:** Curious host who asks insightful questions, connects different insights, and helps uncover the "so what" of the findings
+- **Arjun:** Research analyst who presents the key insights clearly, explains their significance, and provides context from the analysis
 
-### CONTENT FOCUS PRINCIPLES
+### INSIGHT-DRIVEN FOCUS PRINCIPLES
 
-1. **Discuss ACTUAL CONTENT:** Talk about the specific information, methods, recipes, techniques, findings, or concepts found in the materials
-2. **Use SPECIFIC DETAILS:** Reference exact ingredients, measurements, steps, techniques, or data points from the content
-3. **Natural Flow:** Pooja asks genuine questions about interesting details Arjun mentions
-4. **Cross-Reference:** Connect insights and examples from different sources when relevant
-5. **Practical Value:** Highlight what's useful, surprising, or actionable for listeners
+1. **LEAD WITH INSIGHTS:** Start with the most compelling discovery, contradiction, or key takeaway from the analysis
+2. **DISCUSS SIGNIFICANCE:** Explain why these insights matter and what they reveal
+3. **HIGHLIGHT SURPRISES:** Focus on contradictions, unexpected findings, or "did you know" facts
+4. **CONNECT THE DOTS:** Show how different insights relate to each other
+5. **PRACTICAL IMPLICATIONS:** Discuss what these insights mean in practical terms
 
 ### SCRIPT STRUCTURE (3-5 minutes)
 
-**Opening (30 seconds):** Pooja introduces the topic based on the main content theme
-**Main Discussion (3-4 minutes):** Deep dive into 2-3 most interesting aspects:
-- Key findings, methods, or techniques from the content
-- Specific examples with concrete details (ingredients, measurements, steps, etc.)
-- Surprising discoveries or interesting contradictions
-- Practical applications or useful tips
-**Wrap-up (30 seconds):** Pooja summarizes main takeaways
+**Opening (30 seconds):** Pooja introduces the most intriguing insight or discovery
+**Main Discussion (3-4 minutes):** Deep dive into 2-3 key insight categories:
+- Most surprising contradictions or unexpected findings
+- Compelling supporting examples with specific details
+- Key takeaways and their broader implications
+- Interesting "did you know" facts that emerge from the analysis
+**Wrap-up (30 seconds):** Pooja summarizes the most valuable insights and their significance
 
 ### CRITICAL REQUIREMENTS
 
-- **CONTENT-DRIVEN:** Discuss the actual subject matter (recipes, techniques, findings, etc.), not document structure
-- **SPECIFIC DETAILS:** Include concrete examples, exact measurements, specific techniques from the provided materials
-- **GROUNDED:** Use ONLY information from the provided content, insights, and snippets - no external information
+- **INSIGHT-CENTRIC:** Focus on the analyzed insights, not just raw content
+- **SIGNIFICANCE-DRIVEN:** Explain why each insight matters, not just what it says
+- **DISCOVERY-FOCUSED:** Highlight what was learned through the analysis process
 - **FORMAT:** Use exactly "Pooja:" and "Arjun:" followed by their dialogue - no other formatting
-- **NATURAL SPEECH:** Conversational tone with contractions, natural phrases, genuine curiosity
-- **EXACT FORMAT:** Use "Host: [dialogue]" and "Analyst: [dialogue]" only - no markdown, asterisks, or formatting
-- **NATURAL SPEECH:** Conversational tone with contractions, questions, and natural transitions
-- **SOURCE INTEGRATION:** Mention sources naturally ("I saw in the research that..." or "According to the guide...")
-- **GROUNDED ONLY:** Use only the provided content and insights - no external information"""
+- **NATURAL CONVERSATION:** Include genuine reactions to surprising insights ("Really? That's fascinating!")
+- **SYNTHESIS:** Connect insights from different categories to tell a coherent story
+- **GROUNDED:** Use ONLY the provided insights and analysis - no external information"""
 
     # Prepare insights content for the script
     insights_content = ""
@@ -568,25 +566,30 @@ Create a 3-5 minute conversational podcast script where two speakers discuss the
 
 """
     
-    # User prompt focused on actual content discussion with clear instructions
-    user_content = f"""**MAIN TOPIC TO DISCUSS:**
+    # User prompt focused on insights with clear instructions for natural conversation
+    user_content = f"""**ORIGINAL TOPIC:**
 {content}
 
-{reference_snippets}**KEY INSIGHTS DISCOVERED:**
-{insights_content if insights_content else "Focus on the main content and explore any interesting patterns, methods, techniques, or discoveries."}
+{reference_snippets}**KEY INSIGHTS FROM ANALYSIS:**
+{insights_content if insights_content else "No specific insights generated. Focus on analyzing the topic itself and discussing interesting patterns, implications, or discoveries."}
 
-**INSTRUCTIONS FOR Pooja AND ARJUN:**
-Create a 3-5 minute natural conversation where:
-1. Pooja and Arjun discuss the ACTUAL CONTENT from the materials above
-2. Focus on specific details like recipes, techniques, ingredients, methods, findings, or practical information
-3. Use concrete examples and specific details from the content and related snippets
-4. If discussing recipes: mention actual ingredients, measurements, cooking methods
-5. If discussing research: cite specific findings, numbers, or conclusions
-6. If discussing techniques: explain the actual steps or methods described
-7. Connect information from different sources when relevant
-8. Make it conversational and engaging - Pooja asks curious questions, Arjun provides detailed explanations
+**INSTRUCTIONS FOR POOJA AND ARJUN:**
+Create a 3-5 minute natural conversation that:
 
-Remember: Discuss the SUBJECT MATTER (what the documents are about), not the documents themselves."""
+1. **Leads with the most compelling insight** - Start with what's most surprising, contradictory, or significant
+2. **Focuses on the "why this matters"** - Don't just state insights, discuss their implications and significance  
+3. **Highlights discoveries** - Emphasize what was learned through analysis, especially:
+   - Surprising contradictions or unexpected findings
+   - Supporting examples that reinforce key points
+   - Connections between related concepts
+   - "Did you know" facts that are genuinely interesting
+   - Key takeaways that have practical value
+
+4. **Makes it conversational** - Pooja should react with genuine curiosity ("Wait, really?" "That's fascinating!" "So what does that mean?")
+5. **Connects the dots** - Show how different insights relate to create a bigger picture
+6. **Stays grounded** - Only discuss the insights and analysis provided, no external knowledge
+
+Remember: This is about the INSIGHTS and what they REVEAL, not just summarizing content. Focus on the analytical discoveries and their significance."""
 
     messages = [
         {
@@ -603,8 +606,15 @@ Remember: Discuss the SUBJECT MATTER (what the documents are about), not the doc
         script = await llm_service.chat_with_llm(messages)
         
         # TERMINAL LOG: Print podcast script for debugging
-        print("🎙️ ENHANCED PODCAST - Generated Script:")
+        print("🎙️ INSIGHTS-DRIVEN PODCAST - Generated Script:")
         print("=" * 60)
+        if insights and isinstance(insights, dict):
+            insight_summary = []
+            for category, items in insights.items():
+                if isinstance(items, list) and len(items) > 0:
+                    insight_summary.append(f"{category}: {len(items)} items")
+            print(f"📊 Insights used: {', '.join(insight_summary) if insight_summary else 'No structured insights available'}")
+            print("-" * 40)
         print(script)
         print("=" * 60)
         
@@ -700,18 +710,18 @@ Remember: Discuss the SUBJECT MATTER (what the documents are about), not the doc
         
     except Exception as e:
         logger.error(f"Error generating podcast script: {e}")
-        # Content-focused fallback script with Indian names
-        content_preview = content[:150] if len(content) > 150 else content
-        return f"""Pooja: Hey Arjun, I've been going through some really interesting content, and there's something that caught my attention. It's about {content_preview}...
+        # Insights-focused fallback script with Indian names
+        content_preview = content[:100] if len(content) > 100 else content
+        return f"""Pooja: Hey Arjun, I just went through some really interesting analysis on this topic: {content_preview}... What stood out to you from the insights?
 
-Arjun: Oh, that sounds fascinating! What specifically stood out to you?
+Arjun: That's a great question, Pooja! There are some fascinating discoveries here. The analysis revealed some patterns and connections that aren't immediately obvious when you first look at this material.
 
-Pooja: Well, there are some really compelling details in there. Can you walk us through what you're seeing in the material?
+Pooja: Really? That sounds intriguing! What kind of discoveries are we talking about?
 
-Arjun: Absolutely! The content has some great examples and specific information. From what I can see, there are concrete details and practical approaches that are quite useful.
+Arjun: Well, the most significant finding is how the analysis uncovered relationships and implications that go beyond what's on the surface. There are some practical takeaways that could be really valuable.
 
-Pooja: That's exactly what I was thinking! What would you say are the key things someone should know about this?
+Pooja: I love that! So what would you say is the key insight someone should walk away with?
 
-Arjun: Great question, Pooja. I think the most valuable parts are the specific techniques and practical information that's laid out. It gives you real actionable insights on the topic.
+Arjun: The biggest takeaway is that this analysis helps us understand not just what the information says, but what it means in a broader context. It's about seeing the connections and implications that make this knowledge actionable.
 
-Pooja: Perfect! Thanks for breaking that down, Arjun - there's always something interesting to discover in these materials."""
+Pooja: That's exactly the kind of insight that makes research so valuable - when you can see the bigger picture and understand why it matters. Thanks for that perspective, Arjun!"""
