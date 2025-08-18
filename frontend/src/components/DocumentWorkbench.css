@@ -810,42 +810,42 @@
   }
 }
 
-/* Manual Context Reload Button */
-.manual-context-trigger {
+/* Manual Connection Generation Button */
+.manual-connections-trigger {
   position: absolute;
   bottom: 20px;
   right: 20px;
   z-index: 100;
 }
 
-.reload-context-btn {
+.generate-connections-btn {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: #10b981;
+  background: #3b82f6;
   color: white;
   border: none;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
   transition: all 0.2s ease;
 }
 
-.reload-context-btn:hover {
-  background: #059669;
+.generate-connections-btn:hover {
+  background: #2563eb;
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
 }
 
-.reload-context-btn:active {
+.generate-connections-btn:active {
   transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
 
-.reload-context-btn svg {
+.generate-connections-btn svg {
   flex-shrink: 0;
 }
 
