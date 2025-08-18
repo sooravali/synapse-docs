@@ -86,8 +86,12 @@ async def generate_podcast_audio_endpoint(request: PodcastRequest):
                 parts.append(text[:200])
             related_content = " ".join(parts)
         
-        # Generate podcast script
-        script = await generate_podcast_script(request.main_text, related_content)
+        # First generate insights to use as foundation for podcast script
+        insights = await generate_insights(request.main_text, related_content, request.recommendations)
+        logger.info(f"Generated insights for podcast: {len(insights.get('insights', {}))} categories")
+        
+        # Generate podcast script using insights
+        script = await generate_podcast_script(request.main_text, related_content, insights.get('insights', {}))
         
         # Generate audio
         audio_result = await generate_podcast_audio(script)
