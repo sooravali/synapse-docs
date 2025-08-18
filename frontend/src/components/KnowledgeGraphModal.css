@@ -17,9 +17,10 @@
 }
 
 .knowledge-graph-modal {
-  background: white;
+  background: #0f172a; /* Dark background like Obsidian */
+  color: #e2e8f0; /* Light text */
   border-radius: 16px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   width: 90vw;
   max-width: 1200px;
   height: 85vh;
@@ -36,8 +37,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 24px;
-  border-bottom: 1px solid #e5e7eb;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-bottom: 1px solid #334155;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
   color: white;
 }
 
@@ -136,11 +137,12 @@
   flex-direction: column;
   align-items: center;
   gap: 20px;
-  color: #6b7280;
+  color: #94a3b8;
 }
 
 .knowledge-graph-loading .spin {
   animation: spin 1s linear infinite;
+  color: #60a5fa;
 }
 
 .knowledge-graph-loading p {
@@ -251,12 +253,12 @@
   position: absolute;
   bottom: 20px;
   right: 20px;
-  background: rgba(255, 255, 255, 0.98);
+  background: rgba(15, 23, 42, 0.9);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(71, 85, 105, 0.5);
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   z-index: 15;
   max-width: 250px;
 }
@@ -265,7 +267,7 @@
   margin: 0 0 12px 0;
   font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: #e2e8f0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -277,7 +279,7 @@
   gap: 10px;
   margin-bottom: 10px;
   font-size: 14px;
-  color: #374151;
+  color: #cbd5e1;
   padding: 4px 0;
   transition: all 0.2s ease;
 }
@@ -287,7 +289,7 @@
 }
 
 .legend-item:hover {
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(96, 165, 250, 0.1);
   border-radius: 6px;
   padding: 4px 8px;
   margin: 6px -8px;
@@ -435,48 +437,47 @@
 }
 
 .stat {
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(15, 23, 42, 0.9);
   backdrop-filter: blur(8px);
-  border: 1px solid #e5e7eb;
+  border: 1px solid #475569;
   border-radius: 8px;
   padding: 12px 16px;
   text-align: center;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
 }
 
 .stat-value {
   display: block;
   font-size: 20px;
   font-weight: 700;
-  color: #374151;
+  color: #e2e8f0;
 }
 
 .stat-label {
   display: block;
   font-size: 12px;
-  color: #6b7280;
+  color: #94a3b8;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .stat.hovered {
-  background: #dbeafe;
-  border-color: #3b82f6;
+  background: rgba(96, 165, 250, 0.1);
+  border-color: #60a5fa;
 }
 
 .stat.hovered .stat-value {
-  color: #3b82f6;
+  color: #60a5fa;
   font-weight: 600;
 }
 
 /* Instructions */
 .knowledge-graph-instructions {
   padding: 16px 24px;
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
-  color: #475569;
+  background: #1e293b;
+  border-top: 1px solid #334155;
+  color: #94a3b8;
   font-size: 14px;
-  line-height: 1.5;
 }
 
 .knowledge-graph-instructions p {
@@ -590,15 +591,15 @@
   top: 20px;
   bottom: 20px;
   width: 280px;
-  background: rgba(255, 255, 255, 0.98);
+  background: rgba(15, 23, 42, 0.9);
   backdrop-filter: blur(12px);
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
   z-index: 15;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(71, 85, 105, 0.5);
 }
 
 /* Hide any default tooltips from react-force-graph */
@@ -620,7 +621,7 @@
   margin: 0 0 16px 0;
   font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: #e2e8f0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -646,21 +647,21 @@
 }
 
 .node-list-item:hover {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.2);
+  background: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.2);
   transform: translateX(4px);
 }
 
 .node-list-item.hovered {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(96, 165, 250, 0.2);
+  border-color: rgba(96, 165, 250, 0.4);
   transform: translateX(8px);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 2px 8px rgba(96, 165, 250, 0.2);
 }
 
 .node-list-item.current {
-  background: rgba(37, 99, 235, 0.1);
-  border-color: rgba(37, 99, 235, 0.3);
+  background: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.3);
   font-weight: 600;
 }
 
@@ -669,21 +670,21 @@
   height: 12px;
   border-radius: 50%;
   flex-shrink: 0;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 2px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .node-name {
   flex: 1;
   font-size: 14px;
-  color: #374151;
+  color: #cbd5e1;
   line-height: 1.4;
   word-break: break-word;
 }
 
 .current-badge {
-  background: #3b82f6;
-  color: white;
+  background: #60a5fa;
+  color: #0f172a;
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 11px;

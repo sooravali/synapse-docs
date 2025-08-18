@@ -55,7 +55,14 @@ const KnowledgeGraphModal = ({
       const processedData = processGraphData(data);
       setGraphData(processedData);
       
-      console.log(`�� Knowledge graph loaded: ${data.nodes?.length || 0} documents, ${data.links?.length || 0} connections`);
+      console.log(`🌐 Knowledge graph loaded: ${data.nodes?.length || 0} documents, ${data.links?.length || 0} connections`);
+      
+      // Auto-fit to view when graph data is loaded
+      setTimeout(() => {
+        if (forceGraphRef.current && processedData.nodes.length > 0) {
+          forceGraphRef.current.zoomToFit(1500, 200); // Auto-fit with good padding
+        }
+      }, 1000); // Wait for graph to stabilize
       
     } catch (err) {
       console.error('Error fetching knowledge graph:', err);
@@ -85,48 +92,47 @@ const KnowledgeGraphModal = ({
       return { nodes: [], links: [] };
     }
 
-    // Process nodes with MUCH BETTER initial positioning to prevent clustering
+    // Process nodes with much better spread for less clustering
     const nodes = rawData.nodes.map((node, index) => {
       const isCurrentDoc = currentDocumentId && node.document_id == currentDocumentId;
       
-      // Generate VERY well-spaced initial positions using golden angle spiral
+      // Much better initial positioning using golden ratio spiral for maximum spread
       const nodeCount = rawData.nodes.length;
-      const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // Golden angle in radians
+      const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // Golden angle
       const angle = index * goldenAngle;
-      const baseRadius = Math.max(800, nodeCount * 150); // Much larger base radius for better initial spacing
+      const baseRadius = Math.max(800, nodeCount * 150); // MUCH larger base radius for spread
       const radius = Math.sqrt(index + 1) * (baseRadius / Math.sqrt(nodeCount));
       
-      // Calculate position with golden spiral distribution for optimal spacing
-      const initialX = isCurrentDoc ? 0 : Math.cos(angle) * radius + (Math.random() - 0.5) * 600;
-      const initialY = isCurrentDoc ? 0 : Math.sin(angle) * radius + (Math.random() - 0.5) * 600;
+      // Calculate position with maximum spread and randomness for organic look
+      const initialX = isCurrentDoc ? 0 : Math.cos(angle) * radius + (Math.random() - 0.5) * 800; // Much larger randomness
+      const initialY = isCurrentDoc ? 0 : Math.sin(angle) * radius + (Math.random() - 0.5) * 800;
       
       return {
         ...node,
         // Visual properties for react-force-graph-2d
-        val: Math.max(node.size || 10, 20), // Larger nodes for better visibility
+        val: Math.max(node.size || 8, 12), // Smaller node size for cleaner look
         color: getNodeColor(node, isCurrentDoc),
         // Enhanced properties for better layout
         isCurrentDocument: isCurrentDoc,
         displayName: cleanFileName(node.name || 'Unknown Document'),
-        group: getDocumentGroup(node.name),
-        // CRITICAL: Set initial positions VERY far apart
+        // Set initial positions with good spread
         x: initialX,
         y: initialY,
-        // Don't fix positions - let them move but start spread out
+        // Allow nodes to move freely
         fx: null,
         fy: null,
       };
     });
 
-    // Process links with much longer distances to prevent clustering
+    // Process links with much longer distances for better spread
     const links = (rawData.links || []).map(link => ({
       ...link,
       // Visual properties based on connection strength
       color: getLinkColor(link.weight),
       width: getLinkWidth(link.weight),
       opacity: getLinkOpacity(link.weight),
-      // IMPORTANT: Much longer link distances to spread nodes apart like second image
-      distance: Math.max(500, 600 - (link.weight * 100)), // Much longer distances for better initial spread
+      // Much longer link distances for maximum spread
+      distance: Math.max(500, 800 - (link.weight * 200)), // Much longer distances for spread
     }));
 
     return { nodes, links };
@@ -134,58 +140,36 @@ const KnowledgeGraphModal = ({
 
   const getNodeColor = (node, isCurrentDoc) => {
     if (node.status !== 'ready') {
-      return '#94a3b8'; // Gray for processing documents
+      return '#64748b'; // Gray for processing documents
     }
     if (isCurrentDoc) {
-      return '#3b82f6'; // Blue for current document
+      return '#3b82f6'; // Blue for current document - highlighted
     }
     
-    // Color by document type for better visual grouping
-    const group = getDocumentGroup(node.name);
-    const colors = {
-      breakfast: '#f59e0b', // Amber
-      lunch: '#10b981',     // Emerald
-      dinner_mains: '#ef4444', // Red
-      dinner_sides: '#8b5cf6', // Purple
-      other: '#6b7280'      // Gray
-    };
-    
-    return colors[group] || colors.other;
-  };
-
-  const getDocumentGroup = (fileName) => {
-    if (!fileName) return 'other';
-    const name = fileName.toLowerCase();
-    
-    if (name.includes('breakfast')) return 'breakfast';
-    if (name.includes('lunch')) return 'lunch';
-    if (name.includes('dinner') && name.includes('main')) return 'dinner_mains';
-    if (name.includes('dinner') && name.includes('side')) return 'dinner_sides';
-    
-    return 'other';
+    // Clean, minimal Obsidian-style coloring - all documents are neutral
+    return '#94a3b8'; // Neutral gray for all other documents
   };
 
   const getLinkColor = (weight) => {
-    // Use 3-category color system as requested
-    if (weight > 0.7) return '#000000'; // Black for strong connections (>0.7)
-    if (weight >= 0.4) return '#6b7280'; // Grey for medium connections (0.4-0.7)
-    return '#d1d5db'; // Light grey for low connections (<0.4)
+    // Obsidian-style connection colors for dark background
+    if (weight > 0.7) return '#f8fafc'; // Very light gray/white for strong connections 
+    if (weight >= 0.4) return '#94a3b8'; // Medium gray for medium connections
+    return '#475569'; // Darker gray for weak connections
   };
 
   const getLinkWidth = (weight) => {
-    // Keep consistent thin line width for all connections
-    return 2; // Consistent thin width for all links
+    // Very thin lines like Obsidian - thinner than before
+    return 0.5; // Much thinner lines for cleaner appearance
   };
 
   const getLinkOpacity = (weight) => {
-    return Math.min(weight + 0.3, 0.8); // Higher opacity for stronger connections
+    return Math.min(weight + 0.4, 0.8); // Better opacity for dark background
   };
 
   const cleanFileName = (fileName) => {
     if (!fileName) return 'Unknown Document';
     
     // Minimal cleaning - only remove doc_ prefix with numbers and .pdf extension
-    // Keep everything else including full descriptive names
     let cleaned = fileName;
     
     // Only remove "doc_[number]_" prefix if it exists
@@ -194,18 +178,8 @@ const KnowledgeGraphModal = ({
     // Only remove .pdf extension (case insensitive)
     cleaned = cleaned.replace(/\.pdf$/i, '');
     
-    // Return full filename without any truncation whatsoever
-    return cleaned || fileName; // Fallback to original if cleaning results in empty string
-  };
-
-  // Calculate legend line width based on number of nodes
-  const calculateLegendLineWidth = (nodeCount) => {
-    // For 2-5 nodes: Fixed bigger length (like reference image)
-    if (nodeCount <= 5) {
-      return 50; // Bigger fixed length like in reference image
-    }
-    // For 6+ nodes: Proportional to number of nodes for better view
-    return Math.min(50 + (nodeCount - 5) * 3, 80); // Max 80px to prevent too long lines
+    // Return full filename without truncation
+    return cleaned || fileName;
   };
 
   // Node interaction handlers with highlighting
@@ -243,120 +217,63 @@ const KnowledgeGraphModal = ({
     }
   }, [graphData.links]);
 
-  // Enhanced node rendering with anti-aliasing and labels
+  // Clean node rendering inspired by Obsidian's minimal style
   const renderNode = useCallback((node, ctx, globalScale) => {
-    // Validate node position - fix for non-finite coordinates
-    if (!node || typeof node.x !== 'number' || typeof node.y !== 'number' || 
-        !isFinite(node.x) || !isFinite(node.y)) {
-      return; // Skip rendering if coordinates are invalid
-    }
-
-    const fontSize = Math.max(12 / globalScale, 8);
-    const radius = Math.sqrt(node.val || 10) * (globalScale > 1 ? 1.2 : 1.8);
+    if (!node || typeof node.x !== 'number' || typeof node.y !== 'number') return;
     
-    // Validate radius
-    if (!isFinite(radius) || radius <= 0) {
-      return; // Skip rendering if radius is invalid
-    }
+    const isHighlighted = highlightNodes.has(node) || hoveredNode === node;
     
-    // Enhanced rendering for better quality
     ctx.save();
     
-    // Node shadow for depth
-    if (globalScale > 0.5) {
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-      ctx.shadowBlur = 4;
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 2;
-    }
+    // Node size calculation - larger for better visibility
+    const baseRadius = Math.sqrt(node.val || 16) * 1.2; // Larger nodes
+    const finalRadius = Math.max(8, baseRadius) / globalScale;
     
-    // Draw node circle with gradient for better appearance
-    const isHighlighted = highlightNodes.has(node.id) || hoveredNode?.id === node.id;
-    const finalRadius = isHighlighted ? radius * 1.2 : radius;
-    
-    if (globalScale > 0.3 && isFinite(finalRadius) && finalRadius > 0) {
-      // Gradient fill for better visual appeal
-      try {
-        const gradient = ctx.createRadialGradient(
-          node.x, node.y, 0,
-          node.x, node.y, finalRadius
-        );
-        gradient.addColorStop(0, node.color);
-        gradient.addColorStop(1, adjustColorBrightness(node.color, -20));
-        ctx.fillStyle = gradient;
-      } catch (error) {
-        // Fallback to solid color if gradient creation fails
-        console.warn('Gradient creation failed, using solid color:', error);
-        ctx.fillStyle = node.color;
-      }
-    } else {
-      ctx.fillStyle = node.color;
-    }
-    
+    // Draw main node circle with clean Obsidian-style appearance
     ctx.beginPath();
     ctx.arc(node.x, node.y, finalRadius, 0, 2 * Math.PI);
+    
+    // Fill with clean colors
+    ctx.fillStyle = node.color;
+    if (isHighlighted) {
+      // Add subtle glow for highlighted nodes
+      ctx.shadowColor = node.isCurrentDocument ? '#3b82f6' : '#ffffff';
+      ctx.shadowBlur = 8 / globalScale;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+    }
     ctx.fill();
     
-    // Border for current document and highlighted nodes
-    if (node.isCurrentDocument || isHighlighted) {
-      ctx.strokeStyle = node.isCurrentDocument ? '#1e40af' : '#374151';
-      ctx.lineWidth = (node.isCurrentDocument ? 3 : 2) / globalScale;
+    // Clean border for current document
+    if (node.isCurrentDocument) {
+      ctx.strokeStyle = '#1e40af';
+      ctx.lineWidth = 2 / globalScale;
       ctx.stroke();
     }
     
     ctx.shadowColor = 'transparent'; // Reset shadow
     
-    // Draw label below the node (like in reference image)
-    if (globalScale > 0.4 && node.displayName) {
-      const labelY = node.y + finalRadius + 20 / globalScale;
-      const labelFontSize = Math.max(10 / globalScale, 8);
+    // Simple text label below node - extremely small for minimal visual clutter
+    if (globalScale > 0.5 && node.displayName) {
+      const labelY = node.y + finalRadius + 6 / globalScale;
+      const labelFontSize = Math.max(2 / globalScale, 1.5); // Ultra tiny text - almost invisible
       
-      ctx.font = `${labelFontSize}px Arial, sans-serif`;
+      ctx.font = `${labelFontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       
-      // Measure text to create background
-      const textMetrics = ctx.measureText(node.displayName);
-      const textWidth = textMetrics.width;
-      const textHeight = labelFontSize;
-      const padding = 4 / globalScale;
+      // Truncate text to just first few characters for minimal clutter
+      const truncatedText = node.displayName.length > 4 ? 
+        node.displayName.substring(0, 20) + '...' : 
+        node.displayName;
       
-      // Draw completely clear background for labels (no shade/border)
-      ctx.fillStyle = 'rgba(255, 255, 255, 0)'; // Clean white background
-      // No border/stroke for completely clear appearance
-      
-      // Create rounded rectangle for overlay effect
-      const rectX = node.x - textWidth / 2 - padding;
-      const rectY = labelY - padding;
-      const rectWidth = textWidth + padding * 2;
-      const rectHeight = textHeight + padding * 2;
-      const cornerRadius = 3 / globalScale;
-      
-      // Draw rounded rectangle background (clean, no border)
-      ctx.beginPath();
-      ctx.moveTo(rectX + cornerRadius, rectY);
-      ctx.lineTo(rectX + rectWidth - cornerRadius, rectY);
-      ctx.quadraticCurveTo(rectX + rectWidth, rectY, rectX + rectWidth, rectY + cornerRadius);
-      ctx.lineTo(rectX + rectWidth, rectY + rectHeight - cornerRadius);
-      ctx.quadraticCurveTo(rectX + rectWidth, rectY + rectHeight, rectX + rectWidth - cornerRadius, rectY + rectHeight);
-      ctx.lineTo(rectX + cornerRadius, rectY + rectHeight);
-      ctx.quadraticCurveTo(rectX, rectY + rectHeight, rectX, rectY + rectHeight - cornerRadius);
-      ctx.lineTo(rectX, rectY + cornerRadius);
-      ctx.quadraticCurveTo(rectX, rectY, rectX + cornerRadius, rectY);
-      ctx.closePath();
-      ctx.fill();
-      // No stroke for clean appearance
-      
-      // Draw text with better contrast for readability
-      ctx.fillStyle = node.isCurrentDocument ? '#1e40af' : '#1f2937'; // Slightly darker for better readability
-      ctx.font = `600 ${labelFontSize}px Arial, sans-serif`; // Make text slightly bolder
-      ctx.fillText(node.displayName, node.x, labelY);
+      // Better text colors for dark background with proper contrast
+      ctx.fillStyle = node.isCurrentDocument ? '#60a5fa' : '#cbd5e1'; // Better contrast for readability
+      ctx.fillText(truncatedText, node.x, labelY);
     }
     
     ctx.restore();
-  }, [highlightNodes, hoveredNode]);
-
-  // Enhanced link rendering with better visual effects
+  }, [highlightNodes, hoveredNode]);  // Clean link rendering - Obsidian style
   const renderLink = useCallback((link, ctx) => {
     const { source, target } = link;
     
@@ -366,19 +283,19 @@ const KnowledgeGraphModal = ({
         typeof target.x !== 'number' || typeof target.y !== 'number' ||
         !isFinite(source.x) || !isFinite(source.y) ||
         !isFinite(target.x) || !isFinite(target.y)) {
-      return; // Skip rendering if coordinates are invalid
+      return;
     }
     
     const isHighlighted = highlightLinks.has(link);
     
     ctx.save();
     
-    // Use the correct colors based on connection strength from the legend
-    ctx.globalAlpha = isHighlighted ? 0.9 : (link.opacity || 0.7);
-    ctx.strokeStyle = isHighlighted ? '#3b82f6' : (link.color || '#d1d5db'); // Use link.color for proper coloring
-    ctx.lineWidth = isHighlighted ? (link.width || 2) * 1.5 : (link.width || 2);
+    // Clean line styling - very thin lines
+    ctx.globalAlpha = isHighlighted ? 1.0 : (link.opacity || 0.6);
+    ctx.strokeStyle = isHighlighted ? '#60a5fa' : (link.color || '#475569');
+    ctx.lineWidth = isHighlighted ? 1.5 : (link.width || 0.5); // Much thinner lines
     
-    // Draw straight links only for cleaner appearance
+    // Simple straight lines
     ctx.beginPath();
     ctx.moveTo(source.x, source.y);
     ctx.lineTo(target.x, target.y);
@@ -406,7 +323,7 @@ const KnowledgeGraphModal = ({
   // Control functions for better user interaction
   const handleZoomToFit = () => {
     if (forceGraphRef.current) {
-      forceGraphRef.current.zoomToFit(1000, 50); // 1s animation, 50px padding
+      forceGraphRef.current.zoomToFit(1000, 200); // 1s animation, 200px padding for better view
     }
   };
 
@@ -426,26 +343,32 @@ const KnowledgeGraphModal = ({
 
   const handleReset = () => {
     if (forceGraphRef.current) {
+      // Reset positions with better spread
+      const nodes = graphData.nodes;
+      nodes.forEach((node, index) => {
+        const nodeCount = nodes.length;
+        const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+        const angle = index * goldenAngle;
+        const baseRadius = Math.max(600, nodeCount * 120); // Much larger spread
+        const radius = Math.sqrt(index + 1) * (baseRadius / Math.sqrt(nodeCount));
+        
+        node.fx = null; // Release fixed positions
+        node.fy = null;
+        node.x = Math.cos(angle) * radius + (Math.random() - 0.5) * 600;
+        node.y = Math.sin(angle) * radius + (Math.random() - 0.5) * 600;
+      });
+      
       // Reset zoom and center
       forceGraphRef.current.centerAt(0, 0, 1000);
       forceGraphRef.current.zoom(0.8, 1000); // Start slightly zoomed out
       
-      // Reheat simulation with stronger forces to redistribute nodes
+      // Restart the simulation with stronger forces
       forceGraphRef.current.d3ReheatSimulation();
       
-      // Optional: Randomize positions slightly to break symmetry
-      const currentData = forceGraphRef.current.graphData();
-      if (currentData.nodes) {
-        currentData.nodes.forEach(node => {
-          if (!node.isCurrentDocument) {
-            node.fx = null; // Remove any position fixes
-            node.fy = null;
-            // Add small random displacement
-            node.vx = (Math.random() - 0.5) * 20;
-            node.vy = (Math.random() - 0.5) * 20;
-          }
-        });
-      }
+      // Then fit to view with good padding
+      setTimeout(() => {
+        forceGraphRef.current.zoomToFit(1500, 150);
+      }, 1000);
     }
   };
 
@@ -614,43 +537,41 @@ const KnowledgeGraphModal = ({
                 nodeColor={() => 'transparent'}
                 linkColor={() => 'transparent'}
                 linkWidth={0}
-                backgroundColor="transparent"
-                width={900}
-                height={650}
-                // STRONGER ANTI-CLUSTERING FORCE PARAMETERS
-                cooldownTicks={400}
-                d3AlphaMin={0.0005}
-                d3VelocityDecay={0.1}
-                // Charge force (repulsion between nodes) - MUCH STRONGER repulsion
+                backgroundColor="#0f172a" // Dark background like Obsidian
+                width={1000} // Larger canvas for better spread
+                height={700} // Larger canvas for better spread
+                // Enhanced force parameters for maximum spread - dramatically increased
+                cooldownTicks={300}
+                d3AlphaMin={0.001}
+                d3VelocityDecay={0.15}
                 d3Force={{
                   charge: {
-                    strength: -1500, // Even stronger repulsion for better initial spread
-                    distanceMin: 120,
-                    distanceMax: 1200
+                    strength: -2500, // MUCH stronger repulsion to prevent clustering
+                    distanceMin: 200,
+                    distanceMax: 2000
                   },
                   link: {
-                    distance: (link) => link.distance || 400, // Longer link distances like second image
-                    strength: 0.12 // Weaker link force for more spread
+                    distance: (link) => link.distance || 600, // MUCH longer link distances
+                    strength: 0.1 // Very weak link force for maximum spread
                   },
                   center: {
-                    strength: 0.02 // Very weak centering force for more spread
+                    strength: 0.01 // Extremely weak centering for natural spread
                   },
                   collision: {
-                    radius: (node) => Math.sqrt(node.val) * 5 + 50, // Larger collision radius for better spacing
-                    strength: 1.0 // Strong collision prevention
+                    radius: (node) => Math.sqrt(node.val) * 6 + 80, // Much larger collision radius
+                    strength: 1.0 // Maximum collision prevention
                   }
                 }}
                 onEngineStop={() => {
-                  // Remove auto-zoom to prevent automatic zooming when panning nodes
-                  // User can manually use zoom controls if needed
+                  // No auto-zoom behavior
                 }}
               />
               
-              {/* EXTERNAL NODE LIST - Document names outside the graph */}
+              {/* Document List */}
               <div className="knowledge-graph-node-list">
                 <h4>Documents in Graph</h4>
                 <div className="node-list-items">
-                  {graphData.nodes.map((node, index) => (
+                  {graphData.nodes.map((node) => (
                     <div 
                       key={node.id}
                       className={`node-list-item ${hoveredNode?.id === node.id ? 'hovered' : ''} ${node.isCurrentDocument ? 'current' : ''}`}
@@ -671,49 +592,27 @@ const KnowledgeGraphModal = ({
                 </div>
               </div>
               
-              {/* Enhanced Legend */}
+              {/* Simple Legend - Obsidian style */}
               <div className="knowledge-graph-legend">
-                <h4>Document Types</h4>
-                <div className="legend-item">
-                  <div className="legend-node current-doc"></div>
-                  <span>Current Document</span>
-                </div>
-                <div className="legend-item">
-                  <div className="legend-node breakfast"></div>
-                  <span>Breakfast Ideas</span>
-                </div>
-                <div className="legend-item">
-                  <div className="legend-node lunch"></div>
-                  <span>Lunch Ideas</span>
-                </div>
-                <div className="legend-item">
-                  <div className="legend-node dinner-mains"></div>
-                  <span>Dinner Mains</span>
-                </div>
-                <div className="legend-item">
-                  <div className="legend-node dinner-sides"></div>
-                  <span>Dinner Sides</span>
-                </div>
-                
-                <h4 style={{ marginTop: '16px' }}>Connection Strength</h4>
+                <h4>Connection Strength</h4>
                 <div className="legend-item">
                   <div 
-                    className="legend-line color-strong-new" 
-                    style={{ width: `${calculateLegendLineWidth(graphData.nodes.length)}px` }}
+                    className="legend-line strong" 
+                    style={{ backgroundColor: '#f8fafc', width: '40px', height: '2px' }}
                   ></div>
                   <span>Strong (&gt;0.7)</span>
                 </div>
                 <div className="legend-item">
                   <div 
-                    className="legend-line color-medium-new" 
-                    style={{ width: `${calculateLegendLineWidth(graphData.nodes.length)}px` }}
+                    className="legend-line medium" 
+                    style={{ backgroundColor: '#94a3b8', width: '40px', height: '2px' }}
                   ></div>
                   <span>Medium (0.4-0.7)</span>
                 </div>
                 <div className="legend-item">
                   <div 
-                    className="legend-line color-low-new" 
-                    style={{ width: `${calculateLegendLineWidth(graphData.nodes.length)}px` }}
+                    className="legend-line low" 
+                    style={{ backgroundColor: '#475569', width: '40px', height: '2px' }}
                   ></div>
                   <span>Low (&lt;0.4)</span>
                 </div>
