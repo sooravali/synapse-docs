@@ -269,8 +269,13 @@ const SynapsePanel = forwardRef(({
   const getPageInfoForDisplay = (context, connections = []) => {
     if (!context) return null;
     
+    // Ensure context is a string before using match
+    const contextString = typeof context === 'string' ? context : 
+                         typeof context === 'object' && context.text ? context.text :
+                         JSON.stringify(context);
+    
     // Try to extract page from context first using the correct pattern: (Page X)
-    const pageMatch = context.match(/\(Page\s+(\d+)\)/i);
+    const pageMatch = contextString.match(/\(Page\s+(\d+)\)/i);
     if (pageMatch) {
       const pageNum = parseInt(pageMatch[1], 10);
       return { pageNumber: pageNum, isFromContext: true };
@@ -1047,8 +1052,8 @@ const SynapsePanel = forwardRef(({
                 if (onInsightsGenerated) {
                   onInsightsGenerated(false);
                 }
-                if (currentContext) {
-                  generateInsights(currentContext, connections);
+                if (contextInfo) {
+                  generateInsights(contextInfo, connections);
                 }
               }}
               disabled={isLoadingInsights}
@@ -1498,7 +1503,7 @@ const SynapsePanel = forwardRef(({
           <h4 className="podcast-section-title">Generate Audio Summary</h4>
           {(() => {
             // Display page information for podcast section
-            const pageInfo = getPageInfoForDisplay(currentContext, connections);
+            const pageInfo = getPageInfoForDisplay(contextInfo, connections);
             if (pageInfo && (podcastData || isGeneratingPodcast)) {
               return (
                 <div className="podcast-page-info">
@@ -1526,7 +1531,12 @@ const SynapsePanel = forwardRef(({
         {!podcastData ? (
           <button 
             className={`integrated-podcast-btn ${isGeneratingPodcast ? 'loading' : ''}`}
-            onClick={() => generatePodcast(currentContext)}
+            onClick={() => {
+              console.log('🎯 Generate Audio button clicked!');
+              console.log('🎯 contextInfo:', contextInfo);
+              console.log('🎯 contextInfo.queryText:', contextInfo?.queryText);
+              generatePodcast(contextInfo?.queryText);
+            }}
             disabled={isGeneratingPodcast}
           >
             {isGeneratingPodcast ? (
@@ -1552,7 +1562,7 @@ const SynapsePanel = forwardRef(({
             </ul>
             <button 
               className="retry-podcast-btn"
-              onClick={() => generatePodcast(currentContext)}
+              onClick={() => generatePodcast(contextInfo?.queryText)}
               disabled={isGeneratingPodcast}
             >
               {isGeneratingPodcast ? 'Generating...' : 'Try Again'}
@@ -1629,7 +1639,7 @@ const SynapsePanel = forwardRef(({
                   
                   <button 
                     className="generate-new-audio-btn"
-                    onClick={() => generatePodcast(currentContext)}
+                    onClick={() => generatePodcast(contextInfo?.queryText)}
                     disabled={isGeneratingPodcast}
                     title="Generate new audio (will replace current audio)"
                   >
