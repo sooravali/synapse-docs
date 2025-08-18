@@ -181,6 +181,7 @@ export const podcastAPI = {
     const payload = {
       content: mainText,
       related_content: Array.isArray(recommendations) ? recommendations.join('\n') : (recommendations || ""),
+      generate_audio: true, // Enable audio generation
     };
     
     // Include pre-generated insights if available to avoid duplicate generation
