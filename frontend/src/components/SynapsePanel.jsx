@@ -10,7 +10,7 @@ import { searchAPI, insightsAPI, podcastAPI } from '../api';
 import './SynapsePanel.css';
 
 const SynapsePanel = forwardRef(({ 
-  currentContext, 
+  contextInfo, // NEW: Structured context object { queryText, source, uniqueId }
   selectedDocument, 
   onConnectionSelect,
   onConnectionsUpdate,
@@ -104,18 +104,26 @@ const SynapsePanel = forwardRef(({
 
   // UNIFIED WORKFLOW: Helper functions for generating insights/podcast from current context
   const generateInsightsFromContext = async () => {
-    if (!currentContext || isLoadingInsights) return;
+    if (!contextInfo || isLoadingInsights) return;
     
-    console.log(` UNIFIED WORKFLOW - Generating insights from current context: "${currentContext.substring(0, 50)}..."`);
+    console.log(` UNIFIED WORKFLOW - Generating insights from current context:`, {
+      type: contextInfo.source?.type,
+      page: contextInfo.source?.pageNumber,
+      textLength: contextInfo.queryText.length
+    });
     setActiveTab('insights'); // Switch to insights tab
-    await generateInsights(currentContext, connections);
+    await generateInsights(contextInfo.queryText, connections);
   };
 
   const generatePodcastFromContext = async () => {
-    if (!currentContext || isGeneratingPodcast) return;
+    if (!contextInfo || isGeneratingPodcast) return;
     
-    console.log(` UNIFIED WORKFLOW - Generating podcast from current context: "${currentContext.substring(0, 50)}..."`);
-    await generatePodcast(currentContext);
+    console.log(` UNIFIED WORKFLOW - Generating podcast from current context:`, {
+      type: contextInfo.source?.type,
+      page: contextInfo.source?.pageNumber,
+      textLength: contextInfo.queryText.length
+    });
+    await generatePodcast(contextInfo.queryText);
   };
 
   // Helper function to generate content hash for similarity detection
@@ -312,184 +320,37 @@ const SynapsePanel = forwardRef(({
     }
   }, [sourceDropdownOpen]);
 
-  // STAGE 1: Auto-search for connections when context changes (ENHANCED CACHING)
+  // CLEAN CONTEXT HANDLING: React to structured context changes
   useEffect(() => {
-    console.log(` SynapsePanel: STAGE 1 - Context changed to: "${currentContext?.substring(0, 50)}..."`);
-    
-    if (!currentContext || currentContext.length <= 20) {
-      console.log(` SynapsePanel: Context too short or empty (${currentContext?.length || 0} chars), not searching`);
-      // Clear insights when context becomes empty
-      if (insights) {
-        console.log(` SynapsePanel: Clearing insights due to empty context`);
-        setInsights(null);
-        setPodcastData(null);
-        setInsightsMetadata(null);
-        if (onInsightsGenerated) {
-          onInsightsGenerated(false);
-        }
-      }
+    console.log(`🔍 SynapsePanel: Context changed:`, contextInfo);
+
+    // No context - clear connections
+    if (!contextInfo || !contextInfo.queryText) {
+      console.log(`⚠️ SynapsePanel: No valid context, clearing connections`);
+      setConnections([]);
+      setIsLoadingConnections(false);
       return;
     }
 
-    // Extract page context for intelligent caching
-    const pageContext = extractPageContext(currentContext, selectedDocument);
-    if (!pageContext) {
-      console.log(` SynapsePanel: Could not extract page context, skipping search`);
+    // Validate context
+    if (contextInfo.queryText.length < 10) {
+      console.log(`⚠️ SynapsePanel: Context too short (${contextInfo.queryText.length} chars)`);
+      setConnections([]);
+      setIsLoadingConnections(false);
       return;
     }
 
-    console.log(` SynapsePanel: Page context:`, pageContext);
+    console.log(`✅ SynapsePanel: Valid context received:`, {
+      type: contextInfo.source?.type,
+      page: contextInfo.source?.pageNumber,
+      textLength: contextInfo.queryText.length,
+      uniqueId: contextInfo.uniqueId
+    });
 
-    // ENHANCED INSIGHTS STABILITY: Intelligent insights clearing logic
-    const shouldClearInsights = (() => {
-      // Never clear if no insights exist
-      if (!insights) return false;
-      
-      // Never clear if no previous page context
-      if (!lastPageContextRef.current) return false;
-      
-      // Check if context identifiers are different
-      const contextChanged = lastPageContextRef.current.identifier !== pageContext.identifier;
-      if (!contextChanged) return false;
-      
-      // STABILITY RULE 1: Never clear insights from text selections (explicit user actions)
-      if (insightsMetadata && insightsMetadata.sourceType === 'selection') {
-        console.log(` SynapsePanel: Preserving insights from text selection - not clearing`);
-        return false;
-      }
-      
-      // STABILITY RULE 2: Don't clear insights too quickly after generation (stability period)
-      if (insightsMetadata && insightsMetadata.generatedAt) {
-        const timeSinceGeneration = Date.now() - insightsMetadata.generatedAt;
-        const stabilityPeriod = 10000; // 10 seconds stability period
-        
-        if (timeSinceGeneration < stabilityPeriod) {
-          console.log(` SynapsePanel: Insights still in stability period (${Math.round(timeSinceGeneration/1000)}s < 10s) - not clearing`);
-          return false;
-        }
-      }
-      
-      // STABILITY RULE 3: Don't clear for text selections within the same general context
-      if (pageContext.isTextSelection) {
-        console.log(` SynapsePanel: New text selection detected - not clearing previous insights`);
-        return false;
-      }
-      
-      // STABILITY RULE 4: Only clear for significant document/page changes
-      const isSignificantChange = lastPageContextRef.current.documentId !== pageContext.documentId ||
-        (lastPageContextRef.current.pageNumber !== undefined && 
-         pageContext.pageNumber !== undefined && 
-         Math.abs(lastPageContextRef.current.pageNumber - pageContext.pageNumber) > 2);
-      
-      if (!isSignificantChange) {
-        console.log(` SynapsePanel: Context change not significant enough - preserving insights`);
-        return false;
-      }
-      
-      console.log(` SynapsePanel: Significant context change detected - clearing insights`);
-      return true;
-    })();
+    // Search for connections with clean query text
+    searchForConnections(contextInfo.queryText, contextInfo);
 
-    if (shouldClearInsights) {
-      console.log(` SynapsePanel: Clearing insights due to significant context change`);
-      setInsights(null);
-      setPodcastData(null);
-      setExpandedInsights({});
-      setInsightsMetadata(null);
-      if (onInsightsGenerated) {
-        onInsightsGenerated(false);
-      }
-    }
-
-    // TEXT SELECTION: Always search immediately, don't use cache
-    if (pageContext.isTextSelection) {
-      console.log(` SynapsePanel: TEXT SELECTION detected - bypassing cache and searching immediately`);
-      searchForConnections(currentContext, pageContext);
-      lastQueryRef.current = currentContext;
-      lastPageContextRef.current = pageContext;
-      return;
-    }
-
-    // READING CONTEXT: Use normal caching logic
-    // OPTIMIZATION: Check if this is the same page context as the last one
-    if (lastPageContextRef.current && 
-        lastPageContextRef.current.identifier === pageContext.identifier &&
-        connections.length > 0) {
-      console.log(` SynapsePanel: Same page context as last time with existing connections, skipping duplicate API call`);
-      return;
-    }
-
-    // ENHANCED CACHING: Check cache with similarity detection (only for reading contexts)
-    const cacheKey = `${pageContext.documentId}:${pageContext.identifier}`;
-    const cachedEntry = connectionsCache.current.get(cacheKey);
-    
-    if (cachedEntry) {
-      console.log(` SynapsePanel: Found cached results for page ${pageContext.identifier}`);
-      
-      // For content-based caching, verify content similarity
-      if (pageContext.isContentBased && cachedEntry.contentHash !== pageContext.contentHash) {
-        console.log(` SynapsePanel: Content hash mismatch, checking similarity...`);
-        
-        // Simple similarity check - if hashes are different but close, still use cache
-        const hashDiff = Math.abs(parseInt(cachedEntry.contentHash) - parseInt(pageContext.contentHash));
-        const similarityThreshold = 1000; // Adjust as needed
-        
-        if (hashDiff > similarityThreshold) {
-          console.log(` SynapsePanel: Content significantly different (hash diff: ${hashDiff}), will search again`);
-        } else {
-          console.log(` SynapsePanel: Content similar enough (hash diff: ${hashDiff}), using cache`);
-          setConnections(cachedEntry.results);
-          lastPageContextRef.current = pageContext;
-          
-          // SMART TAB MANAGEMENT: Don't auto-switch if user is actively viewing insights
-          if (activeTab !== 'insights') {
-            console.log(` SynapsePanel: Auto-switching to connections tab (user not viewing insights)`);
-            setActiveTab('connections');
-          }
-          
-          if (onConnectionsUpdate) {
-            onConnectionsUpdate(cachedEntry.results);
-          }
-          return;
-        }
-      } else {
-        // Page-based cache hit
-        console.log(` SynapsePanel: Using cached results for page ${pageContext.identifier}`);
-        setConnections(cachedEntry.results);
-        lastPageContextRef.current = pageContext;
-        
-        // SMART TAB MANAGEMENT
-        if (activeTab !== 'insights') {
-          setActiveTab('connections');
-        }
-        
-        if (onConnectionsUpdate) {
-          onConnectionsUpdate(cachedEntry.results);
-        }
-        return;
-      }
-    }
-
-    // OPTIMIZATION: Clear any pending search timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    // INSTANT SEARCH: No debounce delay for immediate response
-    console.log(` SynapsePanel: IMMEDIATE search triggered for page: ${pageContext.identifier}`);
-    searchForConnections(currentContext, pageContext);
-
-    // Update last query and page context references
-    lastQueryRef.current = currentContext;
-    lastPageContextRef.current = pageContext;
-
-    // Cleanup function
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, [currentContext, selectedDocument, activeTab, connections.length, onConnectionsUpdate, insights, onInsightsGenerated]);
+  }, [contextInfo]); // Simple dependency - reacts to any context change
 
   // Helper function to extract quoted strings from JSON-like text
   const extractQuotedStrings = (text) => {
@@ -543,82 +404,107 @@ const SynapsePanel = forwardRef(({
     }
   }));
 
-  const searchForConnections = async (query, pageContext) => {
-    console.log(` SynapsePanel: STAGE 1 - Starting enhanced connections search for page: ${pageContext?.identifier || 'unknown'}`);
-    console.log(` Full query text being sent:`, query.substring(0, 100) + '...');
+  const searchForConnections = async (queryText, contextInfo) => {
+    console.log(`🔍 SynapsePanel: Searching for connections:`, {
+      type: contextInfo?.source?.type,
+      page: contextInfo?.source?.pageNumber,
+      textLength: queryText.length
+    });
     
-    // OPTIMIZATION: Prevent concurrent requests
+    // Prevent concurrent requests
     if (isLoadingConnections) {
-      console.log(` SynapsePanel: Already loading connections, skipping...`);
+      console.log(`⏸️ SynapsePanel: Already loading connections, skipping...`);
       return;
     }
     
     setIsLoadingConnections(true);
+    setConnections([]); // Clear immediately for better UX
     
     try {
-      console.log(` SynapsePanel: Making API call to semantic search...`);
+      // Clean query text - remove any metadata markers
+      const cleanQuery = queryText
+        .replace(/\[Selected Text from[^\]]*\]/g, '')
+        .replace(/\[Reading context from[^\]]*\]/g, '')
+        .replace(/\[End of Selection\]/g, '')
+        .replace(/\[End of Context\]/g, '')
+        .trim();
+
+      if (!cleanQuery || cleanQuery.length < 10) {
+        console.log(`❌ SynapsePanel: Query too short after cleaning: "${cleanQuery}"`);
+        setConnections([]);
+        return;
+      }
+
+      console.log(`📤 SynapsePanel: Clean query (${cleanQuery.length} chars): "${cleanQuery.substring(0, 100)}..."`);
       
-      // Request at least 5 results to ensure we get 3+ relevant sections (hackathon requirement)
+      // Make API call
       const results = await searchAPI.semantic({
-        query_text: query,
-        top_k: 5,
-        similarity_threshold: 0.1  // Very low threshold to ensure we get results
+        query_text: cleanQuery,
+        top_k: 6,
+        similarity_threshold: 0.1
       });
       
-      console.log(` SynapsePanel: API response received:`, results);
+      console.log(`📥 SynapsePanel: API response:`, results);
       
-      const connections = results.results || [];
-      console.log(` SynapsePanel: Found ${connections.length} raw connections`);
+      const connections = results?.results || [];
       
-      // Filter for >80% accuracy where possible, but show at least 3 results
+      if (connections.length === 0) {
+        console.log(`❌ SynapsePanel: No connections found`);
+        setConnections([]);
+        return;
+      }
+      
+      // Filter for quality connections
       const highAccuracyConnections = connections.filter(conn => conn.similarity_score > 0.8);
       const finalConnections = highAccuracyConnections.length >= 3 
         ? highAccuracyConnections.slice(0, 3)
         : connections.slice(0, Math.max(3, connections.length));
       
-      console.log(` STAGE 1 - Found ${finalConnections.length} connections (requirement: ≥3 with >80% accuracy)`);
-      console.log(` Accuracy distribution:`, finalConnections.map(c => `${Math.round(c.similarity_score * 100)}%`));
-      
-      // ENHANCED CACHING: Cache by page context with content hash
-      if (pageContext) {
-        const cacheKey = `${pageContext.documentId}:${pageContext.identifier}`;
-        const cacheEntry = {
-          results: finalConnections,
-          contentHash: pageContext.contentHash,
-          timestamp: Date.now()
-        };
-        connectionsCache.current.set(cacheKey, cacheEntry);
-        console.log(` SynapsePanel: Cached results for page ${pageContext.identifier} (cache size: ${connectionsCache.current.size})`);
-      } else {
-        // Fallback to query-based caching
-        connectionsCache.current.set(query, finalConnections);
-        console.log(` SynapsePanel: Cached results with query fallback (cache size: ${connectionsCache.current.size})`);
-      }
+      console.log(`✅ SynapsePanel: Found ${finalConnections.length} connections`);
+      console.log(`📈 Accuracy scores:`, finalConnections.map(c => `${Math.round(c.similarity_score * 100)}%`));
       
       setConnections(finalConnections);
-      console.log(` SynapsePanel: Updated connections state with ${finalConnections.length} items`);
       
-      // SMART TAB MANAGEMENT: Don't auto-switch if user is actively viewing insights
+      // Auto-switch to connections tab
       if (activeTab !== 'insights') {
-        console.log(` SynapsePanel: Auto-switching to connections tab (user not viewing insights)`);
         setActiveTab('connections');
-      } else {
-        console.log(`� SynapsePanel: User is viewing insights, preserving current tab`);
       }
-      console.log(` SynapsePanel: Stage 1 completed with smart tab management`);
       
-      // Notify parent about connections update for potential insights context
+      // Notify parent
       if (onConnectionsUpdate) {
         onConnectionsUpdate(finalConnections);
-        console.log(` SynapsePanel: Notified parent of connections update`);
       }
+      
     } catch (error) {
-      console.error(' SynapsePanel: STAGE 1 - Failed to search for connections:', error);
+      console.error(`❌ SynapsePanel: Search failed:`, error);
+      
+      if (error.response?.status === 422) {
+        console.error(`💥 SynapsePanel: 422 Validation Error:`, error.response.data);
+      }
+      
       setConnections([]);
+      
     } finally {
       setIsLoadingConnections(false);
-      console.log(` SynapsePanel: STAGE 1 - Connections search completed`);
     }
+  };
+
+  // Manual search function for user-initiated searches
+  const manualSearch = async (searchQuery) => {
+    console.log(`🔍 SynapsePanel: Manual search initiated for: "${searchQuery}"`);
+    
+    if (!searchQuery || searchQuery.trim().length < 3) {
+      console.log(`⚠️ SynapsePanel: Search query too short`);
+      return;
+    }
+    
+    const pageContext = {
+      isTextSelection: false,
+      identifier: `manual-search-${Date.now()}`,
+      documentId: selectedDocument?.id || 'unknown'
+    };
+    
+    await searchForConnections(searchQuery, pageContext);
   };
 
   const generateInsights = async (text, contextConnections = []) => {
@@ -1780,13 +1666,13 @@ const SynapsePanel = forwardRef(({
               setActiveTab('insights');
               // Always attempt to generate insights when button is clicked, even if insights already exist
               // The generateInsights function will handle confirmation if previous insights exist
-              if (!isLoadingInsights && currentContext && connections.length > 0) {
+              if (!isLoadingInsights && contextInfo && connections.length > 0) {
                 generateInsightsFromContext();
               }
             }}
-            disabled={!currentContext || connections.length === 0}
+            disabled={!contextInfo || connections.length === 0}
             title={
-              !currentContext 
+              !contextInfo 
                 ? 'Read document first to generate insights'
                 : connections.length === 0 
                   ? 'No connections found yet - scroll through document'
@@ -1838,59 +1724,21 @@ const SynapsePanel = forwardRef(({
                     <h4>Related Snippets</h4>
                     <p className="header-subtitle">
                       Found {connections.length} relevant {connections.length === 1 ? 'snippet' : 'snippets'} 
-                      {currentContext?.includes('[Selected Text from') 
+                      {contextInfo?.source?.type === 'text_selection' 
                         ? ' from your selected text'
                         : ' from your reading context'
                       }
                     </p>
                     
-                    {/* Source Information - Show the page where user is currently reading/selected text from */}
-                    {(() => {
-                      // Extract page information from the current context
-                      // Handle the enhanced format: [Selected Text from doc (Page X)] or [Reading context from doc (Page X)]
-                      const pageMatch = currentContext?.match(/\(Page\s+(\d+)\)/i);
-                      const isTextSelection = currentContext?.includes('[Selected Text from');
-                      const isReadingContext = currentContext?.includes('[Reading context from');
-                      
-                      // For reading context, if no page in context, try to get from connections
-                      let fallbackPage = null;
-                      if (isReadingContext && !pageMatch && connections.length > 0) {
-                        // Use the most common page from connections as fallback
-                        const pages = connections.map(conn => conn.page_number + 1);
-                        const pageCount = {};
-                        pages.forEach(page => {
-                          pageCount[page] = (pageCount[page] || 0) + 1;
-                        });
-                        const mostCommonPage = Object.keys(pageCount).reduce((a, b) => 
-                          pageCount[a] > pageCount[b] ? a : b
-                        );
-                        fallbackPage = mostCommonPage;
-                      }
-                      
-                      return (
-                        <div className="sources-compact" style={{ marginTop: '8px' }}>
-                          {isTextSelection ? (
-                            <div className="sources-toggle" style={{ cursor: 'default' }}>
-                              <span className="sources-label">
-                                Source: Selected text from {pageMatch ? `page ${pageMatch[1]}` : 'current page'}
-                              </span>
-                            </div>
-                          ) : isReadingContext ? (
-                            <div className="sources-toggle" style={{ cursor: 'default' }}>
-                              <span className="sources-label">
-                                Source: {pageMatch ? `Page ${pageMatch[1]}` : fallbackPage ? `Page ${fallbackPage}` : 'Current page'}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="sources-toggle" style={{ cursor: 'default' }}>
-                              <span className="sources-label">
-                                Source: {fallbackPage ? `Page ${fallbackPage}` : 'Current page'}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
+                    {/* Source Information */}
+                    <div className="sources-compact" style={{ marginTop: '8px' }}>
+                      <div className="sources-toggle" style={{ cursor: 'default' }}>
+                        <span className="sources-label">
+                          Source: {contextInfo?.source?.type === 'text_selection' ? 'Selected text' : 'Reading context'}
+                          {contextInfo?.source?.pageNumber ? ` from page ${contextInfo.source.pageNumber}` : ' from current page'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 {connections.map(renderConnectionCard)}
