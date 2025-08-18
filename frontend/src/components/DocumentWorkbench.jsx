@@ -6,7 +6,7 @@
  * Uses Adobe PDF Embed API with proper event handling and text selection.
  */
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { Play, Pause, MessageSquare, Volume2, Eye, Lightbulb, Radio, Network, X, RotateCcw } from 'lucide-react';
+import { Play, Pause, MessageSquare, Volume2, Eye, Lightbulb, Radio, Network, X } from 'lucide-react';
 import { searchAPI, insightsAPI, podcastAPI } from '../api';
 import { configService } from '../services/configService';
 import './DocumentWorkbench.css';
@@ -75,11 +75,6 @@ const DocumentWorkbench = forwardRef(({
   const adobeViewRef = useRef(null);
   const adobeViewerRef = useRef(null); // Store the resolved adobeViewer from previewFile promise
   const callbackRef = useRef(null);
-  
-  // OPTIMIZED REFS: Simplified debouncing without complex state tracking
-  const scrollTimeoutRef = useRef(null);
-  const lastPageDetected = useRef({ page: null, timestamp: 0 }); // Track page and timestamp
-  const isDetectingContext = useRef(false);
   
   // STATE PRIORITY FIX: Ref to track selection state for intervals/callbacks
   const isSelectionActiveRef = useRef(false);
@@ -260,96 +255,10 @@ const DocumentWorkbench = forwardRef(({
     }
   };
 
-  // IMPROVED READING CONTEXT HANDLER: Better page change detection
-  const detectReadingContext = async () => {
-    try {
-      console.log(`📖 DocumentWorkbench: Detecting reading context...`);
-
-      // STATE PRIORITY FIX: Check if selection is active - if so, skip reading context
-      if (isSelectionActiveRef.current) {
-        console.log(`⏸️ DocumentWorkbench: Selection is active, skipping reading context`);
-        return;
-      }
-
-      if (isDetectingContext.current) {
-        console.log(`⏸️ DocumentWorkbench: Already detecting context, skipping`);
-        return;
-      }
-
-      isDetectingContext.current = true;
-
-      // Get current page
-      let currentPageNum = 1;
-      try {
-        if (adobeViewerRef.current) {
-          const apis = await adobeViewerRef.current.getAPIs();
-          if (apis?.getCurrentPage) {
-            currentPageNum = await apis.getCurrentPage();
-          }
-        }
-      } catch (error) {
-        console.log(`⚠️ DocumentWorkbench: Could not get page number:`, error.message);
-      }
-
-      // Less aggressive page filtering - allow redetection after some time
-      const timeSinceLastDetection = Date.now() - (lastPageDetected.current?.timestamp || 0);
-      const isSamePage = lastPageDetected.current?.page === currentPageNum;
-      
-      if (isSamePage && timeSinceLastDetection < 5000) { // 5 seconds cooldown
-        console.log(`📋 DocumentWorkbench: Same page ${currentPageNum} detected recently, skipping`);
-        isDetectingContext.current = false;
-        return;
-      }
-
-      console.log(`📄 DocumentWorkbench: Processing page ${currentPageNum} for reading context`);
-
-      // Extract reading context
-      const contextText = await extractReadingContext(currentPageNum);
-      
-      if (!contextText || contextText.length < 30) {
-        console.log(`❌ DocumentWorkbench: No meaningful reading context found`);
-        isDetectingContext.current = false;
-        return;
-      }
-
-      // Update tracking with timestamp
-      lastPageDetected.current = {
-        page: currentPageNum,
-        timestamp: Date.now()
-      };
-      setCurrentPageNumber(currentPageNum);
-
-      // Create structured context object
-      const contextInfo = {
-        queryText: contextText, // Clean text for API
-        source: {
-          type: 'reading_context', // Match what SynapsePanel expects
-          documentId: document.id,
-          documentName: cleanFileName(document?.file_name) || 'document',
-          pageNumber: currentPageNum,
-          timestamp: Date.now()
-        },
-        uniqueId: `reading-${document.id}-${currentPageNum}-${Date.now()}`
-      };
-
-      console.log(`📤 DocumentWorkbench: Sending reading context for page ${currentPageNum}:`, contextInfo);
-
-      // Send structured context to parent
-      if (onContextChange) {
-        onContextChange(contextInfo);
-      }
-
-    } catch (error) {
-      console.error(`❌ DocumentWorkbench: Reading context detection failed:`, error);
-    } finally {
-      isDetectingContext.current = false;
-    }
-  };
-
-  // STATE PRIORITY FIX: Exit Selection Mode
+  // Text selection mode management - simplified without reading context
   const exitSelectionMode = async () => {
     try {
-      console.log(`🚪 DocumentWorkbench: Exiting Selection Mode - re-enabling reading context`);
+      console.log(`🚪 DocumentWorkbench: Exiting Selection Mode`);
       
       // Clear selection state
       setIsSelectionActive(false);
@@ -360,66 +269,8 @@ const DocumentWorkbench = forwardRef(({
         onContextChange(null);
       }
       
-      console.log(`🔄 DocumentWorkbench: Selection mode exited, triggering reading context detection`);
-      
-      // Immediately trigger new reading context for current page
-      setTimeout(() => {
-        detectReadingContext();
-      }, 200); // Increased timeout to ensure state is updated
-      
     } catch (error) {
       console.error(`❌ DocumentWorkbench: Failed to exit selection mode:`, error);
-    }
-  };
-
-  // HELPER: Extract readable context from current page
-  const extractReadingContext = async (pageNumber) => {
-    try {
-      // Method 1: Try Adobe text extraction API
-      if (adobeViewerRef.current) {
-        try {
-          const apis = await adobeViewerRef.current.getAPIs();
-          if (apis?.extractText) {
-            const pageText = await apis.extractText({
-              pageNumber: pageNumber,
-              includeFormatting: false
-            });
-
-            if (pageText && pageText.length > 100) {
-              // Extract meaningful content from middle of page
-              const paragraphs = pageText.split(/\n\s*\n|\.\s+(?=[A-Z])/);
-              const middleStart = Math.floor(paragraphs.length * 0.3);
-              const middleEnd = Math.floor(paragraphs.length * 0.7);
-              const centralContent = paragraphs
-                .slice(middleStart, middleEnd)
-                .filter(p => p.trim().length > 30)
-                .slice(0, 2)
-                .join(' ')
-                .trim()
-                .substring(0, 800); // Limit for API
-
-              if (centralContent.length > 50) {
-                console.log(`📄 DocumentWorkbench: Extracted context via Adobe API: ${centralContent.length} chars`);
-                return centralContent;
-              }
-            }
-          }
-        } catch (apiError) {
-          console.log(`⚠️ DocumentWorkbench: Adobe text extraction failed:`, apiError.message);
-        }
-      }
-
-      // Method 2: Reading context fallback when Adobe API fails
-      // Note: This is ONLY for reading context detection, NOT text selection
-      // Generate generic page-based context to maintain functionality
-      const pageContext = `Content from page ${pageNumber} of ${cleanFileName(document?.file_name) || 'document'}. This document appears to contain structured information that may relate to various topics and concepts. Reading context detection is active to find connections with other documents in the knowledge base.`;
-      
-      console.log(`⚠️ DocumentWorkbench: Adobe text extraction failed, using reading context fallback for page ${pageNumber}`);
-      return pageContext;
-
-    } catch (error) {
-      console.error(`❌ DocumentWorkbench: Context extraction failed:`, error);
-      return null;
     }
   };
 
@@ -437,92 +288,6 @@ const DocumentWorkbench = forwardRef(({
     setTimeout(() => {
       setShowActionHalo(false);
     }, 3000);
-  };
-
-  // HELPER: Manual reading context reload - Force override for current page
-  const reloadPageContext = async () => {
-    try {
-      console.log(`🔄 DocumentWorkbench: Manual page context reload triggered - bypassing all restrictions`);
-      
-      // First, ensure we exit selection mode if active
-      if (isSelectionActiveRef.current) {
-        console.log(`🚪 DocumentWorkbench: Exiting selection mode for context reload`);
-        setIsSelectionActive(false);
-        isSelectionActiveRef.current = false;
-        
-        // Clear current context to remove stale selection snippets
-        if (onContextChange) {
-          onContextChange(null);
-        }
-      }
-      
-      // Get current page number
-      let currentPageNum = 1;
-      if (adobeViewerRef.current) {
-        try {
-          const apis = await adobeViewerRef.current.getAPIs();
-          if (apis?.getCurrentPage) {
-            currentPageNum = await apis.getCurrentPage();
-          }
-        } catch (error) {
-          console.log(`⚠️ DocumentWorkbench: Could not get page for context reload:`, error.message);
-        }
-      }
-
-      // Force reset the page detection timestamp to allow immediate regeneration
-      lastPageDetected.current = { page: null, timestamp: 0 };
-      
-      // Force reading context detection by bypassing normal restrictions
-      console.log(`🔄 DocumentWorkbench: Force generating reading context for page ${currentPageNum}`);
-      
-      // Extract reading context directly
-      const contextText = await extractReadingContext(currentPageNum);
-      
-      if (contextText && contextText.length >= 30) {
-        // Update tracking with timestamp
-        lastPageDetected.current = {
-          page: currentPageNum,
-          timestamp: Date.now()
-        };
-        setCurrentPageNumber(currentPageNum);
-
-        // Create structured context object
-        const contextInfo = {
-          queryText: contextText, // Clean text for API
-          source: {
-            type: 'reading_context', // Match what SynapsePanel expects
-            documentId: document.id,
-            documentName: cleanFileName(document?.file_name) || 'document',
-            pageNumber: currentPageNum,
-            timestamp: Date.now()
-          },
-          uniqueId: `manual-reading-${document.id}-${currentPageNum}-${Date.now()}`
-        };
-
-        console.log(`📤 DocumentWorkbench: Sending manual reading context for page ${currentPageNum}:`, contextInfo);
-
-        // Send structured context to parent
-        if (onContextChange) {
-          onContextChange(contextInfo);
-        }
-        
-        // Show user feedback
-        showSelectionFeedback();
-        
-        console.log(`✅ DocumentWorkbench: Manual context reload completed successfully`);
-      } else {
-        console.log(`❌ DocumentWorkbench: Could not extract meaningful context for manual reload`);
-        
-        // Show user feedback even if extraction failed
-        showSelectionFeedback();
-      }
-      
-    } catch (error) {
-      console.error(`❌ DocumentWorkbench: Manual context reload failed:`, error);
-      
-      // Show user feedback even if failed
-      showSelectionFeedback();
-    }
   };
 
   // Expose navigation methods to parent component
@@ -661,19 +426,6 @@ const DocumentWorkbench = forwardRef(({
       }
     };
 
-    // Smart page change detection with throttling
-    let scrollTimeout = null;
-    const handleScroll = () => {
-      if (scrollTimeout) {
-        clearTimeout(scrollTimeout);
-      }
-
-      // Throttle scroll events aggressively
-      scrollTimeout = setTimeout(() => {
-        detectReadingContext();
-      }, 1200); // Increased to 1200ms for better performance
-    };
-
     // Double-click selection detection
     const handleDoubleClick = (event) => {
       console.log(`🖱️ DocumentWorkbench: Double click detected - likely text selection`);
@@ -697,7 +449,6 @@ const DocumentWorkbench = forwardRef(({
       pdfContainer.addEventListener('mouseup', handleMouseUp, { passive: true });
       pdfContainer.addEventListener('dblclick', handleDoubleClick, { passive: true });
       pdfContainer.addEventListener('contextmenu', handleContextMenu, { passive: true });
-      pdfContainer.addEventListener('scroll', handleScroll, { passive: true });
       
       // Document-wide events for broader coverage
       globalThis.document.addEventListener('keyup', handleKeyUp, { passive: true });
@@ -714,22 +465,12 @@ const DocumentWorkbench = forwardRef(({
       }, { passive: true });
     }
 
-    // Store timeout reference for cleanup
-    const currentScrollTimeout = scrollTimeout;
-
     // Cleanup function
     return () => {
-      if (currentScrollTimeout) {
-        clearTimeout(currentScrollTimeout);
-      }
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
       if (pdfContainer) {
         pdfContainer.removeEventListener('mouseup', handleMouseUp);
         pdfContainer.removeEventListener('dblclick', handleDoubleClick);
         pdfContainer.removeEventListener('contextmenu', handleContextMenu);
-        pdfContainer.removeEventListener('scroll', handleScroll);
         globalThis.document.removeEventListener('keyup', handleKeyUp);
         globalThis.document.removeEventListener('selectionchange', () => {});
       }
@@ -757,32 +498,6 @@ const DocumentWorkbench = forwardRef(({
       };
     }
   }, [CLIENT_ID]);
-
-  // Smart connection generation with fallback system
-  useEffect(() => {
-    if (!document || !isViewerReady) return;
-
-    console.log(`🔄 DocumentWorkbench: Setting up smart connection system for document ${document.id}`);
-
-    // Periodic context detection as backup (every 15 seconds)
-    const smartInterval = setInterval(() => {
-      if (isViewerReady && document) {
-        // STATE PRIORITY FIX: Check if selection is active before periodic context check
-        if (isSelectionActiveRef.current) {
-          console.log(`🕒 DocumentWorkbench: Periodic context check skipped - Selection Mode active`);
-          return;
-        }
-        
-        console.log(`🕒 DocumentWorkbench: Periodic context check triggered`);
-        detectReadingContext();
-      }
-    }, 15000); // Every 15 seconds
-
-    return () => {
-      clearInterval(smartInterval);
-      console.log(`🧹 DocumentWorkbench: Smart connection system cleaned up`);
-    };
-  }, [document, isViewerReady]);
 
   useEffect(() => {
     if (document && window.AdobeDC && CLIENT_ID) {
@@ -989,16 +704,15 @@ const DocumentWorkbench = forwardRef(({
           console.log(`✅ DocumentWorkbench: PDF rendering completed`);
           setIsViewerReady(true);
           
-          // Additional fallback for initial reading context if PDF_VIEWER_READY doesn't fire
+          // Fallback for ensuring viewer state is properly initialized
           setTimeout(() => {
             try {
-              console.log(`🔄 DocumentWorkbench: Fallback initial reading context detection`);
+              console.log(`🔄 DocumentWorkbench: Fallback initial viewer setup`);
               // Ensure selection mode is false initially
               setIsSelectionActive(false);
               isSelectionActiveRef.current = false;
-              detectReadingContext();
             } catch (fallbackError) {
-              console.warn(`⚠️ DocumentWorkbench: Fallback context detection failed:`, fallbackError.message);
+              console.warn(`⚠️ DocumentWorkbench: Fallback setup failed:`, fallbackError.message);
             }
           }, 2000);
           break;
@@ -1010,14 +724,13 @@ const DocumentWorkbench = forwardRef(({
           // Initial reading context detection after viewer is ready
           setTimeout(() => {
             try {
-              console.log(`🚀 DocumentWorkbench: Triggering initial reading context detection`);
+              console.log(`🚀 DocumentWorkbench: Initial viewer setup completed`);
               addCurrentLocationToBreadcrumbs();
               // Ensure selection mode is false initially
               setIsSelectionActive(false);
               isSelectionActiveRef.current = false;
-              detectReadingContext();
             } catch (initError) {
-              console.warn(`⚠️ DocumentWorkbench: Initial context detection failed:`, initError.message);
+              console.warn(`⚠️ DocumentWorkbench: Initial setup failed:`, initError.message);
             }
           }, 1500); // Reduced timeout for faster initial load
           break;
@@ -1050,15 +763,6 @@ const DocumentWorkbench = forwardRef(({
               
               // Update current page tracking
               setCurrentPageNumber(currentPage);
-              
-              // Always trigger reading context detection after page change (unless selection is still active)
-              setTimeout(() => {
-                try {
-                  detectReadingContext();
-                } catch (pageError) {
-                  console.warn(`⚠️ DocumentWorkbench: Page render context detection failed:`, pageError.message);
-                }
-              }, 300);
               
             } catch (error) {
               console.warn(`⚠️ DocumentWorkbench: Page change detection failed:`, error.message);
@@ -1220,35 +924,6 @@ const DocumentWorkbench = forwardRef(({
         ref={viewerRef}
         className={`pdf-viewer-container ${isViewerReady ? 'ready' : 'loading'}`}
       />
-
-      {/* Manual Page Context Reload Button */}
-      {isViewerReady && (
-        <div className="manual-connections-trigger">
-          <button 
-            onClick={reloadPageContext}
-            className="generate-connections-btn"
-            title="Reload reading context for current page and generate fresh connections"
-          >
-            <RotateCcw size={16} />
-            <span>Reload Page Context</span>
-          </button>
-          {/* Debug: Manual Reading Context Button */}
-          {process.env.NODE_ENV === 'development' && (
-            <button 
-              onClick={() => {
-                console.log(`🐛 Debug: Manual reading context trigger`);
-                detectReadingContext();
-              }}
-              className="generate-connections-btn"
-              style={{ marginLeft: '10px', backgroundColor: '#e74c3c' }}
-              title="Debug: Force reading context detection"
-            >
-              <Eye size={16} />
-              <span>Debug: Reading Context</span>
-            </button>
-          )}
-        </div>
-      )}
 
       {/* Simple Connections Notification - Clean User Feedback */}
       {showActionHalo && (
