@@ -6,7 +6,7 @@
  * Uses Adobe PDF Embed API with proper event handling and text selection.
  */
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { Play, Pause, MessageSquare, Volume2, Eye, Lightbulb, Radio, Network } from 'lucide-react';
+import { Play, Pause, MessageSquare, Volume2, Eye, Lightbulb, Radio, Network, X } from 'lucide-react';
 import { searchAPI, insightsAPI, podcastAPI } from '../api';
 import { configService } from '../services/configService';
 import './DocumentWorkbench.css';
@@ -65,6 +65,9 @@ const DocumentWorkbench = forwardRef(({
   const [isGeneratingPodcast, setIsGeneratingPodcast] = useState(false);
   const [currentPageNumber, setCurrentPageNumber] = useState(null); // Track current page for breadcrumbs
   
+  // STATE PRIORITY FIX: Selection Mode State
+  const [isSelectionActive, setIsSelectionActive] = useState(false);
+  
   // SIMPLIFIED STATE: Remove complex text selection state management
   // Context is now managed as a structured object passed up to parent
   
@@ -77,6 +80,9 @@ const DocumentWorkbench = forwardRef(({
   const scrollTimeoutRef = useRef(null);
   const lastPageDetected = useRef({ page: null, timestamp: 0 }); // Track page and timestamp
   const isDetectingContext = useRef(false);
+  
+  // STATE PRIORITY FIX: Ref to track selection state for intervals/callbacks
+  const isSelectionActiveRef = useRef(false);
 
   // ROBUST TEXT SELECTION HANDLER: Advanced extraction with comprehensive fallbacks
   const handleTextSelection = async () => {
@@ -191,6 +197,11 @@ const DocumentWorkbench = forwardRef(({
       // Update page tracking
       setCurrentPageNumber(currentPageNum);
 
+      // STATE PRIORITY FIX: Enter Selection Mode
+      console.log(`🎯 DocumentWorkbench: Entering Selection Mode - disabling reading context triggers`);
+      setIsSelectionActive(true);
+      isSelectionActiveRef.current = true;
+
       // Create structured context object
       const contextInfo = {
         queryText: selectedText, // Clean text for API
@@ -223,6 +234,12 @@ const DocumentWorkbench = forwardRef(({
   const detectReadingContext = async () => {
     try {
       console.log(`📖 DocumentWorkbench: Detecting reading context...`);
+
+      // STATE PRIORITY FIX: Check if selection is active - if so, skip reading context
+      if (isSelectionActiveRef.current) {
+        console.log(`⏸️ DocumentWorkbench: Selection is active, skipping reading context`);
+        return;
+      }
 
       if (isDetectingContext.current) {
         console.log(`⏸️ DocumentWorkbench: Already detecting context, skipping`);
@@ -296,6 +313,32 @@ const DocumentWorkbench = forwardRef(({
       console.error(`❌ DocumentWorkbench: Reading context detection failed:`, error);
     } finally {
       isDetectingContext.current = false;
+    }
+  };
+
+  // STATE PRIORITY FIX: Exit Selection Mode
+  const exitSelectionMode = async () => {
+    try {
+      console.log(`🚪 DocumentWorkbench: Exiting Selection Mode - re-enabling reading context`);
+      
+      // Clear selection state
+      setIsSelectionActive(false);
+      isSelectionActiveRef.current = false;
+      
+      // Clear current context to remove stale selection snippets
+      if (onContextChange) {
+        onContextChange(null);
+      }
+      
+      console.log(`🔄 DocumentWorkbench: Selection mode exited, triggering reading context detection`);
+      
+      // Immediately trigger new reading context for current page
+      setTimeout(() => {
+        detectReadingContext();
+      }, 200); // Increased timeout to ensure state is updated
+      
+    } catch (error) {
+      console.error(`❌ DocumentWorkbench: Failed to exit selection mode:`, error);
     }
   };
 
@@ -468,6 +511,11 @@ const DocumentWorkbench = forwardRef(({
   // Adobe PDF Embed API client ID - will be fetched from config service
   const [CLIENT_ID, setCLIENT_ID] = useState('');
 
+  // STATE PRIORITY FIX: Keep ref in sync with state for callback access
+  useEffect(() => {
+    isSelectionActiveRef.current = isSelectionActive;
+  }, [isSelectionActive]);
+
   // Fetch Adobe Client ID on component mount
   useEffect(() => {
     const loadConfig = async () => {
@@ -630,6 +678,12 @@ const DocumentWorkbench = forwardRef(({
     // Periodic context detection as backup (every 15 seconds)
     const smartInterval = setInterval(() => {
       if (isViewerReady && document) {
+        // STATE PRIORITY FIX: Check if selection is active before periodic context check
+        if (isSelectionActiveRef.current) {
+          console.log(`🕒 DocumentWorkbench: Periodic context check skipped - Selection Mode active`);
+          return;
+        }
+        
         console.log(`🕒 DocumentWorkbench: Periodic context check triggered`);
         detectReadingContext();
       }
@@ -845,6 +899,19 @@ const DocumentWorkbench = forwardRef(({
         case 'APP_RENDERING_DONE':
           console.log(`✅ DocumentWorkbench: PDF rendering completed`);
           setIsViewerReady(true);
+          
+          // Additional fallback for initial reading context if PDF_VIEWER_READY doesn't fire
+          setTimeout(() => {
+            try {
+              console.log(`🔄 DocumentWorkbench: Fallback initial reading context detection`);
+              // Ensure selection mode is false initially
+              setIsSelectionActive(false);
+              isSelectionActiveRef.current = false;
+              detectReadingContext();
+            } catch (fallbackError) {
+              console.warn(`⚠️ DocumentWorkbench: Fallback context detection failed:`, fallbackError.message);
+            }
+          }, 2000);
           break;
           
         case 'PDF_VIEWER_READY':
@@ -854,24 +921,60 @@ const DocumentWorkbench = forwardRef(({
           // Initial reading context detection after viewer is ready
           setTimeout(() => {
             try {
+              console.log(`🚀 DocumentWorkbench: Triggering initial reading context detection`);
               addCurrentLocationToBreadcrumbs();
+              // Ensure selection mode is false initially
+              setIsSelectionActive(false);
+              isSelectionActiveRef.current = false;
               detectReadingContext();
             } catch (initError) {
               console.warn(`⚠️ DocumentWorkbench: Initial context detection failed:`, initError.message);
             }
-          }, 2000);
+          }, 1500); // Reduced timeout for faster initial load
           break;
           
         case 'PREVIEW_PAGE_RENDERED':
           console.log(`📄 DocumentWorkbench: Page rendered`);
-          // Trigger reading context on page renders with delay and error handling
-          setTimeout(() => {
+          
+          // Always check for page changes first
+          setTimeout(async () => {
             try {
-              detectReadingContext();
-            } catch (pageError) {
-              console.warn(`⚠️ DocumentWorkbench: Page render context detection failed:`, pageError.message);
+              let currentPage = 1;
+              if (adobeViewerRef.current) {
+                const apis = await adobeViewerRef.current.getAPIs();
+                if (apis?.getCurrentPage) {
+                  currentPage = await apis.getCurrentPage();
+                }
+              }
+              
+              // STATE PRIORITY FIX: If page changed while selection was active, exit selection mode
+              if (isSelectionActive && currentPage !== currentPageNumber) {
+                console.log(`📄 DocumentWorkbench: Page changed from ${currentPageNumber} to ${currentPage}, exiting Selection Mode`);
+                setIsSelectionActive(false);
+                isSelectionActiveRef.current = false;
+                
+                // Clear stale selection context
+                if (onContextChange) {
+                  onContextChange(null);
+                }
+              }
+              
+              // Update current page tracking
+              setCurrentPageNumber(currentPage);
+              
+              // Always trigger reading context detection after page change (unless selection is still active)
+              setTimeout(() => {
+                try {
+                  detectReadingContext();
+                } catch (pageError) {
+                  console.warn(`⚠️ DocumentWorkbench: Page render context detection failed:`, pageError.message);
+                }
+              }, 300);
+              
+            } catch (error) {
+              console.warn(`⚠️ DocumentWorkbench: Page change detection failed:`, error.message);
             }
-          }, 500);
+          }, 100);
           break;
           
         case 'PREVIEW_SELECTION_END':
@@ -1039,6 +1142,21 @@ const DocumentWorkbench = forwardRef(({
             <Network size={16} />
             <span>Find Connections</span>
           </button>
+          {/* Debug: Manual Reading Context Button */}
+          {process.env.NODE_ENV === 'development' && (
+            <button 
+              onClick={() => {
+                console.log(`🐛 Debug: Manual reading context trigger`);
+                detectReadingContext();
+              }}
+              className="generate-connections-btn"
+              style={{ marginLeft: '10px', backgroundColor: '#e74c3c' }}
+              title="Debug: Force reading context detection"
+            >
+              <Eye size={16} />
+              <span>Debug: Reading Context</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -1056,6 +1174,26 @@ const DocumentWorkbench = forwardRef(({
           <div className="notification-content">
             <Network size={16} />
             <span>Connections Generated!</span>
+          </div>
+        </div>
+      )}
+
+      {/* STATE PRIORITY FIX: Exit Selection Mode UI */}
+      {isSelectionActive && (
+        <div className="selection-mode-controls">
+          <div className="selection-mode-bar">
+            <div className="selection-mode-info">
+              <span className="selection-icon">🎯</span>
+              <span className="selection-text">Text Selection Active</span>
+            </div>
+            <button 
+              onClick={exitSelectionMode}
+              className="exit-selection-btn"
+              title="Exit text selection mode and return to reading context"
+            >
+              <X size={14} />
+              Exit Selection
+            </button>
           </div>
         </div>
       )}
