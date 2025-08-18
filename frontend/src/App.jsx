@@ -426,7 +426,7 @@ function App() {
         <div className="panel panel-right">
           <SynapsePanel
             ref={synapsePanelRef}
-            currentContext={currentContext}
+            contextInfo={currentContext}
             selectedDocument={selectedDocument}
             onConnectionSelect={handleConnectionSelect}
             onConnectionsUpdate={setConnectionResults}
