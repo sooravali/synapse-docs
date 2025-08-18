@@ -6,7 +6,7 @@
  * Uses Adobe PDF Embed API with proper event handling and text selection.
  */
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { Play, Pause, MessageSquare, Volume2, Eye, Lightbulb, Radio, Network, X, RefreshCw } from 'lucide-react';
+import { Play, Pause, MessageSquare, Volume2, Eye, Lightbulb, Radio, Network, X, RotateCcw } from 'lucide-react';
 import { searchAPI, insightsAPI, podcastAPI } from '../api';
 import { configService } from '../services/configService';
 import './DocumentWorkbench.css';
@@ -408,28 +408,89 @@ const DocumentWorkbench = forwardRef(({
     }, 3000);
   };
 
-  // HELPER: Force reload reading context for current page
-  const reloadCurrentPageContext = async () => {
+  // HELPER: Manual reading context reload - Force override for current page
+  const reloadPageContext = async () => {
     try {
-      console.log(`🔄 DocumentWorkbench: Force reloading reading context for current page`);
+      console.log(`🔄 DocumentWorkbench: Manual page context reload triggered - bypassing all restrictions`);
       
-      // Skip selection mode check and force context reload
+      // First, ensure we exit selection mode if active
       if (isSelectionActiveRef.current) {
-        console.log(`🔄 DocumentWorkbench: Skipping reload - text selection is active`);
-        return;
+        console.log(`🚪 DocumentWorkbench: Exiting selection mode for context reload`);
+        setIsSelectionActive(false);
+        isSelectionActiveRef.current = false;
+        
+        // Clear current context to remove stale selection snippets
+        if (onContextChange) {
+          onContextChange(null);
+        }
+      }
+      
+      // Get current page number
+      let currentPageNum = 1;
+      if (adobeViewerRef.current) {
+        try {
+          const apis = await adobeViewerRef.current.getAPIs();
+          if (apis?.getCurrentPage) {
+            currentPageNum = await apis.getCurrentPage();
+          }
+        } catch (error) {
+          console.log(`⚠️ DocumentWorkbench: Could not get page for context reload:`, error.message);
+        }
       }
 
-      // Reset the cooldown to force immediate context detection
+      // Force reset the page detection timestamp to allow immediate regeneration
       lastPageDetected.current = { page: null, timestamp: 0 };
       
-      // Force reading context detection
-      await detectReadingContext();
+      // Force reading context detection by bypassing normal restrictions
+      console.log(`🔄 DocumentWorkbench: Force generating reading context for page ${currentPageNum}`);
       
-      // Show user feedback
-      showSelectionFeedback();
+      // Extract reading context directly
+      const contextText = await extractReadingContext(currentPageNum);
+      
+      if (contextText && contextText.length >= 30) {
+        // Update tracking with timestamp
+        lastPageDetected.current = {
+          page: currentPageNum,
+          timestamp: Date.now()
+        };
+        setCurrentPageNumber(currentPageNum);
+
+        // Create structured context object
+        const contextInfo = {
+          queryText: contextText, // Clean text for API
+          source: {
+            type: 'reading_context', // Match what SynapsePanel expects
+            documentId: document.id,
+            documentName: cleanFileName(document?.file_name) || 'document',
+            pageNumber: currentPageNum,
+            timestamp: Date.now()
+          },
+          uniqueId: `manual-reading-${document.id}-${currentPageNum}-${Date.now()}`
+        };
+
+        console.log(`📤 DocumentWorkbench: Sending manual reading context for page ${currentPageNum}:`, contextInfo);
+
+        // Send structured context to parent
+        if (onContextChange) {
+          onContextChange(contextInfo);
+        }
+        
+        // Show user feedback
+        showSelectionFeedback();
+        
+        console.log(`✅ DocumentWorkbench: Manual context reload completed successfully`);
+      } else {
+        console.log(`❌ DocumentWorkbench: Could not extract meaningful context for manual reload`);
+        
+        // Show user feedback even if extraction failed
+        showSelectionFeedback();
+      }
       
     } catch (error) {
-      console.error(`❌ DocumentWorkbench: Failed to reload context:`, error);
+      console.error(`❌ DocumentWorkbench: Manual context reload failed:`, error);
+      
+      // Show user feedback even if failed
+      showSelectionFeedback();
     }
   };
 
@@ -1128,17 +1189,32 @@ const DocumentWorkbench = forwardRef(({
         className={`pdf-viewer-container ${isViewerReady ? 'ready' : 'loading'}`}
       />
 
-      {/* Manual Context Reload Button */}
+      {/* Manual Page Context Reload Button */}
       {isViewerReady && (
-        <div className="manual-context-trigger">
+        <div className="manual-connections-trigger">
           <button 
-            onClick={reloadCurrentPageContext}
-            className="reload-context-btn"
-            title="Force reload reading context for current page"
+            onClick={reloadPageContext}
+            className="generate-connections-btn"
+            title="Reload reading context for current page and generate fresh connections"
           >
-            <RefreshCw size={16} />
-            <span>Reload Context</span>
+            <RotateCcw size={16} />
+            <span>Reload Page Context</span>
           </button>
+          {/* Debug: Manual Reading Context Button */}
+          {process.env.NODE_ENV === 'development' && (
+            <button 
+              onClick={() => {
+                console.log(`🐛 Debug: Manual reading context trigger`);
+                detectReadingContext();
+              }}
+              className="generate-connections-btn"
+              style={{ marginLeft: '10px', backgroundColor: '#e74c3c' }}
+              title="Debug: Force reading context detection"
+            >
+              <Eye size={16} />
+              <span>Debug: Reading Context</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -1156,6 +1232,26 @@ const DocumentWorkbench = forwardRef(({
           <div className="notification-content">
             <Network size={16} />
             <span>Connections Generated!</span>
+          </div>
+        </div>
+      )}
+
+      {/* STATE PRIORITY FIX: Exit Selection Mode UI */}
+      {isSelectionActive && (
+        <div className="selection-mode-controls">
+          <div className="selection-mode-bar">
+            <div className="selection-mode-info">
+              <span className="selection-icon">🎯</span>
+              <span className="selection-text">Text Selection Active</span>
+            </div>
+            <button 
+              onClick={exitSelectionMode}
+              className="exit-selection-btn"
+              title="Exit text selection mode and return to reading context"
+            >
+              <X size={14} />
+              Exit Selection
+            </button>
           </div>
         </div>
       )}
