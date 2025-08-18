@@ -20,6 +20,7 @@ const FlowStatusBar = ({
 }) => {
   const [flowStep, setFlowStep] = useState('upload');
   const [hoveredStep, setHoveredStep] = useState(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0 });
 
   useEffect(() => {
     if (!document) {
@@ -32,6 +33,21 @@ const FlowStatusBar = ({
       setFlowStep('complete');
     }
   }, [document, connectionsCount, hasInsights, isLoadingConnections, currentContext]);
+
+  const handleMouseEnter = (step, event) => {
+    setHoveredStep(step);
+    
+    // For vertical layout, calculate the tooltip position based on the icon's position
+    if (isVertical && event.currentTarget) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const iconCenterY = rect.top + rect.height / 2;
+      setTooltipPosition({ top: iconCenterY });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredStep(null);
+  };
 
   const getStepStatus = (step) => {
     const steps = ['upload', 'connect', 'generate', 'complete'];
@@ -86,8 +102,8 @@ const FlowStatusBar = ({
           {/* Upload Step */}
           <div 
             className="status-step-container"
-            onMouseEnter={() => setHoveredStep('upload')}
-            onMouseLeave={() => setHoveredStep(null)}
+            onMouseEnter={(e) => handleMouseEnter('upload', e)}
+            onMouseLeave={handleMouseLeave}
           >
             <div className={`status-step ${getStepStatus('upload')}`}>
               <FileText size={isVertical ? 14 : 18} />
@@ -98,7 +114,10 @@ const FlowStatusBar = ({
               </div>
             )}
             {hoveredStep === 'upload' && (
-              <div className="tooltip">
+              <div 
+                className="tooltip"
+                style={isVertical ? { top: `${tooltipPosition.top}px` } : {}}
+              >
                 {getStepTooltip('upload')}
               </div>
             )}
@@ -116,8 +135,8 @@ const FlowStatusBar = ({
           {/* Connect Step */}
           <div 
             className="status-step-container"
-            onMouseEnter={() => setHoveredStep('connect')}
-            onMouseLeave={() => setHoveredStep(null)}
+            onMouseEnter={(e) => handleMouseEnter('connect', e)}
+            onMouseLeave={handleMouseLeave}
           >
             <div className={`status-step ${getStepStatus('connect')}`}>
               <Network size={isVertical ? 14 : 18} />
@@ -128,7 +147,10 @@ const FlowStatusBar = ({
               </div>
             )}
             {hoveredStep === 'connect' && (
-              <div className="tooltip">
+              <div 
+                className="tooltip"
+                style={isVertical ? { top: `${tooltipPosition.top}px` } : {}}
+              >
                 {getStepTooltip('connect')}
               </div>
             )}
@@ -146,8 +168,8 @@ const FlowStatusBar = ({
           {/* Generate Step */}
           <div 
             className="status-step-container"
-            onMouseEnter={() => setHoveredStep('generate')}
-            onMouseLeave={() => setHoveredStep(null)}
+            onMouseEnter={(e) => handleMouseEnter('generate', e)}
+            onMouseLeave={handleMouseLeave}
           >
             <div className={`status-step ${getStepStatus('generate')}`}>
               <Lightbulb size={isVertical ? 14 : 18} />
@@ -158,7 +180,10 @@ const FlowStatusBar = ({
               </div>
             )}
             {hoveredStep === 'generate' && (
-              <div className="tooltip">
+              <div 
+                className="tooltip"
+                style={isVertical ? { top: `${tooltipPosition.top}px` } : {}}
+              >
                 {getStepTooltip('generate')}
               </div>
             )}
