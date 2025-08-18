@@ -80,6 +80,7 @@ const SynapsePanel = forwardRef(({
   const [expandedSnippets, setExpandedSnippets] = useState({}); // For snippet expansion
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  const [audioPlaybackSpeed, setAudioPlaybackSpeed] = useState(1);
   const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
   
   // Confirmation overlay state
@@ -162,6 +163,7 @@ const SynapsePanel = forwardRef(({
   const handleAudioLoadedMetadata = () => {
     if (audioRef.current) {
       setAudioDuration(audioRef.current.duration);
+      audioRef.current.playbackRate = audioPlaybackSpeed;
     }
   };
 
@@ -173,6 +175,19 @@ const SynapsePanel = forwardRef(({
       const newTime = percentage * audioDuration;
       audioRef.current.currentTime = newTime;
       setAudioCurrentTime(newTime);
+    }
+  };
+
+  const handlePlaybackSpeedChange = () => {
+    const speeds = [1, 1.25, 1.5, 2];
+    const currentIndex = speeds.indexOf(audioPlaybackSpeed);
+    const nextIndex = (currentIndex + 1) % speeds.length;
+    const newSpeed = speeds[nextIndex];
+    
+    setAudioPlaybackSpeed(newSpeed);
+    
+    if (audioRef.current) {
+      audioRef.current.playbackRate = newSpeed;
     }
   };
 
@@ -1547,7 +1562,7 @@ const SynapsePanel = forwardRef(({
             ) : (
               <>
                 <Zap size={16} />
-                Generate Audio Summary
+                Podcast Mode
               </>
             )}
           </button>
@@ -1611,6 +1626,13 @@ const SynapsePanel = forwardRef(({
                 <div className="audio-controls">
                   <div className="audio-time-display">
                     <span className="current-time">{formatTime(audioCurrentTime)}</span>
+                    <button 
+                      className="playback-speed-btn"
+                      onClick={handlePlaybackSpeedChange}
+                      title={`Current speed: ${audioPlaybackSpeed}x. Click to change speed.`}
+                    >
+                      {audioPlaybackSpeed}x
+                    </button>
                     <span className="duration">{formatTime(audioDuration)}</span>
                   </div>
                   
