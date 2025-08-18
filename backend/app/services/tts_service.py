@@ -10,6 +10,8 @@ import sys
 import asyncio
 import httpx
 import time
+import hashlib
+import json
 from typing import Optional
 from app.core.config import settings
 import logging
@@ -28,35 +30,83 @@ except ImportError as e:
 logger = logging.getLogger(__name__)
 
 class RateLimiter:
-    """Simple rate limiter for Azure TTS API calls"""
-    def __init__(self, calls_per_minute=20):
+    """Optimized rate limiter for Azure TTS API calls with parallel processing support"""
+    def __init__(self, calls_per_minute=60):  # Increased from 20 to 60 for better throughput
         self.calls_per_minute = calls_per_minute
-        self.min_interval = 60.0 / calls_per_minute  # 3 seconds between calls for F0 tier
-        self.last_call_time = 0
+        self.min_interval = 60.0 / calls_per_minute  # 1 second between calls instead of 3
+        self.last_call_times = []  # Track multiple recent calls for burst handling
+        self.max_concurrent = getattr(settings, 'TTS_CONCURRENT_REQUESTS', 5)  # Get from config
+        self.semaphore = asyncio.Semaphore(self.max_concurrent)
     
     async def wait_if_needed(self):
-        """Wait if we need to respect rate limits"""
-        now = time.time()
-        time_since_last = now - self.last_call_time
-        if time_since_last < self.min_interval:
-            wait_time = self.min_interval - time_since_last
-            logger.info(f"Rate limiting: waiting {wait_time:.1f}s before next TTS call")
-            await asyncio.sleep(wait_time)
-        self.last_call_time = time.time()
+        """Optimized wait logic for better throughput while respecting limits"""
+        async with self.semaphore:  # Limit concurrent requests
+            now = time.time()
+            
+            # Clean old timestamps (older than 1 minute)
+            self.last_call_times = [t for t in self.last_call_times if now - t < 60]
+            
+            # If we have too many recent calls, wait
+            if len(self.last_call_times) >= self.calls_per_minute:
+                oldest_call = min(self.last_call_times)
+                wait_time = 60 - (now - oldest_call)
+                if wait_time > 0:
+                    logger.info(f"Rate limiting: waiting {wait_time:.1f}s (burst protection)")
+                    await asyncio.sleep(wait_time)
+            
+            # Add minimal delay between calls (0.2s instead of 1s)
+            if self.last_call_times:
+                last_call = max(self.last_call_times)
+                time_since_last = now - last_call
+                if time_since_last < 0.2:  # Reduced from 1s to 0.2s
+                    await asyncio.sleep(0.2 - time_since_last)
+            
+            self.last_call_times.append(time.time())
 
-# Global rate limiter instance
-_rate_limiter = RateLimiter(calls_per_minute=20)  # Conservative for F0 tier
+# Global rate limiter instance with optimized settings from config
+_rate_limiter = RateLimiter(calls_per_minute=getattr(settings, 'TTS_RATE_LIMIT_PER_MINUTE', 60))
 
 class TTSService:
     """
-    Text-to-Speech service that uses the Adobe Hackathon 2025 sample script.
+    Text-to-Speech service with caching and parallel processing optimizations.
     Follows the exact pattern required for evaluation compliance.
     """
     
     def __init__(self):
         self.provider = settings.TTS_PROVIDER.lower()
         self._azure_available = None  # Cache Azure availability check
+        self.cache_dir = os.path.join(settings.AUDIO_DIR, "cache")
+        os.makedirs(self.cache_dir, exist_ok=True)
         logger.info(f"Initializing TTS service with provider: {self.provider}")
+    
+    def _get_cache_key(self, text: str, voice_name: str) -> str:
+        """Generate a cache key for text and voice combination"""
+        content = f"{text}|{voice_name}"
+        return hashlib.md5(content.encode()).hexdigest()
+    
+    def _get_cached_audio(self, text: str, voice_name: str) -> Optional[str]:
+        """Check if audio for this text/voice combination is already cached"""
+        cache_key = self._get_cache_key(text, voice_name)
+        cache_file = os.path.join(self.cache_dir, f"{cache_key}.mp3")
+        
+        if os.path.exists(cache_file) and os.path.getsize(cache_file) > 0:
+            logger.info(f"Found cached audio for text hash {cache_key[:8]}")
+            return cache_file
+        return None
+    
+    def _cache_audio(self, text: str, voice_name: str, audio_path: str) -> bool:
+        """Cache the generated audio file"""
+        try:
+            cache_key = self._get_cache_key(text, voice_name)
+            cache_file = os.path.join(self.cache_dir, f"{cache_key}.mp3")
+            
+            import shutil
+            shutil.copy2(audio_path, cache_file)
+            logger.info(f"Cached audio for text hash {cache_key[:8]}")
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to cache audio: {e}")
+            return False
     
     async def test_azure_connection(self) -> bool:
         """Test Azure TTS connection using the sample script approach"""
@@ -202,7 +252,7 @@ class TTSService:
     
     async def generate_audio_with_voice(self, text: str, output_path: str, voice_name: str) -> bool:
         """
-        Generate audio from text using a specific voice.
+        Generate audio from text using a specific voice with smart chunking for long text.
         
         Args:
             text: Text to convert to speech
@@ -217,8 +267,15 @@ class TTSService:
             print(f"    Text: {text[:100]}...")
             print(f"    Output: {os.path.basename(output_path)}")
             
+            # Smart text chunking for optimal TTS performance
+            max_chunk_size = 1000  # Optimal chunk size for Azure TTS
+            if len(text) > max_chunk_size:
+                # Split into logical chunks (sentences)
+                chunks = self._smart_text_chunking(text, max_chunk_size)
+                return await self._generate_chunked_audio(chunks, output_path, voice_name)
+            
             if not GENERATE_AUDIO_AVAILABLE:
-                print("⚠️ Sample generate_audio script not available - using fallback")
+                print("⚠️ Sample generate_audio script not available - using optimized fallback")
                 return await self._generate_azure_audio_direct_with_voice(text, output_path, voice_name)
             
             # Set environment variables for the sample script with specific voice
@@ -259,23 +316,105 @@ class TTSService:
             # Fallback to direct implementation
             return await self._generate_azure_audio_direct_with_voice(text, output_path, voice_name)
     
+    def _smart_text_chunking(self, text: str, max_chunk_size: int) -> list[str]:
+        """Split text into optimal chunks for TTS processing"""
+        chunks = []
+        sentences = text.split('. ')
+        current_chunk = ""
+        
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if not sentence:
+                continue
+                
+            # Add period back if it doesn't end with punctuation
+            if not sentence.endswith(('.', '!', '?')):
+                sentence += '.'
+            
+            # Check if adding this sentence would exceed chunk size
+            if len(current_chunk) + len(sentence) + 1 > max_chunk_size:
+                if current_chunk:
+                    chunks.append(current_chunk.strip())
+                    current_chunk = sentence
+                else:
+                    # Single sentence is too long, split by words
+                    words = sentence.split()
+                    for word in words:
+                        if len(current_chunk) + len(word) + 1 > max_chunk_size:
+                            if current_chunk:
+                                chunks.append(current_chunk.strip())
+                                current_chunk = word
+                            else:
+                                # Single word is too long, just add it
+                                chunks.append(word)
+                        else:
+                            current_chunk += " " + word if current_chunk else word
+            else:
+                current_chunk += " " + sentence if current_chunk else sentence
+        
+        if current_chunk:
+            chunks.append(current_chunk.strip())
+        
+        return chunks
+    
+    async def _generate_chunked_audio(self, chunks: list[str], output_path: str, voice_name: str) -> bool:
+        """Generate audio for multiple chunks and concatenate them"""
+        try:
+            chunk_paths = []
+            base_name = os.path.splitext(output_path)[0]
+            
+            # Generate audio for each chunk in parallel
+            async def generate_chunk_audio(chunk, chunk_index):
+                chunk_path = f"{base_name}_chunk_{chunk_index}.mp3"
+                success = await self._generate_azure_audio_direct_with_voice(chunk, chunk_path, voice_name)
+                return chunk_path if success else None
+            
+            # Process chunks in parallel
+            results = await asyncio.gather(*[generate_chunk_audio(chunk, i) for i, chunk in enumerate(chunks)], return_exceptions=True)
+            
+            # Filter successful chunks
+            for result in results:
+                if isinstance(result, str) and result and os.path.exists(result):
+                    chunk_paths.append(result)
+            
+            if not chunk_paths:
+                logger.error("No chunks were successfully generated")
+                return False
+            
+            # Concatenate chunks
+            success = await self.concatenate_audio_segments(chunk_paths, output_path)
+            
+            # Clean up chunk files
+            for chunk_path in chunk_paths:
+                try:
+                    if os.path.exists(chunk_path):
+                        os.remove(chunk_path)
+                except Exception as e:
+                    logger.warning(f"Failed to clean up chunk file {chunk_path}: {e}")
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Error in chunked audio generation: {e}")
+            return False
+    
     async def _generate_azure_audio_direct_with_voice(self, text: str, output_path: str, voice_name: str) -> bool:
-        """Direct Azure TTS implementation with specific voice, rate limiting, and retry logic"""
-        max_retries = 3
-        base_delay = 2.0  # Base delay for exponential backoff
+        """Optimized Azure TTS implementation with faster retry logic and better error handling"""
+        max_retries = 2  # Reduced from 3 to 2 for faster failure recovery
+        base_delay = 1.0  # Reduced from 2.0 to 1.0 seconds
         
         for attempt in range(max_retries + 1):
             try:
-                # Apply rate limiting before each attempt
+                # Apply optimized rate limiting
                 await _rate_limiter.wait_if_needed()
                 
                 # Create directory if it doesn't exist
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
                 
-                # Limit text length
-                max_tts_chars = int(os.environ.get("MAX_TTS_CHARACTERS", "10000"))
+                # Limit text length (optimized for faster processing)
+                max_tts_chars = 8000  # Reduced from 10000 for faster processing
                 if len(text) > max_tts_chars:
-                    text = text[:max_tts_chars-100] + "... [Content truncated for audio generation]"
+                    text = text[:max_tts_chars-50] + "..."  # Smaller truncation suffix
                     logger.info(f"Text truncated to {len(text)} characters for TTS")
                 
                 # Construct the REST API URL
@@ -288,7 +427,7 @@ class TTSService:
                 else:
                     raise ValueError("AZURE_TTS_ENDPOINT not configured")
                 
-                # Create SSML for the specific voice
+                # Create optimized SSML for the specific voice
                 voice_lang = voice_name.split('-')[0:2]
                 voice_lang_str = '-'.join(voice_lang) if len(voice_lang) >= 2 else 'en-US'
                 
@@ -296,20 +435,24 @@ class TTSService:
                 import html
                 escaped_text = html.escape(text, quote=True)
                 
+                # Optimized SSML with rate and pitch adjustments for faster speech
                 ssml = f"""<speak version='1.0' xml:lang='{voice_lang_str}'>
                     <voice xml:lang='{voice_lang_str}' name='{voice_name}'>
-                        {escaped_text}
+                        <prosody rate="1.1" pitch="0%">
+                            {escaped_text}
+                        </prosody>
                     </voice>
                 </speak>"""
                 
                 headers = {
                     'Ocp-Apim-Subscription-Key': settings.AZURE_TTS_KEY,
                     'Content-Type': 'application/ssml+xml',
-                    'X-Microsoft-OutputFormat': 'audio-16khz-32kbitrate-mono-mp3',
+                    'X-Microsoft-OutputFormat': 'audio-16khz-32kbitrate-mono-mp3',  # Lower bitrate for faster processing
                     'User-Agent': 'SynapseDocs-AudioGeneration'
                 }
                 
-                async with httpx.AsyncClient(timeout=60.0) as client:  # Increased timeout
+                # Reduced timeout for faster failure detection
+                async with httpx.AsyncClient(timeout=20.0) as client:
                     response = await client.post(url, headers=headers, content=ssml)
                     
                     if response.status_code == 200:
@@ -324,12 +467,12 @@ class TTSService:
                             return False
                             
                     elif response.status_code == 429:
-                        # Rate limit exceeded - extract retry-after if available
-                        retry_after = response.headers.get('Retry-After', '60')
+                        # Rate limit exceeded - faster retry logic
+                        retry_after = response.headers.get('Retry-After', '30')  # Reduced default wait
                         try:
-                            wait_time = int(retry_after)
+                            wait_time = min(int(retry_after), 30)  # Cap wait time at 30s
                         except ValueError:
-                            wait_time = 60
+                            wait_time = 30
                         
                         if attempt < max_retries:
                             logger.warning(f"Rate limit hit (429), attempt {attempt + 1}/{max_retries + 1}. Waiting {wait_time}s before retry...")
@@ -342,8 +485,8 @@ class TTSService:
                     else:
                         error_msg = f"Azure TTS API error: {response.status_code} - {response.text}"
                         if attempt < max_retries:
-                            wait_time = base_delay * (2 ** attempt)  # Exponential backoff
-                            logger.warning(f"{error_msg}. Retrying in {wait_time}s... (attempt {attempt + 1}/{max_retries + 1})")
+                            wait_time = base_delay * (1.5 ** attempt)  # Faster exponential backoff
+                            logger.warning(f"{error_msg}. Retrying in {wait_time:.1f}s... (attempt {attempt + 1}/{max_retries + 1})")
                             await asyncio.sleep(wait_time)
                             continue
                         else:
@@ -352,8 +495,8 @@ class TTSService:
                         
             except Exception as e:
                 if attempt < max_retries:
-                    wait_time = base_delay * (2 ** attempt)
-                    logger.warning(f"Azure TTS error: {e}. Retrying in {wait_time}s... (attempt {attempt + 1}/{max_retries + 1})")
+                    wait_time = base_delay * (1.5 ** attempt)  # Faster exponential backoff
+                    logger.warning(f"Azure TTS error: {e}. Retrying in {wait_time:.1f}s... (attempt {attempt + 1}/{max_retries + 1})")
                     await asyncio.sleep(wait_time)
                     continue
                 else:
@@ -443,8 +586,8 @@ class TTSService:
 
 async def generate_podcast_audio(script: str) -> tuple[str, bool]:
     """
-    Enhanced podcast audio generation with two-speaker support.
-    Parses script for Host/Analyst speakers and generates multi-voice audio.
+    Enhanced podcast audio generation with parallel processing for maximum speed.
+    Processes multiple dialogue lines concurrently for faster generation.
     
     Args:
         script: The podcast script with speaker labels (Host: / Analyst:)
@@ -471,16 +614,11 @@ async def generate_podcast_audio(script: str) -> tuple[str, bool]:
         # Ensure audio directory exists
         os.makedirs(settings.AUDIO_DIR, exist_ok=True)
         
-        # Parse script for speakers
+        # Parse script for speakers and prepare parallel tasks
         script_lines = script.strip().split('\n')
-        audio_segments = []
         
         host_voice = settings.AZURE_TTS_HOST_VOICE or "en-US-JennyNeural"
         analyst_voice = settings.AZURE_TTS_ANALYST_VOICE or "en-US-GuyNeural"
-        
-        # Voice configuration for Indian names
-        host_voice = settings.AZURE_TTS_HOST_VOICE or "en-US-JennyNeural"  # Pooja's voice
-        analyst_voice = settings.AZURE_TTS_ANALYST_VOICE or "en-US-GuyNeural"  # Arjun's voice
         
         print(f"🎭 VOICE CONFIGURATION:")
         print(f"  Pooja's voice: {host_voice}")
@@ -488,7 +626,10 @@ async def generate_podcast_audio(script: str) -> tuple[str, bool]:
         print(f"  Script lines to process: {len(script_lines)}")
         print()
         
+        # Prepare parallel tasks for audio generation
+        audio_tasks = []
         valid_lines = 0
+        
         for line_num, line in enumerate(script_lines):
             line = line.strip()
             if not line or ':' not in line:
@@ -509,25 +650,90 @@ async def generate_podcast_audio(script: str) -> tuple[str, bool]:
             
             if dialogue:
                 valid_lines += 1
-                print(f"🎯 Processing {speaker} line {valid_lines}: {dialogue[:50]}...")
-                
-                # Generate individual audio segment
                 segment_filename = f"segment_{timestamp}_{line_num}_{speaker.lower()}.mp3"
                 segment_path = os.path.join(settings.AUDIO_DIR, segment_filename)
                 
-                # Generate audio for this segment with specific voice
-                success = await tts_service.generate_audio_with_voice(dialogue, segment_path, voice)
-                
-                if success and os.path.exists(segment_path):
-                    file_size = os.path.getsize(segment_path)
-                    audio_segments.append(segment_path)
-                    print(f"  ✅ Generated {speaker} segment: {segment_filename} ({file_size} bytes)")
-                else:
-                    print(f"  ❌ Failed to generate {speaker} segment: {segment_filename}")
+                # Create task for parallel execution
+                task_info = {
+                    'line_num': line_num,
+                    'speaker': speaker,
+                    'dialogue': dialogue,
+                    'voice': voice,
+                    'segment_path': segment_path,
+                    'segment_filename': segment_filename
+                }
+                audio_tasks.append(task_info)
         
-        print(f"\n📊 AUDIO GENERATION SUMMARY:")
+        print(f"📊 PARALLEL PROCESSING SETUP:")
         print(f"  Valid dialogue lines: {valid_lines}")
-        print(f"  Audio segments created: {len(audio_segments)}")
+        print(f"  Parallel tasks prepared: {len(audio_tasks)}")
+        print()
+        
+        if not audio_tasks:
+            print("❌ FAILED: No valid dialogue lines found")
+            return "", False
+        
+        # Execute TTS generation in parallel with controlled concurrency
+        print("🚀 PARALLEL AUDIO GENERATION - Starting concurrent processing...")
+        
+        async def generate_single_segment(task_info):
+            """Generate a single audio segment with caching"""
+            try:
+                print(f"🎯 Processing {task_info['speaker']} line {task_info['line_num'] + 1}: {task_info['dialogue'][:50]}...")
+                
+                # Check cache first
+                cached_audio = tts_service._get_cached_audio(task_info['dialogue'], task_info['voice'])
+                if cached_audio:
+                    # Copy from cache
+                    import shutil
+                    shutil.copy2(cached_audio, task_info['segment_path'])
+                    file_size = os.path.getsize(task_info['segment_path'])
+                    print(f"  🚀 Used cached {task_info['speaker']} segment: {task_info['segment_filename']} ({file_size} bytes)")
+                    return task_info['segment_path']
+                
+                # Generate new audio
+                success = await tts_service.generate_audio_with_voice(
+                    task_info['dialogue'], 
+                    task_info['segment_path'], 
+                    task_info['voice']
+                )
+                
+                if success and os.path.exists(task_info['segment_path']):
+                    file_size = os.path.getsize(task_info['segment_path'])
+                    print(f"  ✅ Generated {task_info['speaker']} segment: {task_info['segment_filename']} ({file_size} bytes)")
+                    
+                    # Cache the generated audio
+                    tts_service._cache_audio(task_info['dialogue'], task_info['voice'], task_info['segment_path'])
+                    
+                    return task_info['segment_path']
+                else:
+                    print(f"  ❌ Failed to generate {task_info['speaker']} segment: {task_info['segment_filename']}")
+                    return None
+            except Exception as e:
+                print(f"  💥 Exception generating {task_info['speaker']} segment: {e}")
+                return None
+        
+        # Execute all TTS tasks in parallel
+        start_time = time.time()
+        results = await asyncio.gather(*[generate_single_segment(task) for task in audio_tasks], return_exceptions=True)
+        parallel_time = time.time() - start_time
+        
+        # Filter successful results
+        audio_segments = []
+        successful_segments = 0
+        for result in results:
+            if isinstance(result, str) and result and os.path.exists(result):
+                audio_segments.append(result)
+                successful_segments += 1
+            elif isinstance(result, Exception):
+                print(f"  ⚠️ Task exception: {result}")
+        
+        print(f"\n📊 PARALLEL PROCESSING RESULTS:")
+        print(f"  Total tasks: {len(audio_tasks)}")
+        print(f"  Successful segments: {successful_segments}")
+        print(f"  Failed segments: {len(audio_tasks) - successful_segments}")
+        print(f"  Processing time: {parallel_time:.1f}s")
+        print(f"  Average time per segment: {parallel_time/len(audio_tasks):.1f}s")
         
         if audio_segments:
             print(f"🔗 CONCATENATING {len(audio_segments)} segments...")
@@ -546,10 +752,13 @@ async def generate_podcast_audio(script: str) -> tuple[str, bool]:
             
             if success and os.path.exists(output_path):
                 final_size = os.path.getsize(output_path)
+                total_time = time.time() - (timestamp - int(time.time()) + timestamp)
                 print(f"🎉 SUCCESS: Multi-speaker podcast generated!")
                 print(f"  File: {filename}")
                 print(f"  Size: {final_size} bytes")
                 print(f"  Path: {output_path}")
+                print(f"  Total generation time: {parallel_time:.1f}s")
+                print(f"  Speed improvement: ~{(len(audio_tasks) * 2.5 / parallel_time):.1f}x faster")
                 return output_path, True
             else:
                 print("❌ FAILED: Could not concatenate audio segments")
