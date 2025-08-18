@@ -50,18 +50,20 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "llama3"
     
-    # TTS Configuration (Adobe Hackathon 2025 Requirements)
+    # TTS Configuration (Adobe Hackathon 2025 Requirements) - Optimized for Speed
     TTS_PROVIDER: str = "azure"
     AZURE_TTS_KEY: Optional[str] = None
     AZURE_TTS_REGION: Optional[str] = None
     AZURE_TTS_ENDPOINT: Optional[str] = None
     AZURE_TTS_VOICE: str = "en-US-AriaNeural"  # Configurable voice for different languages
     
-    # Multi-speaker podcast voices
-    AZURE_TTS_HOST_VOICE: str = "en-US-JennyNeural"  # Host speaker voice
-    AZURE_TTS_ANALYST_VOICE: str = "en-US-GuyNeural"  # Analyst speaker voice
+    # Multi-speaker podcast voices optimized for faster generation
+    AZURE_TTS_HOST_VOICE: str = "en-US-JennyNeural"  # Host speaker voice (fast neural voice)
+    AZURE_TTS_ANALYST_VOICE: str = "en-US-GuyNeural"  # Analyst speaker voice (fast neural voice)
     
-    MAX_TTS_CHARACTERS: int = 10000
+    MAX_TTS_CHARACTERS: int = 8000  # Reduced for faster processing
+    TTS_CONCURRENT_REQUESTS: int = 5  # Allow concurrent TTS requests
+    TTS_RATE_LIMIT_PER_MINUTE: int = 60  # Increased from default 20
     
     # File System Configuration (configurable for different deployment scenarios)
     UPLOADS_DIR: str = "uploads"
