@@ -36,22 +36,25 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24px;
+  padding: 20px 24px; /* Slightly less top/bottom padding */
   border-bottom: 1px solid #334155;
   background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
   color: white;
+  min-height: 80px; /* Ensure consistent height */
 }
 
 .knowledge-graph-title {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1; /* Take up available space */
 }
 
 .knowledge-graph-title > div {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px; /* Tighter spacing */
+  justify-content: center;
 }
 
 /* Control buttons container */
@@ -59,6 +62,7 @@
   display: flex;
   gap: 8px;
   margin-right: 12px;
+  align-items: center; /* Better vertical alignment */
 }
 
 .control-button {
@@ -93,14 +97,18 @@
 
 .knowledge-graph-title h2 {
   margin: 0;
-  font-size: 24px;
+  font-size: 22px; /* Slightly smaller for better proportions */
   font-weight: 700;
+  line-height: 1.2;
+  color: #60a5fa; /* Bright blue for dark theme - matches the graph highlighting */
 }
 
 .knowledge-graph-subtitle {
-  font-size: 14px;
-  opacity: 0.8;
-  margin-left: 8px;
+  font-size: 13px; /* Slightly smaller */
+  opacity: 0.9;
+  margin-left: 0; /* Remove left margin for better alignment */
+  color: #cbd5e1; /* Much lighter for better contrast */
+  line-height: 1.2;
 }
 
 .knowledge-graph-close {
@@ -114,6 +122,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 40px; /* Ensure consistent size */
+  height: 40px;
 }
 
 .knowledge-graph-close:hover {
@@ -471,27 +481,71 @@
   font-weight: 600;
 }
 
+/* Viewing Status - positioned below stats */
+.knowledge-graph-viewing-status {
+  position: absolute;
+  top: 120px; /* Below the stats */
+  right: 20px;
+  z-index: 10;
+}
+
+.knowledge-graph-viewing-status .stat {
+  background: rgba(96, 165, 250, 0.15);
+  border-color: #60a5fa;
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+}
+
+.knowledge-graph-viewing-status .stat-value {
+  color: #60a5fa;
+  font-weight: 600;
+  font-size: 16px;
+}
+
 /* Instructions */
 .knowledge-graph-instructions {
-  padding: 16px 24px;
-  background: #1e293b;
-  border-top: 1px solid #334155;
-  color: #94a3b8;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  border-top: 1px solid #475569;
+  color: #e2e8f0;
   font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+  position: relative;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .knowledge-graph-instructions p {
   margin: 0;
   margin-bottom: 8px;
+  color: #cbd5e1;
+  transition: color 0.2s ease;
 }
 
 .knowledge-graph-instructions p:last-child {
   margin-bottom: 0;
 }
 
+.knowledge-graph-instructions p:hover {
+  color: #e2e8f0;
+}
+
+.knowledge-graph-instructions strong {
+  color: #60a5fa;
+  font-weight: 600;
+  text-shadow: 0 0 8px rgba(96, 165, 250, 0.3);
+}
+
 .knowledge-graph-instructions .shortcuts {
   font-size: 13px;
-  color: #64748b;
+  color: #94a3b8;
+  font-weight: 500;
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
+}
+
+.knowledge-graph-instructions .shortcuts:hover {
+  opacity: 1;
+  color: #cbd5e1;
 }
 
 /* Animations */
