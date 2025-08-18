@@ -1,820 +1,327 @@
-# Synapse Frontend Documentation
+# Synapse-Docs Frontend
+
+> A modern React application delivering an immersive PDF reading experience with real-time semantic connections, AI-powered insights, and interactive knowledge graph visualization.
 
 ## Table of Contents
 
 - [Overview](#overview)
 - [Architecture](#architecture)
-- [Component Structure](#component-structure)
-- [Core Features](#core-features)
-- [User Interface Design](#user-interface-design)
+- [Technology Stack](#technology-stack)
+- [Core Components](#core-components)
+- [User Experience Features](#user-experience-features)
 - [State Management](#state-management)
 - [API Integration](#api-integration)
-- [Adobe PDF Embed Integration](#adobe-pdf-embed-integration)
-- [Development Guide](#development-guide)
-- [Build and Deployment](#build-and-deployment)
+- [Development Setup](#development-setup)
+- [Component Documentation](#component-documentation)
+- [Performance Optimization](#performance-optimization)
 
 ## Overview
 
-The Synapse frontend is a React-based single-page application that provides an immersive, intelligent document reading experience. Built specifically for the Adobe Hackathon 2025 "Connecting the Dots" challenge, it implements a sophisticated three-panel interface that transforms traditional PDF viewing into an interactive, AI-powered knowledge exploration platform.
+The Synapse-Docs frontend is a sophisticated React application that transforms traditional PDF reading into an interactive, intelligent document experience. Built specifically for the Adobe Hackathon 2025, it implements advanced UI/UX patterns including progressive disclosure, context-aware interfaces, and real-time semantic connections across multiple documents.
 
 ### Key Capabilities
 
-- **Immersive PDF Viewing**: High-fidelity PDF rendering using Adobe PDF Embed API
-- **Intelligent Context Detection**: Automatic reading progress tracking and context extraction
-- **Real-time Connections**: Instant discovery of related content across document libraries
-- **AI-Powered Insights**: On-demand generation of contextual insights and analysis
-- **Multi-Speaker Podcasts**: Audio content generation with natural dialogue between speakers
-- **Interactive Navigation**: Breadcrumb-based trail system for exploration tracking
+- **Immersive PDF Experience**: High-fidelity document rendering with Adobe PDF Embed API
+- **Real-time Semantic Search**: Instant cross-document connections on text selection
+- **Progressive Disclosure**: Context Lens and Action Halo for clean, focused interactions
+- **Interactive Visualization**: Force-directed knowledge graphs with document relationships
+- **Multi-Modal Output**: Integrated audio player for AI-generated podcast content
+- **Session Persistence**: Intelligent state management with browser storage integration
 
 ## Architecture
 
-### Two-Stage Workflow Architecture
-
-The frontend implements a sophisticated two-stage workflow designed for optimal user experience and performance:
-
-#### Stage 1: Connections Workflow (Real-time & Automatic)
-- **Trigger**: Scroll-based reading detection in DocumentWorkbench
-- **Action**: Automatically finds related content across document library
-- **UI**: Updates connections panel seamlessly in background
-- **User Experience**: "Magical" discovery without any user action
-
-#### Stage 2: Insights Workflow (On-Demand & Explicit)
-- **Trigger**: User text selection + explicit button clicks (Action Halo)
-- **Action**: Generates AI-powered insights using selected text + Stage 1 connections as context
-- **UI**: Shows Action Halo, then insights panel with rich analysis
-- **User Experience**: Deliberate, high-value analysis on user request
-
-### Three-Panel "Cockpit" Design
+### Component Architecture
 
 ```
-┌─────────────────┬─────────────────┬─────────────────┐
-│   The Workspace │ The Workbench   │   The Synapse   │
-│   (Left Panel)  │ (Center Panel)  │  (Right Panel)  │
-│                 │                 │                 │
-│ • Document      │ • PDF Viewer    │ • Connections   │
-│   Library       │ • Context Lens  │ • Insights      │
-│ • Flow Status   │ • Action Halo   │ • Podcast Gen   │
-│ • Quick Start   │ • Breadcrumbs   │ • Audio Player  │
-│                 │                 │                 │
-└─────────────────┴─────────────────┴─────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                           App.jsx                               │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────────┐  ┌─────────────────────┐  │
+│  │ Document    │  │ Document        │  │ Synapse Panel       │  │
+│  │ Library     │  │ Workbench       │  │                     │  │
+│  │             │  │                 │  │ ┌─────────────────┐ │  │
+│  │ • Upload    │  │ • PDF Embed     │  │ │ Connections Tab │ │  │
+│  │ • Management│  │ • Text Selection│  │ │ • Search Results│ │  │
+│  │ • Status    │  │ • Context Lens  │  │ │ • Snippets      │ │  │
+│  │             │  │ • Action Halo   │  │ └─────────────────┘ │  │
+│  │             │  │ • Breadcrumbs   │  │ ┌─────────────────┐ │  │
+│  │             │  │                 │  │ │ Insights Tab    │ │  │
+│  │             │  │                 │  │ │ • AI Analysis   │ │  │
+│  │             │  │                 │  │ │ • Audio Player  │ │  │
+│  │             │  │                 │  │ └─────────────────┘ │  │
+│  └─────────────┘  └─────────────────┘  └─────────────────────┘  │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌─────────────────────────────────────┐   │
+│  │ Flow Status Bar │  │ Knowledge Graph Modal              │   │
+│  │ • Step Tracking │  │ • Force-Directed Graph             │   │
+│  │ • Progress      │  │ • Interactive Navigation           │   │
+│  └─────────────────┘  └─────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-## Component Structure
+### Data Flow Architecture
 
-### Core Components
-
-#### App.jsx - Main Application Orchestrator
-
-**Location**: `src/App.jsx`
-
-The central component that orchestrates the entire application state and workflow:
-
-```jsx
-/**
- * Two-Stage Workflow Implementation:
- * 
- * STAGE 1: Connections (Automatic)
- * - handleContextChange() - Triggered by reading detection
- * - Updates connectionResults seamlessly
- * 
- * STAGE 2: Insights (Explicit)  
- * - handleInsightsRequest() - Triggered by user selection
- * - handlePodcastRequest() - Triggered by audio generation
- */
-function App() {
-  // Document Management State
-  const [documents, setDocuments] = useState([]);
-  const [selectedDocument, setSelectedDocument] = useState(null);
-  
-  // Context & Search State
-  const [currentContext, setCurrentContext] = useState('');
-  const [connectionResults, setConnectionResults] = useState([]);
-  
-  // Navigation Breadcrumb State
-  const [breadcrumbTrail, setBreadcrumbTrail] = useState([]);
+```
+User Interaction → Component State → API Service → Backend → Response → UI Update
+       ↓               ↓               ↓            ↓         ↓         ↓
+Text Selection → Context Object → Semantic Search → FAISS → Results → Live Display
 ```
 
-**Key Features**:
-- **Breadcrumb Trail Management**: Tracks user navigation path across documents and pages
-- **Global Keyboard Shortcuts**: Cmd+K for Knowledge Graph modal
-- **Session Management**: Handles document selection and context switching
-- **Two-Stage Workflow Coordination**: Orchestrates automatic connections and explicit insights
+### State Management Flow
 
-#### DocumentLibrary.jsx - The Workspace (Left Panel)
-
-**Location**: `src/components/DocumentLibrary.jsx`
-
-Provides document management and workspace overview:
-
-```jsx
-/**
- * Features:
- * - Drag-and-drop upload with visual feedback
- * - Multi-file selection and batch upload
- * - Document status tracking (processing/ready/error)
- * - Real-time processing progress
- * - Session-based document filtering
- */
+```
+Browser Storage ←→ Session Management ←→ Component State ←→ Real-time Updates
+       ↓                    ↓                   ↓               ↓
+Persistence ←→ User Isolation ←→ Local State ←→ WebSocket Events
 ```
 
-**Component Capabilities**:
-- **Upload Interface**: Intuitive drag-and-drop with progress tracking
-- **Status Monitoring**: Real-time processing status with visual indicators
-- **Document Organization**: Session-based document library management
-- **Quick Actions**: Document selection, deletion, and status refresh
+## Technology Stack
 
-#### DocumentWorkbench.jsx - The Workbench (Center Panel)
+### Core Framework
+| Component | Technology | Version | Purpose |
+|-----------|------------|---------|---------|
+| **Framework** | React | 18.2+ | Modern component-based UI with concurrent features |
+| **Build Tool** | Vite | 5.0+ | Lightning-fast development with HMR and optimized builds |
+| **Language** | JavaScript ES2022 | Latest | Modern syntax with async/await and optional chaining |
+| **Package Manager** | npm | 9.0+ | Dependency management with lock file integrity |
 
+### UI/UX Libraries
+| Component | Technology | Version | Purpose |
+|-----------|------------|---------|---------|
+| **PDF Rendering** | Adobe PDF Embed API | 2024 | High-fidelity document display with annotation support |
+| **Graph Visualization** | react-force-graph-2d | 1.25+ | Interactive force-directed graphs with D3.js backend |
+| **Icons** | Lucide React | 0.294+ | Consistent, customizable SVG icons |
+| **Styling** | CSS Modules | Built-in | Component-scoped styling with optimal performance |
+
+### API & Services
+| Component | Technology | Version | Purpose |
+|-----------|------------|---------|---------|
+| **HTTP Client** | Axios | 1.6+ | Promise-based HTTP requests with interceptors |
+| **Session Management** | Custom Service | - | User isolation with persistent storage |
+| **Configuration** | Environment Variables | - | Runtime configuration management |
+
+### Development Tools
+| Component | Technology | Version | Purpose |
+|-----------|------------|---------|---------|
+| **Dev Server** | Vite Dev Server | 5.0+ | Hot module replacement with instant updates |
+| **Linting** | ESLint | 8.0+ | Code quality and consistency enforcement |
+| **Formatting** | Prettier | 3.0+ | Automated code formatting |
+
+## Core Components
+
+### Document Workbench
 **Location**: `src/components/DocumentWorkbench.jsx`
 
-The heart of the PDF viewing experience with advanced interaction capabilities:
+**Purpose**: The central PDF viewing interface with advanced interaction capabilities
 
+**Key Features**:
+- **Adobe PDF Embed Integration**: High-fidelity document rendering with zoom, search, and annotation
+- **Context Lens**: Progressive disclosure of related information based on text selection
+- **Action Halo**: Contextual action buttons that appear on text selection
+- **Breadcrumb Trail**: Navigation history for document exploration paths
+- **Real-time Search**: Live highlighting of search results within the PDF
+
+**Implementation Highlights**:
 ```jsx
-/**
- * Advanced Features:
- * - Adobe PDF Embed API integration
- * - Context Lens for reading detection
- * - Action Halo for user interactions
- * - Breadcrumb navigation integration
- * - Multi-method text selection
- */
+const DocumentWorkbench = forwardRef(({ 
+  document, 
+  currentContext, 
+  onContextChange, 
+  searchResults,
+  breadcrumbTrail,
+  onBreadcrumbClick 
+}, ref) => {
+  // Adobe PDF Embed API integration with event handling
+  // Text selection detection and context extraction
+  // Progressive disclosure UI patterns
+  // Real-time search result highlighting
+});
 ```
 
-**Core Functionality**:
-
-##### Context Lens Technology
-- **Reading Detection**: Monitors scroll position and viewport
-- **Content Analysis**: Extracts current reading context automatically
-- **Real-time Updates**: Triggers Stage 1 connections workflow seamlessly
-
-##### Action Halo Interface
-- **Smart Positioning**: Appears near text selections with optimal placement
-- **Progressive Disclosure**: Shows relevant actions based on context
-- **Visual Feedback**: Clear visual indicators for available actions
-
-##### Adobe PDF Embed Integration
-```jsx
-// Advanced PDF viewer setup with comprehensive event handling
-useEffect(() => {
-  if (!document || !isConfigLoaded) return;
-
-  const initializeViewer = async () => {
-    try {
-      const adobeDC = window.AdobeDC;
-      const adobeView = adobeDC.View({
-        clientId: adobeConfig.clientId,
-        divId: "adobe-dc-view"
-      });
-
-      // Enhanced PDF viewing configuration
-      const viewerConfig = {
-        embedMode: "SIZED_CONTAINER",
-        showAnnotationTools: false,
-        showLeftHandPanel: false,
-        showDownloadPDF: false,
-        showPrintPDF: false,
-        showDisabledSaveButton: false,
-        enableFormFilling: false,
-        includePDFAnnotations: false
-      };
-
-      // Register comprehensive event handlers
-      adobeView.registerCallback(
-        AdobeDC.View.Enum.CallbackType.EVENT_LISTENER,
-        handleAdobeEvents,
-        { enablePDFAnalytics: false }
-      );
-    }
-  };
-}, [document, isConfigLoaded]);
-```
-
-##### Text Selection Strategies
-The component implements multiple fallback strategies for robust text selection:
-
-1. **Adobe API Selection**: Primary method using PDF Embed API
-2. **Browser Selection**: Fallback for text outside PDF viewer
-3. **DOM Query Selection**: Alternative detection for iframe content
-4. **Synthetic Selection**: Context generation when no text selected
-
-#### SynapsePanel.jsx - The Synapse (Right Panel)
-
+### Synapse Panel
 **Location**: `src/components/SynapsePanel.jsx`
 
-Implements the AI conversation interface with sophisticated state management:
+**Purpose**: The intelligent right sidebar providing AI-powered document connections and insights
 
+**Key Features**:
+- **Tabbed Interface**: Clean separation between Connections and Insights
+- **Live Search Results**: Real-time display of semantically related document sections
+- **Snippet Navigation**: Click-to-jump functionality for cross-document navigation
+- **AI Insights Generation**: Context-aware analysis with structured display
+- **Audio Player Integration**: Podcast-style content playback with controls
+
+**Implementation Highlights**:
 ```jsx
-/**
- * Tabbed Interface:
- * - Connections Tab: Real-time related content discovery
- * - Insights Tab: AI-powered analysis and insights
- * - Audio Integration: Podcast generation and playback
- */
+const SynapsePanel = forwardRef(({ 
+  contextInfo, 
+  onConnectionSelect,
+  onInsightsGenerated 
+}, ref) => {
+  // Tabbed interface with state management
+  // Real-time semantic search integration
+  // Structured insights display
+  // Audio content generation and playback
+});
 ```
 
-**Advanced Features**:
-
-##### Intelligent Caching System
-```jsx
-// Page-based cache with content similarity detection
-const connectionsCache = useRef(new Map());
-
-const cacheKey = `${selectedDocument?.id}:${extractedPage}`;
-const contentHash = btoa(queryText).slice(0, 16);
-
-// Cache hit detection with content validation
-if (cached && cached.contentHash === contentHash) {
-  console.log('📋 Using cached connections results');
-  setConnections(cached.results);
-  return;
-}
-```
-
-##### Insights Generation Workflow
-```jsx
-// Sophisticated insights generation with context awareness
-const generateInsights = async (selectedText, connectionResults) => {
-  // 1. Validate context and connections
-  // 2. Prepare structured LLM prompt
-  // 3. Generate insights with citations
-  // 4. Parse and format results
-  // 5. Update UI with structured data
-};
-```
-
-##### Multi-Speaker Podcast Generation
-```jsx
-// Advanced podcast generation with speaker differentiation
-const generatePodcast = async (context) => {
-  // 1. Generate structured script with speaker roles
-  // 2. Process audio generation for each speaker
-  // 3. Handle audio concatenation and playback
-  // 4. Provide download and sharing options
-};
-```
-
-### Specialized Components
-
-#### FlowStatusBar.jsx - Workflow Progress Indicator
-
+### Flow Status Bar
 **Location**: `src/components/FlowStatusBar.jsx`
 
-Provides visual feedback for the three-stage user workflow:
+**Purpose**: Visual workflow tracking showing user progress through the document analysis flow
 
+**Key Features**:
+- **Progressive Indicators**: Clear visual representation of completed, active, and pending steps
+- **Dynamic Updates**: Real-time status changes based on user actions
+- **Contextual Tooltips**: Informative hover states explaining each workflow step
+- **Responsive Design**: Adapts to different screen sizes and orientations
+
+**Implementation Highlights**:
 ```jsx
-/**
- * Workflow Stages:
- * 1. Upload - Document library building
- * 2. Connect - Automatic connections discovery  
- * 3. Generate - Explicit insights and audio generation
- */
+const FlowStatusBar = ({ 
+  document, 
+  connectionsCount, 
+  hasInsights, 
+  isLoadingConnections 
+}) => {
+  // Dynamic step calculation based on user progress
+  // Professional UI/UX with clear visual hierarchy
+  // Responsive tooltip positioning
+};
 ```
 
-**Visual Design**:
-- **Completed Steps**: Solid blue circles with white icons
-- **Active Step**: Blue outline with blue icon (prominent)
-- **Pending Steps**: Gray outline with gray icon
-- **Responsive Layout**: Adapts to horizontal and vertical orientations
-
-#### QuickStartGuide.jsx - User Onboarding
-
-**Location**: `src/components/QuickStartGuide.jsx`
-
-Interactive tutorial for first-time users:
-
-```jsx
-/**
- * Onboarding Flow:
- * 1. Welcome and feature overview
- * 2. Document upload demonstration
- * 3. Reading and connections explanation
- * 4. Insights and audio features tour
- */
-```
-
-#### KnowledgeGraphModal.jsx - Visual Knowledge Representation
-
+### Knowledge Graph Modal
 **Location**: `src/components/KnowledgeGraphModal.jsx`
 
-Advanced knowledge graph visualization using react-force-graph-2d:
+**Purpose**: Interactive visualization of document relationships using force-directed graphs
 
+**Key Features**:
+- **Force-Directed Layout**: Dynamic graph positioning using D3.js physics simulation
+- **Interactive Navigation**: Click, hover, and zoom interactions for graph exploration
+- **Document Highlighting**: Visual emphasis of currently selected document
+- **Relationship Visualization**: Edge weights representing semantic similarity strength
+- **Professional Styling**: Clean, modern graph aesthetics with smooth animations
+
+**Implementation Highlights**:
 ```jsx
-/**
- * Features:
- * - Interactive node and link visualization
- * - Document relationship mapping
- * - Zoom and pan navigation
- * - Contextual node information
- * - Export and sharing capabilities
- */
-```
-
-## Core Features
-
-### Intelligent Reading Detection
-
-The frontend implements sophisticated reading detection that automatically triggers the connections workflow:
-
-#### Scroll-Based Context Extraction
-```jsx
-// Optimized scroll handler with debouncing
-const handleScroll = useCallback(
-  debounce(async () => {
-    if (!isViewerReady || !selectedDocument) return;
-    
-    try {
-      // Extract current reading context from viewport
-      const apis = await adobeViewerRef.current.getAPIs();
-      const currentPage = await apis.getCurrentPage();
-      const viewportText = await extractViewportText();
-      
-      // Trigger Stage 1 connections workflow
-      onContextChange({
-        text: viewportText,
-        page: currentPage,
-        document: selectedDocument
-      });
-    } catch (error) {
-      console.log('Context extraction failed:', error);
-    }
-  }, 800),
-  [isViewerReady, selectedDocument, onContextChange]
-);
-```
-
-### Breadcrumb Trail System
-
-A unique navigation feature that tracks user exploration paths:
-
-#### Trail Management
-```jsx
-const addToBreadcrumbTrail = (document, pageNumber, context = '') => {
-  const newTrailItem = {
-    id: `${document.id}-${pageNumber}-${Date.now()}`,
-    documentId: document.id,
-    documentName: cleanFileName(document.file_name),
-    pageNumber: pageNumber,
-    context: context.substring(0, 100),
-    timestamp: Date.now()
-  };
-
-  setBreadcrumbTrail(prevTrail => {
-    // Prevent duplicate consecutive entries
-    const lastItem = prevTrail[prevTrail.length - 1];
-    if (lastItem?.documentId === document.id && 
-        lastItem?.pageNumber === pageNumber) {
-      return prevTrail;
-    }
-    
-    return [...prevTrail, newTrailItem];
-  });
+const KnowledgeGraphModal = ({ 
+  isVisible, 
+  onDocumentSelect,
+  currentDocumentId 
+}) => {
+  // Force-directed graph with react-force-graph-2d
+  // Interactive node and edge highlighting
+  // Dynamic data fetching and graph updates
+  // Professional graph styling and animations
 };
 ```
 
-#### Smart Navigation
-```jsx
-const navigateToBreadcrumbItem = async (trailItem) => {
-  const targetDoc = documents.find(doc => doc.id === trailItem.documentId);
-  const isDocumentSwitch = targetDoc.id !== selectedDocument?.id;
-  
-  if (isDocumentSwitch) {
-    setSelectedDocument(targetDoc);
-  }
-  
-  // Navigate with appropriate timing based on operation type
-  const navigationDelay = isDocumentSwitch ? 1500 : 50;
-  
-  setTimeout(async () => {
-    const success = await documentWorkbenchRef.current.navigateToPage(
-      trailItem.pageNumber
-    );
-    
-    if (success) {
-      // Truncate trail to this point (remove future items)
-      setBreadcrumbTrail(prevTrail => 
-        prevTrail.slice(0, prevTrail.findIndex(item => 
-          item.id === trailItem.id
-        ) + 1)
-      );
-    }
-  }, navigationDelay);
-};
-```
+### Document Library
+**Location**: `src/components/DocumentLibrary.jsx`
 
-### Action Halo Interface
+**Purpose**: Document management interface with upload, organization, and status tracking
 
-The Action Halo provides contextual actions that appear when users select text:
+**Key Features**:
+- **Bulk Upload Support**: Multi-file selection with drag-and-drop functionality
+- **Processing Status**: Real-time updates on document processing progress
+- **Library Management**: Document organization, deletion, and metadata display
+- **Search Integration**: Quick filtering and search within the document library
 
-#### Dynamic Positioning
-```jsx
-const showActionHalo = (selectionBounds) => {
-  // Calculate optimal position avoiding viewport edges
-  const haloPosition = {
-    top: selectionBounds.bottom + 10,
-    left: Math.max(50, selectionBounds.left - 100)
-  };
-  
-  // Adjust for viewport boundaries
-  if (haloPosition.top + 60 > window.innerHeight) {
-    haloPosition.top = selectionBounds.top - 70;
-  }
-  
-  setActionHaloPosition(haloPosition);
-  setShowActionHalo(true);
-};
-```
+## User Experience Features
 
-#### Progressive Disclosure
-```jsx
-// Action Halo renders contextually relevant buttons
-<div className="action-halo" style={actionHaloPosition}>
-  <button onClick={() => generateInsights(selectedText)}>
-    <Lightbulb /> Insights
-  </button>
-  <button onClick={() => generatePodcast(selectedText)}>
-    <Radio /> Podcast
-  </button>
-  <button onClick={() => addToConnections(selectedText)}>
-    <Network /> Connect
-  </button>
-</div>
-```
+### Progressive Disclosure
+The interface implements progressive disclosure patterns to maintain focus while providing access to advanced features:
 
-### Real-Time Connection Discovery
+- **Context Lens**: Information appears contextually based on user selections
+- **Action Halo**: Actions reveal themselves when relevant
+- **Tabbed Interfaces**: Complex information organized into digestible sections
 
-The connections system automatically finds related content as users read:
+### Real-time Interactions
+All user interactions provide immediate feedback:
 
-#### Semantic Search Integration
-```jsx
-const findConnections = async (context) => {
-  try {
-    setIsLoadingConnections(true);
-    
-    const searchResponse = await searchAPI.semantic({
-      query_text: context.text,
-      top_k: 8,
-      similarity_threshold: 0.65,
-      document_ids: documents
-        .filter(doc => doc.id !== selectedDocument?.id)
-        .map(doc => doc.id)
-    });
-    
-    const connections = searchResponse.results.map(result => ({
-      ...result,
-      explanation: generateConnectionExplanation(result, context),
-      relevanceScore: calculateRelevanceScore(result, context)
-    }));
-    
-    setConnectionResults(connections);
-    onConnectionsUpdate?.(connections);
-  } catch (error) {
-    console.error('Connection discovery failed:', error);
-  } finally {
-    setIsLoadingConnections(false);
-  }
-};
-```
+- **Instant Search**: Sub-second response times for semantic queries
+- **Live Updates**: Real-time status changes and progress indicators
+- **Smooth Animations**: Professional transitions and state changes
 
-## User Interface Design
+### Accessibility
+The application follows modern accessibility standards:
 
-### Design System
-
-The frontend implements a professional design system optimized for document reading and analysis:
-
-#### Color Palette
-```css
-:root {
-  /* Primary Colors */
-  --primary-blue: #2563eb;
-  --primary-blue-light: #3b82f6;
-  --primary-blue-dark: #1d4ed8;
-  
-  /* Semantic Colors */
-  --success-green: #10b981;
-  --warning-orange: #f59e0b;
-  --error-red: #ef4444;
-  
-  /* Neutral Grays */
-  --gray-50: #f9fafb;
-  --gray-100: #f3f4f6;
-  --gray-200: #e5e7eb;
-  --gray-600: #4b5563;
-  --gray-900: #111827;
-  
-  /* Background Colors */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --bg-panel: #ffffff;
-}
-```
-
-#### Typography
-```css
-.typography {
-  /* Headings */
-  --font-heading: 'Inter', system-ui, sans-serif;
-  --font-body: 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
-  
-  /* Scale */
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.25rem;
-  --text-2xl: 1.5rem;
-}
-```
-
-#### Layout System
-```css
-.layout {
-  /* Panel Widths */
-  --panel-sidebar: 320px;
-  --panel-workbench: 1fr;
-  --panel-synapse: 400px;
-  
-  /* Spacing Scale */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-4: 1rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
-  
-  /* Borders and Shadows */
-  --border-radius: 8px;
-  --border-radius-lg: 12px;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-}
-```
-
-### Responsive Design
-
-The interface adapts seamlessly across different screen sizes:
-
-#### Breakpoints
-```css
-/* Mobile First Approach */
-@media (min-width: 640px) { /* sm */ }
-@media (min-width: 768px) { /* md */ }
-@media (min-width: 1024px) { /* lg */ }
-@media (min-width: 1280px) { /* xl */ }
-```
-
-#### Panel Behavior
-- **Large Screens**: Full three-panel layout
-- **Medium Screens**: Collapsible sidebar with two-panel view
-- **Small Screens**: Single-panel view with navigation tabs
-
-### Accessibility Features
-
-#### Keyboard Navigation
-```jsx
-// Global keyboard shortcuts
-useEffect(() => {
-  const handleKeyDown = (event) => {
-    // Cmd+K or Ctrl+K for Knowledge Graph
-    if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
-      event.preventDefault();
-      setShowKnowledgeGraph(prev => !prev);
-    }
-    
-    // Escape to close modals
-    if (event.key === 'Escape') {
-      closeActiveModals();
-    }
-  };
-  
-  document.addEventListener('keydown', handleKeyDown);
-  return () => document.removeEventListener('keydown', handleKeyDown);
-}, []);
-```
-
-#### ARIA Labels and Semantic HTML
-```jsx
-// Semantic structure with proper ARIA labels
-<nav aria-label="Document navigation">
-  <ol className="breadcrumb-trail" role="list">
-    {breadcrumbTrail.map(item => (
-      <li key={item.id} role="listitem">
-        <button
-          aria-label={`Navigate to ${item.documentName} page ${item.pageNumber}`}
-          onClick={() => navigateToBreadcrumbItem(item)}
-        >
-          {item.documentName}
-        </button>
-      </li>
-    ))}
-  </ol>
-</nav>
-```
+- **Keyboard Navigation**: Full functionality available via keyboard
+- **Screen Reader Support**: Semantic HTML and ARIA attributes
+- **High Contrast**: Professional color schemes with sufficient contrast ratios
 
 ## State Management
 
-### Application State Architecture
-
-The frontend uses a carefully designed state management system that balances simplicity with scalability:
-
-#### Core State Categories
-
-```jsx
-// Document Management State
-const [documents, setDocuments] = useState([]);
-const [selectedDocument, setSelectedDocument] = useState(null);
-const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
-
-// Context & Search State  
-const [currentContext, setCurrentContext] = useState('');
-const [searchResults, setSearchResults] = useState([]);
-const [connectionResults, setConnectionResults] = useState([]);
-const [isSearching, setIsSearching] = useState(false);
-
-// Navigation & UI State
-const [breadcrumbTrail, setBreadcrumbTrail] = useState([]);
-const [viewerError, setViewerError] = useState(null);
-const [showQuickStart, setShowQuickStart] = useState(false);
-const [hasInsights, setHasInsights] = useState(false);
-```
-
-### Component Communication Patterns
-
-#### Parent-Child Props Flow
-```jsx
-// App.jsx orchestrates data flow to child components
-<DocumentWorkbench
-  document={selectedDocument}
-  currentContext={currentContext}
-  onContextChange={handleContextChange}
-  onInsightsRequest={handleInsightsRequest}
-  onPodcastRequest={handlePodcastRequest}
-  breadcrumbTrail={breadcrumbTrail}
-  onBreadcrumbClick={navigateToBreadcrumbItem}
-  onAddCurrentLocation={addCurrentLocationToBreadcrumbs}
-/>
-
-<SynapsePanel
-  ref={synapsePanelRef}
-  contextInfo={currentContext}
-  selectedDocument={selectedDocument}
-  onConnectionSelect={handleConnectionSelect}
-  onConnectionsUpdate={setConnectionResults}
-  onInsightsGenerated={setHasInsights}
-/>
-```
-
-#### Ref-Based Imperative Actions
-```jsx
-// Using refs for imperative operations that need direct control
-const synapsePanelRef = useRef(null);
-const documentWorkbenchRef = useRef(null);
-
-// Expose methods through useImperativeHandle
-useImperativeHandle(ref, () => ({
-  generateInsights: async (context, connections) => {
-    // Implementation
-  },
-  resetPanelState: () => {
-    // Reset state
-  },
-  navigateToPage: async (pageNumber) => {
-    // Navigation logic
-  }
-}));
-```
-
-### State Persistence
-
-#### Local Storage Integration
-```jsx
-// Persist user preferences and session data
-const persistUserPreferences = () => {
-  const preferences = {
-    hasSeenQuickStart: true,
-    lastSelectedDocument: selectedDocument?.id,
-    uiPreferences: {
-      isSidebarCollapsed,
-      preferredPanelSizes
-    }
-  };
-  
-  localStorage.setItem('synapse_preferences', JSON.stringify(preferences));
+### Session-Based Architecture
+```javascript
+// Session Management
+const sessionService = {
+  generateSessionId: () => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+  getUserId: () => localStorage.getItem('synapse_user_id'),
+  getSessionId: () => sessionStorage.getItem('synapse_session_id'),
+  clearSession: () => { /* Session cleanup logic */ }
 };
+```
 
-// Restore user preferences on app load
+### Component State Patterns
+```javascript
+// Local State Management
+const [documentState, setDocumentState] = useState({
+  currentDocument: null,
+  isLoading: false,
+  searchResults: [],
+  currentContext: null
+});
+
+// Effect-based State Synchronization
 useEffect(() => {
-  const saved = localStorage.getItem('synapse_preferences');
-  if (saved) {
-    const preferences = JSON.parse(saved);
-    applyUserPreferences(preferences);
+  if (currentContext && currentContext !== previousContext) {
+    handleContextChange(currentContext);
   }
-}, []);
+}, [currentContext, previousContext]);
 ```
 
-#### Session Management
-```jsx
-// Generate and manage session IDs for backend communication
-const sessionId = useMemo(() => {
-  let stored = sessionStorage.getItem('synapse_session_id');
-  if (!stored) {
-    stored = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    sessionStorage.setItem('synapse_session_id', stored);
-  }
-  return stored;
-}, []);
-
-// Include session ID in all API calls
-const apiConfig = {
-  headers: {
-    'X-Session-ID': sessionId,
-    'Content-Type': 'application/json'
-  }
-};
-```
+### Persistent Storage Strategy
+- **Session Storage**: Temporary data for current browsing session
+- **Local Storage**: User preferences and persistent identifiers
+- **Memory State**: Real-time application state and UI interactions
 
 ## API Integration
 
-### API Service Architecture
-
-**Location**: `src/api/index.js`
-
-The frontend implements a comprehensive API service layer with proper error handling and response processing:
-
+### HTTP Client Configuration
 ```javascript
-// Centralized API configuration
-const API_BASE_URL = window.location.origin;
-
-const apiClient = axios.create({
-  baseURL: `${API_BASE_URL}/api/v1`,
+// API Client with Session Management
+const api = axios.create({
+  baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
-    'Content-Type': 'application/json'
-  }
+    'Content-Type': 'application/json',
+  },
 });
 
-// Request interceptor for session management
-apiClient.interceptors.request.use(config => {
-  const sessionId = sessionStorage.getItem('synapse_session_id');
-  if (sessionId) {
-    config.headers['X-Session-ID'] = sessionId;
-  }
+// Request Interceptor for Session Isolation
+api.interceptors.request.use((config) => {
+  const sessionId = getSessionId();
+  config.headers['X-Session-ID'] = sessionId;
   return config;
 });
-
-// Response interceptor for error handling
-apiClient.interceptors.response.use(
-  response => response,
-  error => {
-    console.error('API Error:', error);
-    if (error.response?.status === 401) {
-      // Handle authentication errors
-      window.location.reload();
-    }
-    throw error;
-  }
-);
 ```
 
-### Service Modules
+### API Service Modules
 
 #### Document API
 ```javascript
 export const documentAPI = {
-  async list() {
-    const response = await apiClient.get('/documents/');
-    return response.data;
+  upload: async (file, onUploadProgress) => {
+    // Multi-part form upload with progress tracking
   },
-
-  async upload(file, onProgress) {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const response = await apiClient.post('/documents/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      onUploadProgress: onProgress
-    });
-    
-    return response.data;
+  bulkUpload: async (files, onProgress) => {
+    // Batch upload with individual file tracking
   },
-
-  async uploadMultiple(files) {
-    const formData = new FormData();
-    files.forEach(file => formData.append('files', file));
-
-    const response = await apiClient.post('/documents/upload-multiple', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    
-    return response.data;
+  getAll: async () => {
+    // Retrieve user's document library
   },
-
-  async delete(documentId) {
-    await apiClient.delete(`/documents/${documentId}`);
-  },
-
-  getPdfUrl(documentId) {
-    const sessionId = sessionStorage.getItem('synapse_session_id');
-    return `${API_BASE_URL}/api/v1/documents/${documentId}/pdf?session_id=${sessionId}`;
+  delete: async (documentId) => {
+    // Safe document deletion with cleanup
   }
 };
 ```
@@ -822,23 +329,11 @@ export const documentAPI = {
 #### Search API
 ```javascript
 export const searchAPI = {
-  async semantic(query) {
-    const response = await apiClient.post('/search/semantic', query);
-    return response.data;
+  semantic: async (queryText, options) => {
+    // Semantic search with vector similarity
   },
-
-  async text(query, documentIds = null, limit = 10) {
-    const params = new URLSearchParams({ 
-      query, 
-      limit: limit.toString() 
-    });
-    
-    if (documentIds) {
-      documentIds.forEach(id => params.append('document_ids', id.toString()));
-    }
-
-    const response = await apiClient.get(`/search/text?${params}`);
-    return response.data;
+  contextual: async (text, context, options) => {
+    // Context-aware search with enhanced relevance
   }
 };
 ```
@@ -846,19 +341,11 @@ export const searchAPI = {
 #### Insights API
 ```javascript
 export const insightsAPI = {
-  async generate(text, context = '') {
-    const response = await apiClient.post('/insights/generate', {
-      text,
-      context
-    });
-    return response.data;
+  generate: async (text, context) => {
+    // AI-powered insights generation
   },
-
-  async generateForDocument(documentId, analysisType = 'comprehensive') {
-    const response = await apiClient.post(`/insights/document/${documentId}`, {
-      analysis_type: analysisType
-    });
-    return response.data;
+  getHistory: async () => {
+    // Retrieve previous insights for context
   }
 };
 ```
@@ -866,580 +353,176 @@ export const insightsAPI = {
 #### Podcast API
 ```javascript
 export const podcastAPI = {
-  async generate(content, relatedContent = '', generateAudio = true, insights = null) {
-    const response = await apiClient.post('/podcast/generate', {
-      content,
-      related_content: relatedContent,
-      generate_audio: generateAudio,
-      insights
-    });
-    return response.data;
+  generate: async (content, options) => {
+    // Multi-speaker audio generation
   },
-
-  getAudioUrl(filename) {
-    return `${API_BASE_URL}/api/v1/podcast/audio/${filename}`;
+  getStatus: async (jobId) => {
+    // Check audio generation progress
   }
 };
 ```
 
-### Error Handling Strategy
+## Development Setup
 
-#### Component-Level Error Handling
-```jsx
-const [error, setError] = useState(null);
-const [isLoading, setIsLoading] = useState(false);
+### Prerequisites
+- Node.js 18+ with npm 9+
+- Modern browser with ES2022 support
+- Adobe PDF Embed API credentials (optional)
 
-const handleApiCall = async (apiFunction, ...args) => {
-  setError(null);
-  setIsLoading(true);
-  
-  try {
-    const result = await apiFunction(...args);
-    return result;
-  } catch (error) {
-    const errorMessage = error.response?.data?.detail || 
-                        error.message || 
-                        'An unexpected error occurred';
-    setError(errorMessage);
-    console.error('API call failed:', error);
-    throw error;
-  } finally {
-    setIsLoading(false);
-  }
-};
-```
+### Local Development
 
-#### User-Friendly Error Display
-```jsx
-const ErrorDisplay = ({ error, onRetry }) => (
-  <div className="error-container">
-    <div className="error-content">
-      <h3>Something went wrong</h3>
-      <p>{error}</p>
-      {onRetry && (
-        <button onClick={onRetry} className="retry-button">
-          Try Again
-        </button>
-      )}
-    </div>
-  </div>
-);
-```
+1. **Install Dependencies**
+   ```bash
+   cd frontend
+   npm install
+   ```
 
-## Adobe PDF Embed Integration
+2. **Configure Environment**
+   ```bash
+   cp .env.example .env.local
+   # Add your environment variables
+   ```
 
-### Configuration and Setup
+3. **Start Development Server**
+   ```bash
+   npm run dev
+   ```
 
-**Location**: `src/services/configService.js`
+4. **Access Application**
+   - Development: http://localhost:5173
+   - Backend API: http://localhost:8080
 
-The frontend integrates deeply with Adobe PDF Embed API for high-fidelity PDF viewing:
+### Build and Deployment
 
-```javascript
-class ConfigService {
-  constructor() {
-    this.config = null;
-    this.isLoaded = false;
-  }
-
-  async loadConfig() {
-    if (this.isLoaded) return this.config;
-
-    try {
-      const response = await fetch('/api/v1/config/client');
-      const config = await response.json();
-      
-      this.config = {
-        adobe: {
-          clientId: config.adobe_client_id,
-          isAvailable: !!config.adobe_client_id
-        },
-        features: config.features || {}
-      };
-      
-      this.isLoaded = true;
-      return this.config;
-    } catch (error) {
-      console.error('Failed to load configuration:', error);
-      this.config = { adobe: { isAvailable: false }, features: {} };
-      this.isLoaded = true;
-      return this.config;
-    }
-  }
-}
-
-export const configService = new ConfigService();
-```
-
-### PDF Viewer Implementation
-
-#### Advanced Viewer Configuration
-```jsx
-const initializeViewer = async () => {
-  try {
-    const adobeDC = window.AdobeDC;
-    const adobeView = adobeDC.View({
-      clientId: adobeConfig.clientId,
-      divId: "adobe-dc-view"
-    });
-
-    // Sophisticated viewer configuration for document analysis
-    const viewerConfig = {
-      embedMode: "SIZED_CONTAINER",
-      showAnnotationTools: false,
-      showLeftHandPanel: false,
-      showDownloadPDF: false,
-      showPrintPDF: false,
-      showDisabledSaveButton: false,
-      enableFormFilling: false,
-      includePDFAnnotations: false,
-      showPageControls: true,
-      showZoomControl: true,
-      enableLinearization: true,
-      enablePDFAnalytics: false
-    };
-
-    // Event handler registration for comprehensive interaction tracking
-    adobeView.registerCallback(
-      AdobeDC.View.Enum.CallbackType.EVENT_LISTENER,
-      handleAdobeEvents,
-      { enablePDFAnalytics: false }
-    );
-
-    // PDF loading and viewer initialization
-    const previewPromise = adobeView.previewFile({
-      content: { location: { url: pdfUrl } },
-      metaData: { fileName: cleanFileName(document.file_name) }
-    }, viewerConfig);
-
-    // Store viewer reference for API access
-    adobeViewerRef.current = await previewPromise;
-    setIsViewerReady(true);
-    
-  } catch (error) {
-    console.error('Adobe PDF Embed initialization failed:', error);
-    setViewerError(`PDF viewer initialization failed: ${error.message}`);
-  }
-};
-```
-
-#### Event Handling System
-```jsx
-const handleAdobeEvents = (event) => {
-  console.log(`📚 Adobe Event: ${event.type}`, event);
-
-  switch (event.type) {
-    case 'DOCUMENT_LOADED':
-      handleDocumentLoaded(event);
-      break;
-      
-    case 'PAGE_VIEW_CHANGED':
-      handlePageViewChanged(event);
-      break;
-      
-    case 'TEXT_SELECTION_CHANGED':
-      handleTextSelectionChanged(event);
-      break;
-      
-    case 'DOCUMENT_CLICK':
-      handleDocumentClick(event);
-      break;
-      
-    case 'ZOOM_CHANGED':
-      handleZoomChanged(event);
-      break;
-      
-    default:
-      console.log(`📚 Unhandled Adobe event: ${event.type}`);
-  }
-};
-```
-
-#### Advanced Text Selection
-```jsx
-const handleTextSelection = async () => {
-  try {
-    let selectedText = '';
-    let currentPageNum = 1;
-
-    // Method 1: Adobe API selection (most accurate)
-    if (adobeViewerRef.current) {
-      const apis = await adobeViewerRef.current.getAPIs();
-      
-      if (apis?.getCurrentPage) {
-        currentPageNum = await apis.getCurrentPage();
-      }
-      
-      if (apis?.getSelectedContent) {
-        const selectionData = await apis.getSelectedContent();
-        
-        // Comprehensive response parsing
-        if (selectionData?.data?.selectedContent) {
-          selectedText = selectionData.data.selectedContent.trim();
-        } else if (selectionData?.selectedText) {
-          selectedText = selectionData.selectedText.trim();
-        } else if (typeof selectionData === 'string') {
-          selectedText = selectionData.trim();
-        }
-      }
-    }
-
-    // Method 2: Browser selection fallback
-    if (!selectedText) {
-      const browserSelection = window.getSelection();
-      if (browserSelection && browserSelection.toString().trim()) {
-        selectedText = browserSelection.toString().trim();
-      }
-    }
-
-    // Method 3: Context-based synthetic selection
-    if (!selectedText && currentPageNum > 0) {
-      selectedText = `Selected content from page ${currentPageNum} of "${cleanFileName(document?.file_name)}"`;
-    }
-
-    if (selectedText && selectedText.length >= 5) {
-      // Trigger Stage 2 workflow with Action Halo
-      setCurrentSelection(selectedText);
-      setIsSelectionActive(true);
-      showActionHalo();
-    }
-    
-  } catch (error) {
-    console.error('Text selection processing failed:', error);
-  }
-};
-```
-
-### Navigation API Integration
-```jsx
-// Expose navigation methods for breadcrumb integration
-useImperativeHandle(ref, () => ({
-  async navigateToPage(pageNumber) {
-    if (!adobeViewerRef.current) return false;
-    
-    try {
-      const apis = await adobeViewerRef.current.getAPIs();
-      if (apis?.gotoLocation) {
-        await apis.gotoLocation({ pageNumber });
-        setCurrentPageNumber(pageNumber);
-        return true;
-      }
-    } catch (error) {
-      console.error('Page navigation failed:', error);
-    }
-    
-    return false;
-  },
-
-  async getCurrentPage() {
-    if (!adobeViewerRef.current) return 1;
-    
-    try {
-      const apis = await adobeViewerRef.current.getAPIs();
-      if (apis?.getCurrentPage) {
-        return await apis.getCurrentPage();
-      }
-    } catch (error) {
-      console.error('Failed to get current page:', error);
-    }
-    
-    return 1;
-  }
-}));
-```
-
-## Development Guide
-
-### Environment Setup
-
-#### Prerequisites
 ```bash
-Node.js 18+
-npm or yarn package manager
-Modern web browser with ES6+ support
-```
-
-#### Local Development
-```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# The application will be available at http://localhost:5173
-```
-
-#### Environment Configuration
-```javascript
-// vite.config.js
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true
-      }
-    }
-  },
-  build: {
-    outDir: 'dist',
-    sourcemap: true
-  }
-});
-```
-
-### Development Workflow
-
-#### Component Development
-```jsx
-// Follow this pattern for new components
-import React, { useState, useEffect, useRef } from 'react';
-import { ComponentIcon } from 'lucide-react';
-import './ComponentName.css';
-
-const ComponentName = ({ prop1, prop2, onAction }) => {
-  // State management
-  const [localState, setLocalState] = useState(null);
-  
-  // Refs for DOM access
-  const elementRef = useRef(null);
-  
-  // Effects for lifecycle management
-  useEffect(() => {
-    // Initialization logic
-    return () => {
-      // Cleanup logic
-    };
-  }, [dependencies]);
-  
-  // Event handlers
-  const handleAction = (data) => {
-    // Process data
-    onAction?.(data);
-  };
-  
-  // Render with proper accessibility
-  return (
-    <div className="component-name" ref={elementRef}>
-      <h2>Component Title</h2>
-      <button 
-        onClick={handleAction}
-        aria-label="Descriptive action label"
-      >
-        <ComponentIcon />
-        Action
-      </button>
-    </div>
-  );
-};
-
-export default ComponentName;
-```
-
-#### CSS Organization
-```css
-/* Follow BEM methodology for CSS classes */
-.component-name {
-  /* Container styles */
-}
-
-.component-name__element {
-  /* Element styles */
-}
-
-.component-name__element--modifier {
-  /* Modifier styles */
-}
-
-.component-name--state {
-  /* State variations */
-}
-```
-
-### Testing Strategy
-
-#### Component Testing
-```jsx
-// Example test structure
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import ComponentName from './ComponentName';
-
-describe('ComponentName', () => {
-  it('renders correctly with props', () => {
-    render(<ComponentName prop1="value1" />);
-    expect(screen.getByText('Expected Text')).toBeInTheDocument();
-  });
-
-  it('handles user interactions', async () => {
-    const mockAction = jest.fn();
-    render(<ComponentName onAction={mockAction} />);
-    
-    fireEvent.click(screen.getByRole('button'));
-    
-    await waitFor(() => {
-      expect(mockAction).toHaveBeenCalledWith(expectedData);
-    });
-  });
-});
-```
-
-#### Integration Testing
-```jsx
-// Test component interactions
-import { render, screen } from '@testing-library/react';
-import App from './App';
-
-describe('App Integration', () => {
-  it('coordinates two-stage workflow', async () => {
-    render(<App />);
-    
-    // Test Stage 1: Automatic connections
-    // Test Stage 2: Explicit insights
-    // Verify state coordination
-  });
-});
-```
-
-### Performance Optimization
-
-#### React.memo Usage
-```jsx
-// Optimize expensive components
-const ExpensiveComponent = React.memo(({ data, onAction }) => {
-  // Component implementation
-}, (prevProps, nextProps) => {
-  // Custom comparison logic
-  return prevProps.data.id === nextProps.data.id;
-});
-```
-
-#### useCallback Optimization
-```jsx
-// Optimize callback functions
-const handleExpensiveOperation = useCallback(
-  debounce(async (data) => {
-    // Expensive operation
-  }, 500),
-  [dependencies]
-);
-```
-
-#### Lazy Loading
-```jsx
-// Lazy load heavy components
-const KnowledgeGraphModal = lazy(() => import('./components/KnowledgeGraphModal'));
-
-// Use with Suspense
-<Suspense fallback={<div>Loading graph...</div>}>
-  <KnowledgeGraphModal />
-</Suspense>
-```
-
-## Build and Deployment
-
-### Production Build
-
-#### Build Configuration
-```bash
-# Create production build
+# Production Build
 npm run build
 
-# Preview production build
+# Preview Production Build
 npm run preview
+
+# Docker Build (Multi-stage)
+docker build -t synapse-frontend .
+
+# Deploy to Cloud Run (via Cloud Build)
+gcloud builds submit --config cloudbuild.yaml
 ```
 
-#### Build Optimization
+## Component Documentation
+
+### Component Hierarchy
+```
+App
+├── DocumentLibrary
+│   ├── UploadForm
+│   └── QuickStartGuide
+├── DocumentWorkbench
+│   └── AdobeViewer (embedded)
+├── SynapsePanel
+│   ├── ConnectionsTab
+│   └── InsightsTab
+├── FlowStatusBar
+└── KnowledgeGraphModal
+    └── ForceGraph2D (third-party)
+```
+
+### Props Interface Patterns
 ```javascript
-// vite.config.js - Production optimizations
-export default defineConfig({
-  build: {
-    outDir: 'dist',
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          adobe: ['@adobe/dc-view-sdk'],
-          charts: ['react-force-graph-2d']
-        }
-      }
-    },
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    }
-  }
-});
-```
-
-### Docker Integration
-
-The frontend is built as part of the multi-stage Docker process:
-
-```dockerfile
-# Frontend build stage
-FROM node:18-alpine AS frontend
-WORKDIR /frontend
-
-# Copy package files for dependency resolution
-COPY frontend/package.json frontend/package-lock.json ./
-
-# Fast, reliable install using committed lock file
-RUN npm ci --silent
-
-# Copy source and build
-COPY frontend/ ./
-RUN npm run build
-
-# Output: /frontend/dist ready for serving
-```
-
-### Static File Serving
-
-The built frontend is served by the FastAPI backend:
-
-```python
-# backend/app/main.py
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
-```
-
-### Performance Monitoring
-
-#### Metrics Collection
-```javascript
-// Performance monitoring setup
-const performanceMonitor = {
-  trackPageLoad: () => {
-    window.addEventListener('load', () => {
-      const loadTime = performance.now();
-      console.log(`Page loaded in ${loadTime}ms`);
-    });
-  },
+// Standard Component Props Pattern
+interface ComponentProps {
+  // Data Props
+  data: DataType;
+  isLoading: boolean;
+  error: ErrorType | null;
   
-  trackUserInteraction: (action, duration) => {
-    console.log(`${action} completed in ${duration}ms`);
+  // Callback Props
+  onAction: (param: ParamType) => void;
+  onStateChange: (newState: StateType) => void;
+  
+  // Configuration Props
+  options: ConfigType;
+  className?: string;
+}
+```
+
+### Event Handling Patterns
+```javascript
+// Debounced Search Input
+const debouncedSearch = useCallback(
+  debounce((query) => {
+    if (query.length >= 3) {
+      performSearch(query);
+    }
+  }, 300),
+  [performSearch]
+);
+
+// Optimistic UI Updates
+const handleDocumentUpload = async (file) => {
+  // Immediate UI feedback
+  setDocuments(prev => [...prev, optimisticDocument]);
+  
+  try {
+    const result = await documentAPI.upload(file);
+    // Update with real data
+    setDocuments(prev => prev.map(doc => 
+      doc.id === optimisticDocument.id ? result : doc
+    ));
+  } catch (error) {
+    // Rollback on error
+    setDocuments(prev => prev.filter(doc => doc.id !== optimisticDocument.id));
+    showError(error);
   }
 };
 ```
 
-#### Error Tracking
-```javascript
-// Global error handling
-window.addEventListener('error', (event) => {
-  console.error('Global error:', event.error);
-  // Send to monitoring service
-});
+## Performance Optimization
 
-window.addEventListener('unhandledrejection', (event) => {
-  console.error('Unhandled promise rejection:', event.reason);
-  // Send to monitoring service
-});
+### Code Splitting
+```javascript
+// Route-based Code Splitting
+const KnowledgeGraphModal = lazy(() => import('./components/KnowledgeGraphModal'));
+
+// Component-based Lazy Loading
+const LazyComponent = forwardRef((props, ref) => (
+  <Suspense fallback={<LoadingSpinner />}>
+    <KnowledgeGraphModal {...props} ref={ref} />
+  </Suspense>
+));
 ```
+
+### Memoization Strategies
+```javascript
+// Expensive Computation Memoization
+const processedResults = useMemo(() => {
+  return searchResults.map(result => ({
+    ...result,
+    cleanedText: cleanTextForDisplay(result.text),
+    relevanceScore: calculateRelevance(result, currentContext)
+  }));
+}, [searchResults, currentContext]);
+
+// Callback Memoization
+const handleConnectionSelect = useCallback((connection) => {
+  setSelectedConnection(connection);
+  onConnectionSelect?.(connection);
+}, [onConnectionSelect]);
+```
+
+### Bundle Optimization
+- **Tree Shaking**: Automatic removal of unused code
+- **Code Splitting**: Route and component-based chunking
+- **Asset Optimization**: Image compression and lazy loading
+- **Dependency Analysis**: Regular audit of bundle size
+
+### Performance Metrics
+| Metric | Target | Implementation |
+|--------|--------|----------------|
+| **First Contentful Paint** | < 1.5s | Code splitting, asset optimization |
+| **Largest Contentful Paint** | < 2.5s | Lazy loading, image optimization |
+| **Cumulative Layout Shift** | < 0.1 | Skeleton loading, fixed dimensions |
+| **Time to Interactive** | < 3.5s | Progressive enhancement, service workers |
 
 ---
 
-This comprehensive frontend documentation covers all aspects of the Synapse user interface, from high-level architecture to detailed implementation specifics. The frontend successfully implements the Adobe Hackathon 2025 requirements while providing an intuitive, powerful document analysis experience.
+**UI/UX Excellence**: Progressive disclosure with Context Lens | **Performance**: Sub-second interactions | **Innovation**: Real-time semantic connections with Adobe PDF Embed API
