@@ -185,9 +185,10 @@ AI Insights & Audio Generation ← Context Assembly ← Related Content Retrieva
 
 ## Quick Start
 
-### Adobe Hackathon 2025 - Docker Deployment
+### Adobe Hackathon 2025 - Docker Deployment [Compliant with the expected run]
 
 Following the exact hackathon evaluation requirements:
+We have run and tested using the following command, replace with your actual API keys.
 
 ```bash
 # Clone the repository
@@ -200,13 +201,13 @@ docker build --platform linux/amd64 -t synapse-docs:latest .
 # Run with hackathon environment variables
 docker run \
   -v ~/hackathon-credentials:/credentials \
-  -e ADOBE_EMBED_API_KEY=3cd771f42fa94558ba086000f5146e2e \
+  -e ADOBE_EMBED_API_KEY=<your_adobe_embed_api_key> \
   -e LLM_PROVIDER=gemini \
-  -e GOOGLE_APPLICATION_CREDENTIALS=/credentials/MIDHUNAN.json \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/credentials/<your_service_account>.json \
   -e GEMINI_MODEL=gemini-2.5-flash \
   -e TTS_PROVIDER=azure \
-  -e AZURE_TTS_KEY=9HaiwduIQau2cGxuFjaSFTlOGIsVkab9kfqKBhWCyGfNX4oozOMzJQQJ99BHACqBBLyXJ3w3AAAYACOG94C2 \
-  -e AZURE_TTS_ENDPOINT=https://southeastasia.api.cognitive.microsoft.com/ \
+  -e AZURE_TTS_KEY=<your_azure_tts_key> \
+  -e AZURE_TTS_ENDPOINT=<your_azure_tts_endpoint> \
   -p 8080:8080 \
   synapse-docs:latest
 ```

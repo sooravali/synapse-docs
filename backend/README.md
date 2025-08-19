@@ -287,16 +287,16 @@ DATABASE_URL=sqlite:///./data/synapse.db
 
 # Adobe Hackathon Requirements - AI Services
 LLM_PROVIDER=gemini
-GOOGLE_APPLICATION_CREDENTIALS=/credentials/MIDHUNAN.json
+GOOGLE_APPLICATION_CREDENTIALS=/credentials/<your_service_account>.json
 GEMINI_MODEL=gemini-2.5-flash
 
 # Adobe Hackathon Requirements - TTS Configuration
 TTS_PROVIDER=azure
-AZURE_TTS_KEY=9HaiwduIQau2cGxuFjaSFTlOGIsVkab9kfqKBhWCyGfNX4oozOMzJQQJ99BHACqBBLyXJ3w3AAAYACOG94C2
-AZURE_TTS_ENDPOINT=https://southeastasia.api.cognitive.microsoft.com/
+AZURE_TTS_KEY=<your_azure_tts_key>
+AZURE_TTS_ENDPOINT=<your_azure_tts_endpoint>
 
 # Adobe PDF Embed API (Optional)
-ADOBE_EMBED_API_KEY=3cd771f42fa94558ba086000f5146e2e
+ADOBE_EMBED_API_KEY=<your_adobe_embed_api_key>
 ```
 
 ### Adobe Evaluation Environment Variables
@@ -339,12 +339,12 @@ pip install pytest pytest-asyncio httpx
 ```bash
 # Adobe Hackathon Development Setup
 export LLM_PROVIDER=gemini
-export GOOGLE_APPLICATION_CREDENTIALS=~/hackathon-credentials/MIDHUNAN.json
+export GOOGLE_APPLICATION_CREDENTIALS=~/hackathon-credentials/<your_service_account>.json
 export GEMINI_MODEL=gemini-2.5-flash
 export TTS_PROVIDER=azure
-export AZURE_TTS_KEY=9HaiwduIQau2cGxuFjaSFTlOGIsVkab9kfqKBhWCyGfNX4oozOMzJQQJ99BHACqBBLyXJ3w3AAAYACOG94C2
-export AZURE_TTS_ENDPOINT=https://southeastasia.api.cognitive.microsoft.com/
-export ADOBE_EMBED_API_KEY=3cd771f42fa94558ba086000f5146e2e
+export AZURE_TTS_KEY=<your_azure_tts_key>
+export AZURE_TTS_ENDPOINT=<your_azure_tts_endpoint>
+export ADOBE_EMBED_API_KEY=<your_adobe_embed_api_key>
 
 # Start development server
 uvicorn app.main:app --reload --port 8000
@@ -359,13 +359,13 @@ docker build --platform linux/amd64 -t synapse-docs:latest .
 # Run with your environment
 docker run \
   -v ~/hackathon-credentials:/credentials \
-  -e ADOBE_EMBED_API_KEY=3cd771f42fa94558ba086000f5146e2e \
+  -e ADOBE_EMBED_API_KEY=<your_adobe_embed_api_key> \
   -e LLM_PROVIDER=gemini \
-  -e GOOGLE_APPLICATION_CREDENTIALS=/credentials/MIDHUNAN.json \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/credentials/<your_service_account>.json \
   -e GEMINI_MODEL=gemini-2.5-flash \
   -e TTS_PROVIDER=azure \
-  -e AZURE_TTS_KEY=9HaiwduIQau2cGxuFjaSFTlOGIsVkab9kfqKBhWCyGfNX4oozOMzJQQJ99BHACqBBLyXJ3w3AAAYACOG94C2 \
-  -e AZURE_TTS_ENDPOINT=https://southeastasia.api.cognitive.microsoft.com/ \
+  -e AZURE_TTS_KEY=<your_azure_tts_key> \
+  -e AZURE_TTS_ENDPOINT=<your_azure_tts_endpoint> \
   -p 8080:8080 \
   synapse-docs:latest
 ```
