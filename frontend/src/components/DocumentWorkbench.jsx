@@ -6,7 +6,7 @@
  * Uses Adobe PDF Embed API with proper event handling and text selection.
  */
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { Play, Pause, MessageSquare, Volume2, Eye, Lightbulb, Radio, Network, X } from 'lucide-react';
+import { Play, Pause, MessageSquare, Volume2, Eye, Lightbulb, Radio, Network } from 'lucide-react';
 import { searchAPI, insightsAPI, podcastAPI } from '../api';
 import { configService } from '../services/configService';
 import './DocumentWorkbench.css';
@@ -223,7 +223,7 @@ const DocumentWorkbench = forwardRef(({
       setCurrentPageNumber(currentPageNum);
 
       // STATE PRIORITY FIX: Enter Selection Mode
-      console.log(`🎯 DocumentWorkbench: Entering Selection Mode - disabling reading context triggers`);
+      console.log(`🎯 DocumentWorkbench: Entering Selection Mode`);
       setIsSelectionActive(true);
       isSelectionActiveRef.current = true;
 
@@ -252,25 +252,6 @@ const DocumentWorkbench = forwardRef(({
 
     } catch (error) {
       console.error(`❌ DocumentWorkbench: Text selection failed:`, error);
-    }
-  };
-
-  // Text selection mode management - simplified without reading context
-  const exitSelectionMode = async () => {
-    try {
-      console.log(`🚪 DocumentWorkbench: Exiting Selection Mode`);
-      
-      // Clear selection state
-      setIsSelectionActive(false);
-      isSelectionActiveRef.current = false;
-      
-      // Clear current context to remove stale selection snippets
-      if (onContextChange) {
-        onContextChange(null);
-      }
-      
-    } catch (error) {
-      console.error(`❌ DocumentWorkbench: Failed to exit selection mode:`, error);
     }
   };
 
@@ -721,7 +702,7 @@ const DocumentWorkbench = forwardRef(({
           console.log(`✅ DocumentWorkbench: PDF viewer is ready`);
           setIsViewerReady(true);
           
-          // Initial reading context detection after viewer is ready
+          // Initial viewer setup after viewer is ready
           setTimeout(() => {
             try {
               console.log(`🚀 DocumentWorkbench: Initial viewer setup completed`);
@@ -785,7 +766,6 @@ const DocumentWorkbench = forwardRef(({
           
         case 'PREVIEW_PAGE_VIEW_SCROLLED':
           // Handle scroll events silently to reduce console noise
-          // Don't trigger reading context on every scroll - let our manual event handler do it
           break;
           
         default:
@@ -939,26 +919,6 @@ const DocumentWorkbench = forwardRef(({
           <div className="notification-content">
             <Network size={16} />
             <span>Connections Generated!</span>
-          </div>
-        </div>
-      )}
-
-      {/* STATE PRIORITY FIX: Exit Selection Mode UI */}
-      {isSelectionActive && (
-        <div className="selection-mode-controls">
-          <div className="selection-mode-bar">
-            <div className="selection-mode-info">
-              <span className="selection-icon">🎯</span>
-              <span className="selection-text">Text Selection Active</span>
-            </div>
-            <button 
-              onClick={exitSelectionMode}
-              className="exit-selection-btn"
-              title="Exit text selection mode and return to reading context"
-            >
-              <X size={14} />
-              Exit Selection
-            </button>
           </div>
         </div>
       )}
