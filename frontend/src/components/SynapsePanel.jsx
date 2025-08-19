@@ -260,7 +260,7 @@ const SynapsePanel = forwardRef(({
         };
       }
       
-      // For reading context, use normal content-based caching
+      // Fallback for any non-text-selection context
       return {
         documentId: document.id,
         identifier: `content_${contentHash}`,
@@ -444,7 +444,6 @@ const SynapsePanel = forwardRef(({
       // Clean query text - remove any metadata markers
       const cleanQuery = queryText
         .replace(/\[Selected Text from[^\]]*\]/g, '')
-        .replace(/\[Reading context from[^\]]*\]/g, '')
         .replace(/\[End of Selection\]/g, '')
         .replace(/\[End of Context\]/g, '')
         .trim();
@@ -728,7 +727,7 @@ const SynapsePanel = forwardRef(({
         }
       }
       
-      const sourceType = text && text.includes('[Selected Text from') ? 'selection' : 'reading';
+      const sourceType = text && text.includes('[Selected Text from') ? 'selection' : 'context';
       
       setInsights({
         ...result,
@@ -1047,7 +1046,7 @@ const SynapsePanel = forwardRef(({
           <Lightbulb size={48} className="empty-icon" />
           <div className="empty-content">
             <h3>Generate AI Insights</h3>
-            <p>Insights will appear here after connections are generated. Start by reading or selecting text.</p>
+            <p>Insights will appear here after connections are generated. Start by selecting text.</p>
             <div className="empty-steps">
               <div className="step-item">
                 <span className="step-number">1</span>
@@ -1103,9 +1102,7 @@ const SynapsePanel = forwardRef(({
           <p className="insights-context">
             {insights.context && insights.context.includes('[Selected Text from') 
               ? ' Generated from your selected text'
-              : insights.context && insights.context.includes('[Reading context from')
-                ? ' Generated from your reading context'
-                : ' Generated from your reading context'
+              : ' Generated from current context'
             }
           </p>
           {(() => {
@@ -1249,7 +1246,7 @@ const SynapsePanel = forwardRef(({
                 </div>
               );
             }
-            return (insights.context && (insights.context.includes('[Selected Text from') || insights.context.includes('[Reading context from'))) && (
+            return (insights.context && insights.context.includes('[Selected Text from')) && (
               <p className="context-source">
                  From: {cleanFileName(selectedDocument?.file_name) || 'document'}
                 {(() => {
@@ -1755,10 +1752,10 @@ const SynapsePanel = forwardRef(({
                 <Network size={48} className="empty-icon" />
                 <div className="empty-content">
                   <h3>Discover Related Snippets</h3>
-                  <p>Start reading or select text - related snippets will automatically appear from your other documents.</p>
+                  <p>Select text - related snippets will automatically appear from your other documents.</p>
                   <div className="empty-tip">
                     <span className="tip-icon"></span>
-                    <span>Both reading and text selection trigger the same unified workflow!</span>
+                    <span>Text selection triggers intelligent connections across your documents!</span>
                   </div>
                 </div>
               </div>
@@ -1771,7 +1768,7 @@ const SynapsePanel = forwardRef(({
                       Found {connections.length} relevant {connections.length === 1 ? 'snippet' : 'snippets'} 
                       {contextInfo?.source?.type === 'text_selection' 
                         ? ' from your selected text'
-                        : ' from your reading context'
+                        : ' from current context'
                       }
                     </p>
                     
@@ -1779,7 +1776,7 @@ const SynapsePanel = forwardRef(({
                     <div className="sources-compact" style={{ marginTop: '8px' }}>
                       <div className="sources-toggle" style={{ cursor: 'default' }}>
                         <span className="sources-label">
-                          Source: {contextInfo?.source?.type === 'text_selection' ? 'Selected text' : 'Reading context'}
+                          Source: {contextInfo?.source?.type === 'text_selection' ? 'Selected text' : 'Current context'}
                           {contextInfo?.source?.pageNumber ? ` from page ${contextInfo.source.pageNumber}` : ' from current page'}
                         </span>
                       </div>
