@@ -1,6 +1,6 @@
 # Synapse-Docs
 
-> An intelligent document experience platform that transforms static PDFs into interactive, queryable knowledge bases with AI-powered insights and semantic connections.
+An intelligent document experience platform that transforms static PDFs into interactive, queryable knowledge bases with AI-powered insights and semantic connections.
 
 ![Synapse-Docs Main Interface](./frontend/public/guide-images/main-page-intro.png)
 
@@ -24,7 +24,11 @@
 
 ## Overview
 
-Synapse-Docs is a full-stack web application built for the Adobe India Hackathon 2025 Grand Finale. It implements a sophisticated document intelligence system that enables users to upload PDF documents, view them with high fidelity, select text passages, and instantly discover related content across their entire document library. The platform leverages advanced AI capabilities including semantic search, knowledge graph visualization, contextual insights generation, and audio podcast creation.
+Synapse-Docs is a full-stack web application built for the Adobe India Hackathon 2025 Grand Finale. It implements a sophisticated document intelligence system that enables users to upload PDF documents, view them with high fidelity, select text passages, and instantly discover related content across their entire document library. 
+
+**Built on Previous Rounds**: This application refactors and integrates the complete Challenge 1A (PDF understanding engine) and Challenge 1B (persona-driven document intelligence) code from previous hackathon rounds into a production-ready backend service.
+
+The platform leverages advanced AI capabilities including semantic search, knowledge graph visualization, contextual insights generation, and audio podcast creation, all powered by the robust document processing pipeline developed in earlier rounds.
 
 ## Problem & Solution
 
@@ -80,6 +84,17 @@ A researcher reading a paper on "neural network training techniques" selects a p
 | **Cloud Platform** | Google Cloud Run | Production hosting |
 | **CI/CD** | Google Cloud Build | Automated deployment |
 
+### Refactored Components from Previous Rounds
+
+| Round | Original Component | Refactored Into | Purpose |
+|-------|-------------------|-----------------|---------|
+| **1A** | PDF Understanding Engine | `DocumentParser` Service | 4-stage PDF processing pipeline |
+| **1A** | Text Extraction Logic | `document_parser.py` | CRF-based heading detection |
+| **1A** | Layout Analysis | `DocumentParser` | Section-based content structuring |
+| **1B** | Persona-driven Intelligence | `EmbeddingService` | Semantic text understanding |
+| **1B** | Document Analysis | `embedding_service.py` | Vector-based similarity search |
+| **1B** | Search Logic | `FaissService` | High-performance semantic matching |
+
 ## System Architecture
 
 ### Three-Panel "Cockpit" Design
@@ -103,8 +118,12 @@ A researcher reading a paper on "neural network training techniques" selects a p
 
 ### Data Processing Pipeline
 
+**Refactored from Previous Rounds**:
+- **Round 1A Integration**: Complete PDF understanding engine refactored into backend services
+- **Round 1B Integration**: Persona-driven document intelligence system integrated for semantic search
+
 ```
-PDF Upload → Document Parser → Text Extraction → Embedding Generation → Vector Storage
+PDF Upload → Document Parser (1A) → Text Extraction → Embedding Generation (1B) → Vector Storage
                 ↓
 Knowledge Graph Generation ← Semantic Search ← User Text Selection
                 ↓
