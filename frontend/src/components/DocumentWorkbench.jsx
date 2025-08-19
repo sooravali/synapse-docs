@@ -574,7 +574,7 @@ const DocumentWorkbench = forwardRef(({
         enableFormFilling: true, // Enable form editing capabilities
         focusOnRendering: false, // Don't auto-focus on PDF to preserve breadcrumb interactions
         enableLinearization: true, // Optimize for faster viewing
-        defaultViewMode: "FIT_WIDTH", // Default page view mode
+        defaultViewMode: "FIT_PAGE", // Default page view mode - shows full page for better reading
         showDisabledSaveButton: false, // Only show save button when PDF is modified
         enableSearchAPIs: false, // Keep UI search enabled instead of programmatic search
         enableAnnotationAPIs: true, // Enable annotation APIs for potential future features
