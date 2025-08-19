@@ -29,6 +29,7 @@ import DocumentWorkbench from './components/DocumentWorkbench';
 import SynapsePanel from './components/SynapsePanel';
 import QuickStartGuide from './components/QuickStartGuide';
 import KnowledgeGraphModal from './components/KnowledgeGraphModal';
+import TooltipGuide from './components/TooltipGuide';
 import { documentAPI, searchAPI, insightsAPI } from './api';
 import './App.css';
 
@@ -53,6 +54,9 @@ function App() {
   const [hasInsights, setHasInsights] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true); // Start collapsed
+  
+  // Tooltip Guide State
+  const [showTooltipGuide, setShowTooltipGuide] = useState(false);
   
   // Knowledge Graph Modal state
   const [showKnowledgeGraph, setShowKnowledgeGraph] = useState(false);
@@ -219,6 +223,18 @@ function App() {
         const hasSeenQuickStart = localStorage.getItem('synapse_quickstart_seen');
         if (!hasSeenQuickStart) {
           setShowQuickStart(true);
+        }
+      }
+      
+      // Show tooltip guide for users with documents
+      if (docs.length > 0) {
+        // Check if user has seen the tooltip guide before
+        const hasSeenTooltip = localStorage.getItem('synapse_tooltip_seen');
+        if (!hasSeenTooltip && isRightPanelCollapsed) {
+          // Delay showing tooltip to let the interface settle
+          setTimeout(() => {
+            setShowTooltipGuide(true);
+          }, 1000);
         }
       }
       
@@ -417,6 +433,18 @@ function App() {
     localStorage.setItem('synapse_quickstart_seen', 'true');
   };
 
+  const handleTooltipGuideDismiss = () => {
+    setShowTooltipGuide(false);
+    localStorage.setItem('synapse_tooltip_seen', 'true');
+  };
+
+  // Auto-dismiss tooltip when right panel expands
+  useEffect(() => {
+    if (!isRightPanelCollapsed && showTooltipGuide) {
+      handleTooltipGuideDismiss();
+    }
+  }, [isRightPanelCollapsed, showTooltipGuide]);
+
   const toggleSidebar = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed);
   };
@@ -433,6 +461,14 @@ function App() {
     <div className="app">
       {showQuickStart && (
         <QuickStartGuide onDismiss={handleQuickStartDismiss} />
+      )}
+      
+      {showTooltipGuide && (
+        <TooltipGuide 
+          isVisible={showTooltipGuide}
+          isRightSidebarCollapsed={isRightPanelCollapsed}
+          onDismiss={handleTooltipGuideDismiss}
+        />
       )}
       
       <div className="app-layout">
