@@ -51,11 +51,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH=/root/.local/bin:$PATH \
     MALLOC_TRIM_THRESHOLD_=100000
 
-# Install absolute minimal runtime libraries
+# Install absolute minimal runtime libraries + CRITICAL sample script dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     libblas3 \
     liblapack3 \
+    ffmpeg \
+    espeak-ng \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get autoremove -y \
     && apt-get clean \
