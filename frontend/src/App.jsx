@@ -9,7 +9,7 @@
  * TWO-STAGE WORKFLOW ARCHITECTURE:
  * 
  * STAGE 1: Connections Workflow (Real-time & Automatic)
- * - Trigger: Scroll-based reading detection in DocumentWorkbench
+ * - Trigger: Text selection detection in DocumentWorkbench
  * - Action: Automatically finds related content across document library
  * - UI: Updates connections panel seamlessly in background
  * - User Experience: "Magical" discovery without any user action
@@ -270,7 +270,7 @@ function App() {
   };
 
   // STAGE 1: Connections Workflow (Real-time & Automatic)
-  // Triggered by scroll-based reading detection in DocumentWorkbench
+  // Triggered by text selection detection in DocumentWorkbench
   const handleContextChange = (context) => {
     console.log('STAGE 1 - Automatic Connections Workflow triggered:', context);
     setCurrentContext(context);
