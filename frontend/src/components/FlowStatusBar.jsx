@@ -77,9 +77,9 @@ const FlowStatusBar = ({
       case 'upload':
         return 'Add documents to build your library';
       case 'connect':
-        return 'Analyzing documents to find connections';
+        return 'Select text to find connections';
       case 'generate':
-        return 'Select text to generate insights and podcast';
+        return 'Generate insights and podcast';
       default:
         return '';
     }
