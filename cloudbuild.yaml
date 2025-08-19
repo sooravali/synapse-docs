@@ -34,6 +34,8 @@ steps:
       - '--max-instances=2'
       - '--cpu=2'
       - '--memory=8Gi'
+      - '--timeout=600'
+      - '--concurrency=10'
       
       # Add Cloud Storage volume for persistent data
       - '--add-volume=name=synapse-data-vol,type=cloud-storage,bucket=synapse-docs-data-midhunan'

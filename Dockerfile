@@ -71,7 +71,11 @@ COPY backend/app /app/app
 COPY backend/gunicorn_conf.py /app/
 COPY backend/chat_with_llm.py /app/
 COPY backend/generate_audio.py /app/
+COPY backend/preload_models.py /app/
 COPY --from=frontend /frontend/dist /app/static
+
+# Pre-download ML models to avoid download delays at runtime
+RUN python preload_models.py
 
 # Create required directories with proper permissions
 RUN mkdir -p /app/data/audio /app/uploads

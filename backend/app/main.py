@@ -56,52 +56,81 @@ app.add_middleware(
 # Create database tables
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database tables and services on startup."""
+    """Initialize database tables and basic services on startup."""
     logger.info("Synapse-Docs API starting up...")
     
     # Create database tables
     logger.info("Creating database tables...")
-    SQLModel.metadata.create_all(engine, checkfirst=True)
-    logger.info("Database tables created successfully")
-    
-    # Initialize services
-    logger.info("Initializing services...")
-    
     try:
-        # Initialize shared services
-        from app.services.shared import get_embedding_service, get_document_parser, get_faiss_service
-        
-        # Initialize embedding service (Challenge 1B)
-        embedding_service = get_embedding_service()
-        logger.info(" Embedding service (Challenge 1B) initialized")
-        
-        # Initialize document parser (Challenge 1A)
-        document_parser = get_document_parser()
-        logger.info(" Document parser (Challenge 1A) initialized")
-        
-        # Initialize Faiss service
-        faiss_service = get_faiss_service()
-        logger.info(" Faiss vector database initialized")
-        
-        logger.info("All services initialized successfully")
-        
+        SQLModel.metadata.create_all(engine, checkfirst=True)
+        logger.info("Database tables created successfully")
     except Exception as e:
-        logger.error(f"Service initialization warning: {e}")
-        logger.info("API will continue with limited functionality")
+        logger.error(f"Database initialization error: {e}")
     
-    logger.info("Synapse-Docs API startup complete")
+    # Create required directories
+    import os
+    os.makedirs("/app/data/audio", exist_ok=True)
+    os.makedirs("/app/uploads", exist_ok=True)
+    os.makedirs("/app/data/faiss_index", exist_ok=True)
+    logger.info("Required directories created")
+    
+    # Initialize services eagerly to avoid delays on first request
+    logger.info("Initializing core services...")
+    try:
+        from app.services.shared import initialize_services_background
+        initialize_services_background()
+        logger.info("Service initialization started in background")
+    except Exception as e:
+        logger.error(f"Service initialization error: {e}")
+        # Don't fail startup if services can't initialize
+        # They will be lazy-loaded on first use
+    
+    # Note: Heavy services (ML models) are initialized lazily on first use
+    # to prevent startup timeout in Cloud Run
+    logger.info("Synapse-Docs API startup complete (services will load on demand)")
 
 # Include API routes
 app.include_router(api_router, prefix="/api/v1")
 
-# Health check endpoint (separate from system health for monitoring)
+# Health check endpoint (for Docker/K8s health checks)
 @app.get("/health")
 async def health_check():
-    """Simple health check endpoint for load balancers and monitoring."""
+    """Simple health check endpoint."""
     return {
-        "status": "healthy", 
+        "status": "ready",
         "service": "synapse-docs-api",
-        "version": "1.0.0"
+        "message": "Application started successfully"
+    }
+
+# Readiness check endpoint (checks if services are initialized)
+@app.get("/ready")
+async def readiness_check():
+    """Check if all services are ready to handle requests."""
+    from app.services.shared import get_services_status
+    
+    status = get_services_status()
+    
+    if status["services_initialized"] and status["embedding_model_loaded"]:
+        return {
+            "status": "ready",
+            "message": "All services initialized and ready",
+            "details": status
+        }
+    else:
+        return {
+            "status": "initializing",
+            "message": "Services are still initializing",
+            "details": status
+        }
+
+# Startup check endpoint for Cloud Run
+@app.get("/startup")
+async def startup_check():
+    """Startup check endpoint for Cloud Run health probes."""
+    return {
+        "status": "ready",
+        "service": "synapse-docs-api",
+        "message": "Application started successfully"
     }
 
 # API info endpoint (moved from root to avoid conflict with frontend)
