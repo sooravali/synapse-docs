@@ -2,14 +2,28 @@
 LLM Service for Adobe Hackathon 2025
 Follows the sample script pattern from the hackathon requirements
 https://github.com/rbabbar-adobe/sample-repo/blob/main/chat_with_llm.py
+
+CRITICAL: Uses the provided sample script for compliance
 """
 import os
+import sys
 import json
 import asyncio
 import httpx
 from typing import Optional, Dict, Any
 from app.core.config import settings
 import logging
+
+# Add the root directory to the Python path to import the sample script
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
+try:
+    # Import the required sample script function
+    from chat_with_llm import get_llm_response
+    CHAT_WITH_LLM_AVAILABLE = True
+except ImportError as e:
+    print(f"Sample chat_with_llm script not available: {e}")
+    CHAT_WITH_LLM_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -25,26 +39,76 @@ class LLMService:
     
     async def chat_with_llm(self, messages: list, **kwargs) -> str:
         """
-        Main method to interact with LLM based on provider configuration.
-        Follows the pattern from the hackathon sample script.
+        Main method to interact with LLM using the hackathon sample script.
+        CRITICAL: Uses the provided sample script for compliance.
         """
         try:
+            if not CHAT_WITH_LLM_AVAILABLE:
+                logger.error("Sample chat_with_llm script not available - using fallback")
+                return await self._chat_with_fallback(messages, **kwargs)
+            
+            # Set environment variables for the sample script
+            os.environ["LLM_PROVIDER"] = self.provider
+            
             if self.provider == "gemini":
-                return await self._chat_with_gemini(messages, **kwargs)
-            elif self.provider == "openai":
-                return await self._chat_with_openai(messages, **kwargs)
+                if settings.GOOGLE_API_KEY:
+                    os.environ["GOOGLE_API_KEY"] = settings.GOOGLE_API_KEY
+                if settings.GOOGLE_APPLICATION_CREDENTIALS:
+                    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.GOOGLE_APPLICATION_CREDENTIALS
+                os.environ["GEMINI_MODEL"] = settings.GEMINI_MODEL
             elif self.provider == "azure":
-                return await self._chat_with_azure(messages, **kwargs)
+                if settings.AZURE_OPENAI_KEY:
+                    os.environ["AZURE_OPENAI_KEY"] = settings.AZURE_OPENAI_KEY
+                if settings.AZURE_OPENAI_BASE:
+                    os.environ["AZURE_OPENAI_BASE"] = settings.AZURE_OPENAI_BASE
+                if settings.AZURE_API_VERSION:
+                    os.environ["AZURE_API_VERSION"] = settings.AZURE_API_VERSION
+                if settings.AZURE_DEPLOYMENT_NAME:
+                    os.environ["AZURE_DEPLOYMENT_NAME"] = settings.AZURE_DEPLOYMENT_NAME
+            elif self.provider == "openai":
+                if settings.OPENAI_API_KEY:
+                    os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
+                if settings.OPENAI_API_BASE:
+                    os.environ["OPENAI_API_BASE"] = settings.OPENAI_API_BASE
+                os.environ["OPENAI_MODEL"] = settings.OPENAI_MODEL
             elif self.provider == "ollama":
-                return await self._chat_with_ollama(messages, **kwargs)
+                os.environ["OLLAMA_BASE_URL"] = settings.OLLAMA_BASE_URL
+                os.environ["OLLAMA_MODEL"] = settings.OLLAMA_MODEL
+            
+            # Use the sample script function
+            result = await asyncio.get_event_loop().run_in_executor(
+                None, 
+                get_llm_response, 
+                messages
+            )
+            
+            logger.info(f"Sample script LLM call successful for provider: {self.provider}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error using sample chat_with_llm script: {e}")
+            # Fallback to direct implementation
+            return await self._chat_with_fallback(messages, **kwargs)
+    
+    async def _chat_with_fallback(self, messages: list, **kwargs) -> str:
+        """Fallback implementation when sample script is not available"""
+        try:
+            if self.provider == "gemini":
+                return await self._chat_with_gemini_direct(messages, **kwargs)
+            elif self.provider == "openai":
+                return await self._chat_with_openai_direct(messages, **kwargs)
+            elif self.provider == "azure":
+                return await self._chat_with_azure_direct(messages, **kwargs)
+            elif self.provider == "ollama":
+                return await self._chat_with_ollama_direct(messages, **kwargs)
             else:
                 raise ValueError(f"Unsupported LLM provider: {self.provider}")
         except Exception as e:
-            logger.error(f"Error in LLM chat: {e}")
+            logger.error(f"Error in fallback LLM chat: {e}")
             raise
     
-    async def _chat_with_gemini(self, messages: list, **kwargs) -> str:
-        """Chat with Google Gemini via Vertex AI (Adobe Hackathon 2025 Compliant)"""
+    async def _chat_with_gemini_direct(self, messages: list, **kwargs) -> str:
+        """Direct Gemini implementation for fallback"""
         try:
             # Import Vertex AI client
             from google.cloud import aiplatform
@@ -204,8 +268,8 @@ class LLMService:
             logger.error(f"Gemini chat error: {e}")
             raise
     
-    async def _chat_with_openai(self, messages: list, **kwargs) -> str:
-        """Chat with OpenAI API"""
+    async def _chat_with_openai_direct(self, messages: list, **kwargs) -> str:
+        """Direct OpenAI implementation for fallback"""
         if not settings.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY not configured")
         
@@ -228,8 +292,8 @@ class LLMService:
             result = response.json()
             return result["choices"][0]["message"]["content"]
     
-    async def _chat_with_azure(self, messages: list, **kwargs) -> str:
-        """Chat with Azure OpenAI"""
+    async def _chat_with_azure_direct(self, messages: list, **kwargs) -> str:
+        """Direct Azure OpenAI implementation for fallback"""
         if not all([settings.AZURE_OPENAI_KEY, settings.AZURE_OPENAI_BASE, settings.AZURE_DEPLOYMENT_NAME]):
             raise ValueError("Azure OpenAI configuration incomplete")
         
@@ -253,8 +317,8 @@ class LLMService:
             result = response.json()
             return result["choices"][0]["message"]["content"]
     
-    async def _chat_with_ollama(self, messages: list, **kwargs) -> str:
-        """Chat with Ollama (local development)"""
+    async def _chat_with_ollama_direct(self, messages: list, **kwargs) -> str:
+        """Direct Ollama implementation for fallback"""
         url = f"{settings.OLLAMA_BASE_URL}/api/chat"
         
         payload = {
