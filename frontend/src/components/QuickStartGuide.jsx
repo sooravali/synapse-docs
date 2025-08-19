@@ -4,12 +4,15 @@
  * Provides comprehensive onboarding guidance for new users with visual examples
  * and step-by-step workflow instructions for the complete Synapse experience.
  */
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Upload, FileText, Network, Lightbulb, Podcast, X, ChevronRight, Eye, Sparkles, Home } from 'lucide-react';
 import './QuickStartGuide.css';
 
 const QuickStartGuide = ({ onDismiss }) => {
   const [currentStep, setCurrentStep] = useState(0);
+  const [loadedImages, setLoadedImages] = useState(new Set());
+  const [failedImages, setFailedImages] = useState(new Set());
+  const [imageLoadingStates, setImageLoadingStates] = useState(new Map());
   
   const steps = [
     {
@@ -99,6 +102,107 @@ const QuickStartGuide = ({ onDismiss }) => {
     }
   ];
 
+  // Memoize image URLs for performance
+  const imageUrls = useMemo(() => 
+    steps.map(step => step.image).filter(Boolean), 
+    [steps]
+  );
+
+  // Preload all images when component mounts
+  useEffect(() => {
+    // Add preload link tags to head for faster browser caching
+    const addPreloadLinks = () => {
+      imageUrls.forEach(url => {
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'image';
+        link.href = url;
+        link.id = `preload-${url.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        
+        // Only add if not already present
+        if (!document.getElementById(link.id)) {
+          document.head.appendChild(link);
+        }
+      });
+    };
+
+    const preloadImages = async () => {
+      // Prioritize current step image
+      const currentImage = steps[currentStep]?.image;
+      const otherImages = imageUrls.filter(url => url !== currentImage);
+
+      // Load current image first
+      if (currentImage) {
+        await loadImage(currentImage);
+      }
+
+      // Load remaining images with slight delay to not block current image
+      setTimeout(() => {
+        const loadPromises = otherImages.map(url => loadImage(url));
+        Promise.allSettled(loadPromises);
+      }, 100);
+    };
+
+    const loadImage = (url) => {
+      return new Promise((resolve) => {
+        // Skip if already processed
+        if (loadedImages.has(url) || failedImages.has(url)) {
+          resolve(loadedImages.has(url));
+          return;
+        }
+
+        setImageLoadingStates(prev => new Map(prev.set(url, 'loading')));
+        
+        const img = new Image();
+        
+        img.onload = () => {
+          setLoadedImages(prev => new Set(prev.add(url)));
+          setImageLoadingStates(prev => new Map(prev.set(url, 'loaded')));
+          resolve(true);
+        };
+        
+        img.onerror = () => {
+          setFailedImages(prev => new Set(prev.add(url)));
+          setImageLoadingStates(prev => new Map(prev.set(url, 'error')));
+          resolve(false);
+        };
+        
+        img.src = url;
+      });
+    };
+
+    addPreloadLinks();
+    preloadImages();
+
+    // Cleanup function to remove preload links when component unmounts
+    return () => {
+      imageUrls.forEach(url => {
+        const linkId = `preload-${url.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const link = document.getElementById(linkId);
+        if (link) {
+          document.head.removeChild(link);
+        }
+      });
+    };
+  }, [imageUrls, currentStep, loadedImages, failedImages, steps]);
+
+  // Prefetch next/previous images for smoother navigation
+  useEffect(() => {
+    const prefetchAdjacentImages = () => {
+      const nextImage = steps[currentStep + 1]?.image;
+      const prevImage = steps[currentStep - 1]?.image;
+      
+      [nextImage, prevImage].filter(Boolean).forEach(url => {
+        if (!loadedImages.has(url) && !failedImages.has(url)) {
+          const img = new Image();
+          img.src = url;
+        }
+      });
+    };
+
+    prefetchAdjacentImages();
+  }, [currentStep, steps, loadedImages, failedImages]);
+
   const nextStep = () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
@@ -109,6 +213,67 @@ const QuickStartGuide = ({ onDismiss }) => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
     }
+  };
+
+  const goToStep = (stepIndex) => {
+    setCurrentStep(stepIndex);
+  };
+
+  // Check if current step image is ready
+  const isCurrentImageReady = () => {
+    const currentImage = currentStepData.image;
+    return !currentImage || loadedImages.has(currentImage);
+  };
+
+  // Optimized image component with loading states
+  const OptimizedImage = ({ src, alt, className }) => {
+    const loadingState = imageLoadingStates.get(src) || 'loading';
+    const isLoaded = loadedImages.has(src);
+    const hasFailed = failedImages.has(src);
+
+    if (hasFailed) {
+      return (
+        <div className="image-placeholder">
+          <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span>Guide Image</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="image-container">
+        {!isLoaded && (
+          <div className="image-loading-skeleton">
+            <div className="skeleton-shimmer"></div>
+            <div className="skeleton-content">
+              <div className="skeleton-icon">
+                <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <span className="skeleton-text">Loading guide image...</span>
+            </div>
+          </div>
+        )}
+        <img 
+          src={src} 
+          alt={alt}
+          className={`${className} ${isLoaded ? 'image-loaded' : 'image-loading'}`}
+          style={{ 
+            display: isLoaded ? 'block' : 'none',
+            opacity: isLoaded ? 1 : 0,
+            transition: 'opacity 0.3s ease-in-out'
+          }}
+          loading="eager"
+          decoding="async"
+          fetchpriority="high"
+        />
+      </div>
+    );
   };
 
   const currentStepData = steps[currentStep];
@@ -127,6 +292,12 @@ const QuickStartGuide = ({ onDismiss }) => {
         <div className="quick-start-content">
           <div className="step-indicator">
             <span className="step-count">{currentStep + 1} of {steps.length}</span>
+            {!isCurrentImageReady() && (
+              <div className="step-loading-indicator">
+                <div className="loading-spinner"></div>
+                <span>Loading image...</span>
+              </div>
+            )}
           </div>
           
         <div className="step-content">
@@ -140,23 +311,20 @@ const QuickStartGuide = ({ onDismiss }) => {
             
             <div className={`step-visual step-${currentStep}`}>
               {currentStepData.image ? (
-                <img 
-                  src={currentStepData.image} 
+                <OptimizedImage 
+                  src={currentStepData.image}
                   alt={currentStepData.imageAlt || currentStepData.title}
                   className="step-image"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
-                  }}
                 />
-              ) : null}
-              <div className="image-placeholder" style={{display: currentStepData.image ? 'none' : 'flex'}}>
-                <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span>Guide Image</span>
-              </div>
+              ) : (
+                <div className="image-placeholder">
+                  <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
+                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span>Guide Image</span>
+                </div>
+              )}
             </div>
           </div>
           
@@ -201,7 +369,7 @@ const QuickStartGuide = ({ onDismiss }) => {
               {steps.map((_, index) => (
                 <button
                   key={index}
-                  onClick={() => setCurrentStep(index)}
+                  onClick={() => goToStep(index)}
                   className={`step-dot ${index === currentStep ? 'active' : ''} ${index < currentStep ? 'completed' : ''}`}
                 />
               ))}
