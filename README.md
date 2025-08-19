@@ -2,21 +2,25 @@
 
 > An intelligent document experience platform that transforms static PDFs into interactive, queryable knowledge bases with AI-powered insights and semantic connections.
 
+![Synapse-Docs Main Interface](./frontend/public/guide-images/main-page-intro.png)
+
 ## Table of Contents
 
-- [Overview](#overview)
-- [Problem & Solution](#problem--solution)
-- [Live Demo](#live-demo)
-- [Technology Stack](#technology-stack)
-- [System Architecture](#system-architecture)
-- [Key Features](#key-features)
-- [Quick Start](#quick-start)
-- [Development Setup](#development-setup)
-- [Deployment](#deployment)
-- [API Documentation](#api-documentation)
-- [Project Structure](#project-structure)
-- [Environment Variables](#environment-variables)
-- [Performance Specifications](#performance-specifications)
+| #   | Section                                                      |
+| --- | ------------------------------------------------------------ |
+| 1   | [Overview](#overview)                                        |
+| 2   | [Problem & Solution](#problem--solution)                     |
+| 3   | [Live Demo](#live-demo)                                      |
+| 4   | [Technology Stack](#technology-stack)                        |
+| 5   | [System Architecture](#system-architecture)                  |
+| 6   | [Key Features](#key-features)                                |
+| 7   | [Quick Start](#quick-start)                                  |
+| 8   | [Development Setup](#development-setup)                      |
+| 9   | [Deployment](#deployment)                                    |
+| 10  | [API Documentation](#api-documentation)                      |
+| 11  | [Project Structure](#project-structure)                      |
+| 12  | [Environment Variables](#environment-variables)              |
+| 13  | [Performance Specifications](#performance-specifications)    |
 
 ## Overview
 
@@ -24,13 +28,37 @@ Synapse-Docs is a full-stack web application built for the Adobe India Hackathon
 
 ## Problem & Solution
 
-**Problem**: Users managing large document collections struggle to remember details and connect insights across multiple PDFs, leading to information silos and missed connections.
+### Adobe Hackathon 2025 Challenge: "From Brains to Experience"
 
-**Solution**: Synapse-Docs creates an intelligent document ecosystem where:
-- Text selection automatically surfaces related content across documents
-- AI generates contextual insights and cross-document analysis
-- Interactive knowledge graphs visualize document relationships
-- Audio podcasts provide on-the-go consumption of insights
+**Context & Problem**: Users (researchers, students, professionals) deal with large volumes of documents daily — research papers, business reports, study material, etc. Over time, it becomes impossible to remember all details or connect insights across these documents.
+
+**Goal of the System**: Help users by:
+- Quickly surfacing related, overlapping, contradicting, examples or other insightful information from their personal document library
+- Using AI/LLM-powered capabilities to enhance understanding and engagement — grounded on the documents they've read
+
+### User Journey Flow
+
+**Step 1 - Reading & Selection**
+- **Trigger**: User is reading a document within the system
+- **Action**: User selects a portion of text (e.g., scientific method, business strategy, key metric)
+- **System Response**: Instantly surfaces relevant sections from past documents using semantic search and LLM context-aware matching
+
+**Step 2 - Insight Generation**
+- **Goal**: Go beyond finding related text
+- **System Value**: Generate insights related to selected text (overlapping, contradictory viewpoints, examples)
+- **Grounding**: All results sourced from user's uploaded documents — not generic web sources
+
+**Step 3 - Rich Media Experience**
+- **Optional Action**: User requests an audio overview/podcast for the selected topic
+- **System Capabilities**: Generate natural-sounding, engaging audio using selected text as seed
+- **Content Structure**: Highlights key points, contrasts perspectives, connects concepts
+
+### Example Use Case
+A researcher reading a paper on "neural network training techniques" selects a paragraph on "transfer learning." The system instantly shows:
+- Similar methods in 3 previous papers
+- Contradictory findings from another study
+- How another paper has extended or found problems with the technique
+- An audio overview/podcast summarizing these related sections and insights
 
 ## Live Demo
 
@@ -71,6 +99,8 @@ Synapse-Docs is a full-stack web application built for the Adobe India Hackathon
 └─────────────────┴─────────────────────┴─────────────────┘
 ```
 
+![Synapse Panel - Connections & Insights](./frontend/public/guide-images/synapse-view-2.png)
+
 ### Data Processing Pipeline
 
 ```
@@ -83,17 +113,50 @@ AI Insights & Audio Generation ← Context Assembly ← Related Content Retrieva
 
 ## Key Features
 
-### Core Functionality
-- **High-Fidelity PDF Rendering**: Adobe PDF Embed API integration with zoom, pan, and navigation
+### Core Hackathon Features (Mandatory)
+
+#### PDF Handling
+- **Bulk Upload**: Upload multiple PDFs representing "past documents" user has read
+- **Fresh Upload**: Open additional PDFs as "current document" being read
+- **High-Fidelity Display**: Adobe PDF Embed API with zoom, pan, and navigation
+
+#### Connecting the Dots
 - **Intelligent Text Selection**: Real-time semantic search triggered by user text selection
-- **Cross-Document Connections**: Automatic discovery of related content across document library
-- **Breadcrumb Navigation**: Trail-based navigation system for exploration tracking
+- **Cross-Document Connections**: Automatically surfaces up to 5 relevant sections across PDFs
+- **Section-Based Results**: Logical document sections (headings with content) as defined in Round 1A
+- **Smart Snippets**: 2-4 sentence extracts with source attribution and navigation
+- **One-Click Navigation**: Click snippets to jump to relevant PDF sections
+
+![Text Selection & Related Snippets Workflow](./frontend/public/guide-images/select%20and%20generate%20related%20snippets.png)
+
+#### Performance Requirements
+- **Speed**: Sub-500ms response time for text selection to results
+- **Accuracy**: High-relevance semantic matching for user engagement
+- **Document Processing**: Follows Round 1A/1B ingestion speed limits
+
+### Bonus Features (+10 Points Total)
+
+#### Insights Bulb (+5 Points)
+- **Key Takeaways**: LLM-powered analysis of selected content
+- **"Did You Know?" Facts**: Contextual information discovery
+- **Contradictions/Counterpoints**: Cross-document conflict detection
+- **Examples**: Supporting evidence from document library
+- **Cross-Document Inspirations**: Thematic connections and insights
+
+#### Audio Overview/Podcast Mode (+5 Points)
+- **Multi-Speaker Podcasts**: 2-5 minute conversational audio (preferred format)
+- **Single Speaker Overviews**: Alternative audio format option
+- **Context Integration**: Based on current section + related sections + insights
+- **Azure TTS**: Production-ready speech synthesis
+- **Content Grounding**: All audio content sourced from user's uploaded documents
 
 ### Advanced AI Features
 - **Contextual Insights**: LLM-powered analysis generating takeaways, contradictions, and examples
-- **Audio Podcasts**: Multi-speaker TTS generation creating engaging audio overviews
 - **Knowledge Graph**: Interactive visualization of document relationships and themes
 - **Semantic Search**: Vector-based similarity matching using sentence transformers
+- **Breadcrumb Navigation**: Trail-based navigation system for exploration tracking
+
+![Research Trail - Breadcrumb Navigation](./frontend/public/guide-images/research-trail-breadcrumbs.png)
 
 ### Technical Features
 - **Session Management**: Isolated user sessions with persistent state
@@ -103,30 +166,50 @@ AI Insights & Audio Generation ← Context Assembly ← Related Content Retrieva
 
 ## Quick Start
 
-### Using Docker (Recommended)
+### Adobe Hackathon 2025 - Docker Deployment
+
+Following the exact hackathon evaluation requirements:
 
 ```bash
 # Clone the repository
 git clone https://github.com/sooravali/synapse-docs.git
 cd synapse-docs
 
-# Build the Docker image
+# Build the Docker image (Adobe evaluation command)
 docker build --platform linux/amd64 -t synapse-docs:latest .
 
-# Run with environment variables
+# Run with hackathon environment variables
 docker run \
-  -e ADOBE_EMBED_API_KEY=your_adobe_key \
+  -v ~/hackathon-credentials:/credentials \
+  -e ADOBE_EMBED_API_KEY=3cd771f42fa94558ba086000f5146e2e \
   -e LLM_PROVIDER=gemini \
-  -e GOOGLE_APPLICATION_CREDENTIALS=/credentials/service-account.json \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/credentials/MIDHUNAN.json \
   -e GEMINI_MODEL=gemini-2.5-flash \
   -e TTS_PROVIDER=azure \
-  -e AZURE_TTS_KEY=your_azure_key \
-  -e AZURE_TTS_ENDPOINT=your_azure_endpoint \
+  -e AZURE_TTS_KEY=9HaiwduIQau2cGxuFjaSFTlOGIsVkab9kfqKBhWCyGfNX4oozOMzJQQJ99BHACqBBLyXJ3w3AAAYACOG94C2 \
+  -e AZURE_TTS_ENDPOINT=https://southeastasia.api.cognitive.microsoft.com/ \
   -p 8080:8080 \
   synapse-docs:latest
 ```
 
 **Access the application**: [http://localhost:8080](http://localhost:8080)
+
+### Adobe Evaluation Format
+
+```bash
+# Adobe will use this exact command format for evaluation:
+docker run \
+  -v /path/to/credentials:/credentials \
+  -e ADOBE_EMBED_API_KEY=<ADOBE_EMBED_API_KEY> \
+  -e LLM_PROVIDER=gemini \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/credentials/adbe-gcp.json \
+  -e GEMINI_MODEL=gemini-2.5-flash \
+  -e TTS_PROVIDER=azure \
+  -e AZURE_TTS_KEY=<TTS_KEY> \
+  -e AZURE_TTS_ENDPOINT=<TTS_ENDPOINT> \
+  -p 8080:8080 \
+  synapse-docs:latest
+```
 
 ### Local Development
 
@@ -161,15 +244,39 @@ gcloud builds submit --config cloudbuild.yaml
 - Secret management for API keys
 - Load balancing and SSL termination
 
-### Environment Configuration
+### Environment Configuration - Adobe Hackathon Requirements
 
-| Variable | Purpose | Required |
-|----------|---------|----------|
-| `ADOBE_EMBED_API_KEY` | PDF rendering service | Optional |
-| `LLM_PROVIDER` | AI service provider | Required |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Gemini API access | Required |
-| `AZURE_TTS_KEY` | Text-to-speech service | Required |
-| `AZURE_TTS_ENDPOINT` | TTS endpoint URL | Required |
+| Variable | Value/Purpose | Required | Adobe Evaluation |
+|----------|---------------|----------|------------------|
+| `ADOBE_EMBED_API_KEY` | PDF rendering service | Optional | Provided by candidate |
+| `LLM_PROVIDER` | `gemini` | Required | Set by Adobe |
+| `GOOGLE_APPLICATION_CREDENTIALS` | `/credentials/adbe-gcp.json` | Required | Set by Adobe |
+| `GEMINI_MODEL` | `gemini-2.5-flash` | Required | Set by Adobe |
+| `TTS_PROVIDER` | `azure` | Required | Set by Adobe |
+| `AZURE_TTS_KEY` | Azure TTS API key | Required | Set by Adobe |
+| `AZURE_TTS_ENDPOINT` | Azure TTS service URL | Required | Set by Adobe |
+
+### Hackathon Compliance Features
+
+**Sample Script Integration**:
+- `chat_with_llm.py` - Used for all LLM interactions with Gemini
+- `generate_audio.py` - Used for all Azure TTS audio generation
+- Environment variable compliance - Exact adherence to Adobe specifications
+
+**Alternative Configurations Supported**:
+```bash
+# Using Gemini for both LLM and TTS
+docker run -v /path/to/credentials:/credentials \
+  -e ADOBE_EMBED_API_KEY=<key> -e LLM_PROVIDER=gemini \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/credentials/adbe-gcp.json \
+  -e GEMINI_MODEL=gemini-2.5-flash -e TTS_PROVIDER=gcp \
+  -p 8080:8080 synapse-docs:latest
+
+# Using Local LLM (Ollama) and local TTS
+docker run -e ADOBE_EMBED_API_KEY=<key> \
+  -e LLM_PROVIDER=ollama -e OLLAMA_MODEL=llama3 \
+  -e TTS_PROVIDER=local -p 8080:8080 synapse-docs:latest
+```
 
 ## API Documentation
 
@@ -215,23 +322,53 @@ synapse-docs/
 
 ## Performance Specifications
 
-### Response Times
-- **Text Selection to Results**: < 500ms
-- **Document Upload Processing**: < 30s per document
-- **Insight Generation**: < 10s
-- **Audio Podcast Generation**: < 60s
+### Adobe Hackathon Requirements
 
-### Scalability
+**Response Times**:
+- **Text Selection to Results**: < 500ms (critical for user engagement)
+- **Related Sections/Snippets**: Load quickly after selection for better UX
+- **Document Upload Processing**: Follows earlier round limits (~30s per document)
+- **Insight Generation**: < 10s for LLM-powered analysis
+- **Audio Podcast Generation**: < 60s for 2-5 minute content
+
+**Quality Metrics**:
+- **Relevance**: High-accuracy semantic matching for trust
+- **Speed**: Minimize delay between text selection and insight surfacing
+- **Engagement**: Natural, dynamic audio (not robotic)
+- **Grounding**: All content sourced from user's uploaded documents
+
+### Technical Specifications
+
+**System Requirements**:
+- **Memory**: 8GB per Cloud Run instance
+- **CPU**: 2 vCPUs per instance
+- **Docker Image Size**: ~4GB (optimized, preferably under 20GB limit)
+- **Storage**: Persistent Cloud Storage volumes
+
+**Scalability**:
 - **Concurrent Users**: Up to 10 per Cloud Run instance
 - **Document Storage**: Cloud Storage with unlimited capacity
 - **Vector Index**: In-memory Faiss with fast similarity search
 - **Auto-scaling**: 0-2 instances based on traffic
 
-### System Requirements
-- **Memory**: 8GB per instance
-- **CPU**: 2 vCPUs per instance
-- **Docker Image Size**: ~4GB (optimized from 12GB)
-- **Storage**: Persistent Cloud Storage volumes
+### Evaluation Criteria
+
+**Stage 1 - Backend Evaluation (50%)**:
+- Core Functionality: 20 points
+- Technical Implementation: 15 points
+- Integration of Prior Rounds: 10 points
+- Performance & Reliability: 5 points
+
+**Stage 2 - Live Finale (50%)**:
+- Demo Effectiveness: 15 points
+- UX & Design Quality: 10 points
+- Innovation & Creativity: 10 points
+- Impact & Storytelling: 10 points
+- Q&A Handling: 5 points
+
+**Bonus Points**:
+- Insights Bulb: +5 points
+- Podcast Mode: +5 points
 
 ---
 

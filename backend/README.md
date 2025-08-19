@@ -4,17 +4,19 @@ FastAPI-based backend service implementing intelligent document processing, sema
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Technology Stack](#technology-stack)
-- [Core Services](#core-services)
-- [API Endpoints](#api-endpoints)
-- [Data Models](#data-models)
-- [Processing Pipeline](#processing-pipeline)
-- [Setup & Configuration](#setup--configuration)
-- [Development](#development)
-- [Performance](#performance)
-- [Hackathon Compliance](#hackathon-compliance)
+| #   | Section                                                      |
+| --- | ------------------------------------------------------------ |
+| 1   | [Overview](#overview)                                        |
+| 2   | [Architecture](#architecture)                                |
+| 3   | [Technology Stack](#technology-stack)                        |
+| 4   | [Core Services](#core-services)                              |
+| 5   | [API Endpoints](#api-endpoints)                              |
+| 6   | [Data Models](#data-models)                                  |
+| 7   | [Processing Pipeline](#processing-pipeline)                  |
+| 8   | [Setup & Configuration](#setup--configuration)              |
+| 9   | [Development](#development)                                  |
+| 10  | [Performance](#performance)                                  |
+| 11  | [Hackathon Compliance](#hackathon-compliance)                |
 
 ## Overview
 
@@ -275,7 +277,7 @@ class TextChunk(BaseModel):
 ### Environment Variables
 
 ```bash
-# Core Configuration
+# Adobe Hackathon 2025 - Required Configuration
 PYTHONPATH=/app
 PYTHONDONTWRITEBYTECODE=1
 PYTHONUNBUFFERED=1
@@ -283,19 +285,33 @@ PYTHONUNBUFFERED=1
 # Database
 DATABASE_URL=sqlite:///./data/synapse.db
 
-# AI Services (Hackathon Requirements)
+# Adobe Hackathon Requirements - AI Services
 LLM_PROVIDER=gemini
-GOOGLE_APPLICATION_CREDENTIALS=/credentials/service-account.json
+GOOGLE_APPLICATION_CREDENTIALS=/credentials/MIDHUNAN.json
 GEMINI_MODEL=gemini-2.5-flash
 
-# TTS Configuration
+# Adobe Hackathon Requirements - TTS Configuration
 TTS_PROVIDER=azure
-AZURE_TTS_KEY=your_azure_key
-AZURE_TTS_ENDPOINT=your_azure_endpoint
+AZURE_TTS_KEY=9HaiwduIQau2cGxuFjaSFTlOGIsVkab9kfqKBhWCyGfNX4oozOMzJQQJ99BHACqBBLyXJ3w3AAAYACOG94C2
+AZURE_TTS_ENDPOINT=https://southeastasia.api.cognitive.microsoft.com/
 
-# Optional
-ADOBE_EMBED_API_KEY=your_adobe_key
+# Adobe PDF Embed API (Optional)
+ADOBE_EMBED_API_KEY=3cd771f42fa94558ba086000f5146e2e
 ```
+
+### Adobe Evaluation Environment Variables
+
+During hackathon evaluation, Adobe will provide:
+
+| Variable | Adobe Value | Purpose |
+|----------|-------------|---------|
+| `LLM_PROVIDER` | `gemini` | Fixed to Gemini for evaluation |
+| `GOOGLE_APPLICATION_CREDENTIALS` | `/credentials/adbe-gcp.json` | Adobe's GCP credentials |
+| `GEMINI_MODEL` | `gemini-2.5-flash` | Specific model version |
+| `TTS_PROVIDER` | `azure` | Fixed to Azure TTS |
+| `AZURE_TTS_KEY` | Adobe-provided | Azure TTS API access |
+| `AZURE_TTS_ENDPOINT` | Adobe-provided | Azure TTS service URL |
+| `ADOBE_EMBED_API_KEY` | Candidate-provided | Optional PDF API key |
 
 ### Dependencies Installation
 
@@ -321,13 +337,37 @@ pip install pytest pytest-asyncio httpx
 ### Local Development Server
 
 ```bash
+# Adobe Hackathon Development Setup
+export LLM_PROVIDER=gemini
+export GOOGLE_APPLICATION_CREDENTIALS=~/hackathon-credentials/MIDHUNAN.json
+export GEMINI_MODEL=gemini-2.5-flash
+export TTS_PROVIDER=azure
+export AZURE_TTS_KEY=9HaiwduIQau2cGxuFjaSFTlOGIsVkab9kfqKBhWCyGfNX4oozOMzJQQJ99BHACqBBLyXJ3w3AAAYACOG94C2
+export AZURE_TTS_ENDPOINT=https://southeastasia.api.cognitive.microsoft.com/
+export ADOBE_EMBED_API_KEY=3cd771f42fa94558ba086000f5146e2e
+
 # Start development server
 uvicorn app.main:app --reload --port 8000
+```
 
-# With environment variables
-export LLM_PROVIDER=gemini
-export GOOGLE_APPLICATION_CREDENTIALS=./credentials.json
-uvicorn app.main:app --reload --port 8000
+### Docker Development
+
+```bash
+# Build with your specific configuration
+docker build --platform linux/amd64 -t synapse-docs:latest .
+
+# Run with your environment
+docker run \
+  -v ~/hackathon-credentials:/credentials \
+  -e ADOBE_EMBED_API_KEY=3cd771f42fa94558ba086000f5146e2e \
+  -e LLM_PROVIDER=gemini \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/credentials/MIDHUNAN.json \
+  -e GEMINI_MODEL=gemini-2.5-flash \
+  -e TTS_PROVIDER=azure \
+  -e AZURE_TTS_KEY=9HaiwduIQau2cGxuFjaSFTlOGIsVkab9kfqKBhWCyGfNX4oozOMzJQQJ99BHACqBBLyXJ3w3AAAYACOG94C2 \
+  -e AZURE_TTS_ENDPOINT=https://southeastasia.api.cognitive.microsoft.com/ \
+  -p 8080:8080 \
+  synapse-docs:latest
 ```
 
 ### Testing
@@ -386,21 +426,73 @@ isort app/
 
 ## Hackathon Compliance
 
-### Sample Script Integration
+### Adobe Hackathon 2025 Requirements
 
+**Sample Script Integration**:
 The backend strictly follows hackathon requirements by integrating provided sample scripts:
 
-- **`chat_with_llm.py`**: Used in `LLMService` for Gemini integration
-- **`generate_audio.py`**: Used in `TTSService` for Azure TTS
-- **Environment Variables**: Exact compliance with specified variables
-- **Docker Compatibility**: Single-command deployment
+- **`chat_with_llm.py`**: Integrated in `LLMService` for Gemini 2.5 Flash
+- **`generate_audio.py`**: Integrated in `TTSService` for Azure TTS
+- **Environment Variables**: Exact compliance with Adobe specifications
+- **Docker Compatibility**: Single-command deployment as required
+
+**Sample Script Sources**:
+- LLM: https://github.com/rbabbar-adobe/sample-repo/blob/main/chat_with_llm.py
+- TTS: https://github.com/rbabbar-adobe/sample-repo/blob/main/generate_audio.py
+- Dependencies: https://github.com/rbabbar-adobe/sample-repo/blob/main/requirements.txt
 
 ### Challenge Integration
 
-- **Challenge 1A Logic**: Complete refactoring into `DocumentParser`
-- **Challenge 1B Logic**: Embedding pipeline in `EmbeddingService`
-- **Performance Requirements**: Sub-second search response times
-- **Feature Completeness**: All mandatory and bonus features implemented
+**Round 1A Logic Integration**:
+- Complete Challenge 1A pipeline refactored into `DocumentParser`
+- 4-stage processing: Layout analysis → Heading detection → Content extraction → Quality validation
+- CRF-based heading detection preserved from original implementation
+- Section-based document understanding for "Connecting the Dots"
+
+**Round 1B Logic Integration**:
+- Embedding pipeline preserved in `EmbeddingService`
+- `all-MiniLM-L6-v2` sentence transformer for semantic search
+- Persona-driven document intelligence capabilities
+- Vector similarity search with configurable thresholds
+
+**Performance Requirements**:
+- Sub-second search response times (< 500ms for text selection)
+- Document processing follows earlier round limits
+- Optimized for user engagement and trust
+
+### Mandatory Features Implementation
+
+**PDF Handling**:
+- Bulk upload processing for "past documents"
+- Fresh document upload for "current reading"
+- High-fidelity display support via Adobe PDF Embed API
+
+**Connecting the Dots**:
+- Up to 5 relevant sections across PDFs with high accuracy
+- Section-based results (headings + content as defined in Round 1A)
+- 2-4 sentence snippets with source attribution
+- One-click navigation to corresponding PDF sections
+
+**Bonus Features (+10 Points)**:
+- **Insights Bulb (+5)**: Key takeaways, contradictions, examples, cross-document inspirations
+- **Audio Podcast (+5)**: 2-5 min multi-speaker or single-speaker audio based on context
+
+### Evaluation Compliance
+
+**Docker Requirements**:
+- Build command: `docker build --platform linux/amd64 -t synapse-docs:latest .`
+- Run command: Supports all specified environment variables
+- Single container deployment with frontend + backend
+- Access via `http://localhost:8080`
+
+**Offline Capability**:
+- Only LLM, TTS, and Embed API may use internet
+- All other processing runs offline within container
+- Model size optimized (preferably under 20GB limit)
+
+**Performance Targets**:
+- Faster processing is better (no strict execution limits)
+- Prioritizes user engagement through speed and relevance
 
 ---
 

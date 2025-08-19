@@ -4,18 +4,20 @@ React-based frontend application providing an intelligent document viewing exper
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Technology Stack](#technology-stack)
-- [Component Structure](#component-structure)
-- [Key Features](#key-features)
-- [User Interface Design](#user-interface-design)
-- [State Management](#state-management)
-- [API Integration](#api-integration)
-- [Setup & Development](#setup--development)
-- [Build & Deployment](#build--deployment)
-- [Performance](#performance)
-- [Browser Compatibility](#browser-compatibility)
+| #   | Section                                                      |
+| --- | ------------------------------------------------------------ |
+| 1   | [Overview](#overview)                                        |
+| 2   | [Architecture](#architecture)                                |
+| 3   | [Technology Stack](#technology-stack)                        |
+| 4   | [Component Structure](#component-structure)                  |
+| 5   | [Key Features](#key-features)                                |
+| 6   | [User Interface Design](#user-interface-design)              |
+| 7   | [State Management](#state-management)                        |
+| 8   | [API Integration](#api-integration)                          |
+| 9   | [Setup & Development](#setup--development)                   |
+| 10  | [Build & Deployment](#build--deployment)                     |
+| 11  | [Performance](#performance)                                  |
+| 12  | [Browser Compatibility](#browser-compatibility)              |
 
 ## Overview
 
