@@ -3,7 +3,7 @@
 An intelligent document experience platform that transforms static PDFs into interactive, queryable knowledge bases with AI-powered insights and semantic connections.
 
 ![Synapse-Docs Main Interface](./frontend/public/guide-images/main-page-intro.png)
-
+**Production Application**: [https://synapse-docs-833062842245.us-central1.run.app/](https://synapse-docs-833062842245.us-central1.run.app/)
 ## Table of Contents
 
 | #   | Section                                                      |
