@@ -26,7 +26,7 @@ LLM_PROVIDER (default: "gemini")
 For Gemini (Google Generative AI):
     GOOGLE_API_KEY: Your Google API key (recommended)
     GOOGLE_APPLICATION_CREDENTIALS: Path to service account JSON file (alternative)
-    GEMINI_MODEL (default: "gemini-2.0-flash-exp"): Model name to use
+    GEMINI_MODEL (default: "gemini-2.5-flash"): Model name to use
 
 For Azure OpenAI:
     AZURE_OPENAI_KEY: Your Azure OpenAI API key
