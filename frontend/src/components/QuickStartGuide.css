@@ -17,18 +17,21 @@
   background: white;
   border-radius: 16px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  width: 90%;
-  max-width: 480px;
-  max-height: 90vh;
-  overflow: auto;
+  width: 85vw;
+  height: 80vh;
+  max-width: 1100px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .quick-start-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24px 24px 16px 24px;
+  padding: 20px 24px 12px 24px;
   border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
 }
 
 .quick-start-header h2 {
@@ -55,17 +58,22 @@
 
 .quick-start-content {
   padding: 24px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .step-indicator {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  flex-shrink: 0;
 }
 
 .step-count {
   background: #f1f5f9;
   color: #475569;
-  padding: 4px 12px;
+  padding: 6px 16px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
@@ -74,12 +82,46 @@
 }
 
 .step-content {
-  text-align: center;
-  margin-bottom: 32px;
+  flex: 1;
+  display: flex;
+  gap: 24px;
+  overflow: hidden;
+}
+
+/* Main content area split */
+.step-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.step-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Step header layout */
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
 }
 
 .step-icon {
-  margin-bottom: 16px;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  background: #f0f9ff;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .step-icon svg {
@@ -87,23 +129,159 @@
 }
 
 .step-content h3 {
-  margin: 0 0 12px 0;
+  margin: 0;
   font-size: 20px;
   font-weight: 600;
   color: #1a1a1a;
 }
 
-.step-content p {
+/* Visual section - smart image scaling */
+.step-visual {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 16px;
+}
+
+/* Default image styling */
+.step-image {
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  transition: transform 0.2s;
+  display: block;
+}
+
+.step-image:hover {
+  transform: scale(1.02);
+}
+
+/* Step 0: Main Intro (2940×1596 - wide landscape) */
+.step-visual.step-0 .step-image {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Step 1: Upload Documents (642×1344 - tall portrait) */
+.step-visual.step-1 .step-image {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+/* Step 2: Generate Snippets (2308×1598 - wide landscape) */
+.step-visual.step-2 .step-image {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Step 3: Insights & Podcasts (720×1600 - tall portrait) */
+.step-visual.step-3 .step-image {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+/* Step 4: Synapse View (2940×1600 - very wide landscape) */
+.step-visual.step-4 .step-image {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Step 5: Research Trail (1586×144 - ultra-wide strip) */
+.step-visual.step-5 {
+  height: 120px;
+  align-items: center;
+  padding: 8px 16px;
+}
+
+.step-visual.step-5 .step-image {
+  width: 100%;
+  height: auto;
+  max-height: 100px;
+  object-fit: contain;
+}
+
+.image-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #f8fafc;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #64748b;
+}
+
+.image-placeholder svg {
+  color: #94a3b8;
+}
+
+/* Description section in sidebar */
+.step-description {
+  flex-shrink: 0;
+}
+
+.step-description p {
   margin: 0 0 16px 0;
   font-size: 16px;
   line-height: 1.6;
   color: #64748b;
 }
 
+.step-features {
+  margin-bottom: 20px;
+}
+
+.step-features h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.step-features ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step-features li {
+  padding: 6px 0;
+  font-size: 14px;
+  color: #64748b;
+  position: relative;
+  padding-left: 20px;
+}
+
+.step-features li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: #059669;
+  font-weight: 600;
+}
+
 .step-highlight {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
   background: #f0f9ff;
   border: 1px solid #bae6fd;
@@ -112,12 +290,10 @@
   font-size: 14px;
   color: #0369a1;
   font-weight: 500;
-  margin: 0 auto;
-  max-width: 350px;
 }
 
 .highlight-icon {
-  font-size: 16px;
+  flex-shrink: 0;
 }
 
 .step-navigation {
@@ -125,13 +301,16 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+  flex-shrink: 0;
 }
 
 .nav-button {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 16px;
+  padding: 12px 20px;
   border-radius: 8px;
   border: none;
   font-size: 14px;
@@ -195,15 +374,77 @@
   transform: scale(1.1);
 }
 
-@media (max-width: 640px) {
-  .quick-start-modal {
-    width: 95%;
-    margin: 20px;
+/* Mobile responsive */
+@media (max-width: 1024px) {
+  .step-content {
+    flex-direction: column;
+    gap: 24px;
   }
   
-  .quick-start-header,
+  .step-sidebar {
+    width: 100%;
+    order: -1;
+  }
+  
+  .step-visual {
+    height: 300px;
+  }
+  
+  .step-visual.step-5 {
+    height: 100px;
+  }
+}
+
+@media (max-width: 768px) {
+  .quick-start-modal {
+    width: 95vw;
+    height: 95vh;
+    margin: 0;
+  }
+  
   .quick-start-content {
     padding: 20px;
+  }
+  
+  .step-visual {
+    height: 250px;
+  }
+  
+  .step-visual.step-5 {
+    height: 80px;
+  }
+  
+  .step-visual.step-1 .step-image,
+  .step-visual.step-3 .step-image {
+    max-width: 200px;
+  }
+}
+
+@media (max-width: 640px) {
+  .quick-start-header,
+  .quick-start-content {
+    padding: 16px;
+  }
+  
+  .step-header {
+    gap: 12px;
+  }
+  
+  .step-icon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .step-content h3 {
+    font-size: 18px;
+  }
+  
+  .step-visual {
+    height: 200px;
+  }
+  
+  .step-visual.step-5 {
+    height: 60px;
   }
   
   .step-navigation {
@@ -213,6 +454,11 @@
   
   .nav-button {
     width: 100%;
+    justify-content: center;
+  }
+  
+  .step-dots {
+    order: -1;
     justify-content: center;
   }
 }
