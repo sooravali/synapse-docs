@@ -23,12 +23,16 @@ vertexai==1.60.0
 # 'google-genai' is the new, correct package and is a dependency of langchain-google-genai.
 google-cloud-texttospeech==2.24.0
 
-# Adobe Hackathon Sample Scripts Dependencies - FULLY COMPATIBLE VERSIONS
-langchain==0.3.15
-langchain-openai==0.2.10
-langchain-google-genai==2.0.7
-langchain-community==0.3.15
-pydub==0.25.1
+# Adobe Hackathon Sample Scripts Dependencies - UPDATED VERSIONS
+langchain==0.3.27
+langchain-openai==0.3.29
+langchain-google-genai==2.0.10
+langchain-community==0.3.27
+google-generativeai==0.8.5
+pydub>=0.25.0
+
+# CRITICAL: Additional dependencies required by sample scripts
+ffmpeg-python==0.2.0  # Required for pydub audio concatenation
 
 # ML Core Stack - CPU optimized (essential for Challenge 1A & 1B)
 # torch and torchvision are installed separately in the Dockerfile
