@@ -76,6 +76,16 @@ body {
   border-left: 1px solid #e1e5e9;
   background: #fafafa;
   position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Collapsed state for right panel */
+.panel-right.collapsed {
+  width: 56px;
+  min-width: 56px;
+  max-width: 56px;
+  background: transparent;
+  border-left: none;
 }
 
 /* Responsive Design */

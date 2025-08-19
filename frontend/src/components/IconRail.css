@@ -1,0 +1,257 @@
+/* Icon Rail Styles */
+.icon-rail {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 56px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 10;
+  overflow: visible;
+}
+
+
+
+.rail-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #fafafa 0%, #f0f9ff 100%);
+  border-left: 1px solid #e1e5e9;
+}
+
+/* Expand Button at Top */
+.expand-button {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 32px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+  color: #3b82f6;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}
+
+.expand-button:hover {
+  transform: translateX(-50%); /* Override any default hover transforms */
+}
+
+.icon-rail.pulse .rail-background {
+  animation: railPulse 2s ease-in-out;
+}
+
+.rail-icons {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 0;
+  margin-top: 60px; /* Offset from top to align with content */
+  z-index: 2;
+}
+
+.rail-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  cursor: pointer;
+  position: relative;
+  margin: 0 auto;
+}
+
+.rail-icon.enabled {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.rail-icon.disabled {
+  background: rgba(107, 114, 128, 0.1);
+  color: #9ca3af;
+  border: 1px solid rgba(107, 114, 128, 0.2);
+  cursor: not-allowed;
+}
+
+.rail-icon.insights-icon.enabled {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.15));
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.rail-icon.loading {
+  animation: iconPulse 1.5s ease-in-out infinite;
+}
+
+.icon-spinner {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-top: 2px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Rail Tooltip (Expanded State) */
+.rail-tooltip {
+  position: absolute;
+  top: 60px;
+  left: 60px;
+  min-width: 180px;
+  background: white;
+  border: 1px solid #e1e5e9;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  z-index: 20;
+  opacity: 0;
+  animation: tooltipSlideIn 0.3s ease forwards;
+}
+
+.tooltip-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tooltip-instruction {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.tooltip-status {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #4b5563;
+  padding: 4px 0;
+}
+
+.status-item svg {
+  color: #9ca3af;
+}
+
+/* Icon Tooltip (Individual Hover) */
+.icon-tooltip {
+  position: absolute;
+  top: 50%;
+  left: -12px;
+  transform: translateY(-50%) translateX(-100%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 30;
+  opacity: 0;
+  animation: tooltipFadeIn 0.2s ease forwards;
+}
+
+.icon-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -4px;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid rgba(0, 0, 0, 0.8);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+
+/* Animations */
+@keyframes railPulse {
+  0%, 100% { 
+    background: linear-gradient(135deg, #fafafa 0%, #f0f9ff 100%);
+  }
+  50% { 
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  }
+}
+
+@keyframes iconPulse {
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.7; 
+    transform: scale(0.95);
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes tooltipSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .icon-rail.expanded {
+    width: 160px;
+  }
+  
+  .rail-tooltip {
+    left: 50px;
+    min-width: 150px;
+  }
+}
+
+@media (max-width: 768px) {
+  .icon-rail {
+    display: none; /* Hide on mobile - use different interaction pattern */
+  }
+}

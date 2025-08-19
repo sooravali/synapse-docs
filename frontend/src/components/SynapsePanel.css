@@ -5,6 +5,17 @@
   height: 100%;
   background: #fafafa;
   border-left: 1px solid #e1e5e9;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Collapsed State */
+.synapse-panel.collapsed {
+  width: 56px !important;
+  min-width: 56px !important;
+  max-width: 56px !important;
+  background: transparent;
+  border-left: none;
 }
 
 .synapse-header {
@@ -13,11 +24,56 @@
   border-bottom: 1px solid #e1e5e9;
 }
 
+/* Synapse Title Section */
+.synapse-title-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.synapse-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #1a1a1a;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.header-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.collapse-button {
+  width: 32px;
+  height: 32px;
+  background: rgba(107, 114, 128, 0.1);
+  border: 1px solid rgba(107, 114, 128, 0.2);
+  border-radius: 6px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.collapse-button:hover {
+  background: rgba(107, 114, 128, 0.15);
+  color: #1a1a1a;
+  transform: translateY(-1px);
+}
+
 /* Tab Navigation with Insights Bulb */
 .tab-navigation {
   display: flex;
   gap: 4px;
   align-items: center;
+  padding-bottom: 20px;
 }
 
 .tab-button {

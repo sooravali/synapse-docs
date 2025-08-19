@@ -52,6 +52,7 @@ function App() {
   const [showQuickStart, setShowQuickStart] = useState(false);
   const [hasInsights, setHasInsights] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(true); // Start collapsed
   
   // Knowledge Graph Modal state
   const [showKnowledgeGraph, setShowKnowledgeGraph] = useState(false);
@@ -274,6 +275,15 @@ function App() {
   const handleContextChange = (context) => {
     console.log('STAGE 1 - Automatic Connections Workflow triggered:', context);
     setCurrentContext(context);
+    
+    // Expand right panel when there's context (text selection)
+    if (context && context.queryText && context.queryText.trim()) {
+      setIsRightPanelCollapsed(false);
+    } else {
+      // Collapse when context is cleared
+      setIsRightPanelCollapsed(true);
+    }
+    
     // This will automatically trigger connections search in SynapsePanel
     // NO insights generation - that's Stage 2
   };
@@ -302,6 +312,15 @@ function App() {
         console.error('Failed to generate podcast:', error);
       }
     }
+  };
+
+  // Right Panel State Handlers
+  const handleRightPanelExpand = () => {
+    setIsRightPanelCollapsed(false);
+  };
+
+  const handleRightPanelCollapse = () => {
+    setIsRightPanelCollapsed(true);
   };
 
   const handleConnectionSelect = (connection) => {
@@ -454,7 +473,7 @@ function App() {
         </div>
 
         {/* Right Panel: The Synapse */}
-        <div className="panel panel-right">
+        <div className={`panel panel-right ${isRightPanelCollapsed ? 'collapsed' : ''}`}>
           <SynapsePanel
             ref={synapsePanelRef}
             contextInfo={currentContext}
@@ -462,6 +481,9 @@ function App() {
             onConnectionSelect={handleConnectionSelect}
             onConnectionsUpdate={setConnectionResults}
             onInsightsGenerated={setHasInsights}
+            isCollapsed={isRightPanelCollapsed}
+            onExpand={handleRightPanelExpand}
+            onCollapse={handleRightPanelCollapse}
           />
         </div>
       </div>

@@ -5,8 +5,9 @@
  * Connections and Insights, featuring structured display and actions.
  */
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { Network, Lightbulb, Play, Pause, Download, ExternalLink, Zap, Radio, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { Network, Lightbulb, Play, Pause, Download, ExternalLink, Zap, Radio, FileText, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { searchAPI, insightsAPI, podcastAPI } from '../api';
+import IconRail from './IconRail';
 import './SynapsePanel.css';
 
 const SynapsePanel = forwardRef(({ 
@@ -14,7 +15,10 @@ const SynapsePanel = forwardRef(({
   selectedDocument, 
   onConnectionSelect,
   onConnectionsUpdate,
-  onInsightsGenerated 
+  onInsightsGenerated,
+  isCollapsed = false,
+  onExpand,
+  onCollapse
 }, ref) => {
 
   // Helper function to show confirmation overlay
@@ -1687,10 +1691,75 @@ const SynapsePanel = forwardRef(({
     );
   };
 
+  // Handler functions for icon rail
+  const handleIconRailExpand = () => {
+    if (onExpand) {
+      onExpand();
+    }
+  };
+
+  const handleIconRailClick = (iconType) => {
+    // Expand the panel and set the appropriate tab
+    if (onExpand) {
+      onExpand();
+    }
+    
+    // Set the tab based on icon type
+    switch (iconType) {
+      case 'connections':
+        setActiveTab('connections');
+        break;
+      case 'insights':
+        setActiveTab('insights');
+        if (!isLoadingInsights && contextInfo && connections.length > 0) {
+          generateInsightsFromContext();
+        }
+        break;
+      case 'podcast':
+        setActiveTab('insights'); // Podcast is in insights tab
+        if (!isGeneratingPodcast && contextInfo) {
+          generatePodcastFromContext();
+        }
+        break;
+    }
+  };
+
   return (
-    <div className="synapse-panel">
-      <div className="synapse-header">
-        <div className="tab-navigation">
+    <div className={`synapse-panel ${isCollapsed ? 'collapsed' : 'expanded'}`}>
+      {isCollapsed ? (
+        // Collapsed State: Show Icon Rail
+        <IconRail
+          hasConnections={connections.length}
+          hasInsights={insights && insights.parsed}
+          hasPodcast={podcastData}
+          hasContext={contextInfo && contextInfo.queryText}
+          isLoadingConnections={isLoadingConnections}
+          onRailExpand={handleIconRailExpand}
+          onIconClick={handleIconRailClick}
+        />
+      ) : (
+        // Expanded State: Show Full Panel
+        <>
+          <div className="synapse-header">
+            <div className="synapse-title-section">
+              <h2 className="synapse-title">
+                <Network size={20} />
+                Synapse
+              </h2>
+              
+              <div className="header-buttons">
+                {/* Collapse Button - Top Right */}
+                <button 
+                  className="collapse-button"
+                  onClick={onCollapse}
+                  title="Collapse Panel"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="tab-navigation">
           <button 
             className={`tab-button ${activeTab === 'connections' ? 'active' : ''}`}
             onClick={() => setActiveTab('connections')}
@@ -1728,8 +1797,8 @@ const SynapsePanel = forwardRef(({
               <span>Insights</span>
             </div>
           </button>
-        </div>
-      </div>
+            </div>
+          </div>
 
       <div className="synapse-content">
         {activeTab === 'connections' && (
@@ -1834,8 +1903,10 @@ const SynapsePanel = forwardRef(({
           </div>
         )}
       </div>
-    </div>
-  );
+      </>
+    )}
+  </div>
+);
 });
 
 export default SynapsePanel;
