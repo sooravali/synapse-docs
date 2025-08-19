@@ -150,6 +150,9 @@ class TTSService:
                 os.environ["AZURE_TTS_ENDPOINT"] = settings.AZURE_TTS_ENDPOINT
             if settings.AZURE_TTS_VOICE:
                 os.environ["AZURE_TTS_VOICE"] = settings.AZURE_TTS_VOICE
+            # CRITICAL: Set deployment name for sample script compliance
+            os.environ["AZURE_TTS_DEPLOYMENT"] = getattr(settings, 'AZURE_TTS_DEPLOYMENT', 'tts')
+            os.environ["AZURE_TTS_API_VERSION"] = getattr(settings, 'AZURE_TTS_API_VERSION', '2025-03-01-preview')
             
             # Use the sample script function
             result = await asyncio.get_event_loop().run_in_executor(
@@ -285,6 +288,9 @@ class TTSService:
             if settings.AZURE_TTS_ENDPOINT:
                 os.environ["AZURE_TTS_ENDPOINT"] = settings.AZURE_TTS_ENDPOINT
             os.environ["AZURE_TTS_VOICE"] = voice_name  # Override with specific voice
+            # CRITICAL: Set deployment name for sample script compliance
+            os.environ["AZURE_TTS_DEPLOYMENT"] = getattr(settings, 'AZURE_TTS_DEPLOYMENT', 'tts')
+            os.environ["AZURE_TTS_API_VERSION"] = getattr(settings, 'AZURE_TTS_API_VERSION', '2025-03-01-preview')
             
             print(f"🔧 TTS Config:")
             print(f"    Provider: {self.provider}")
@@ -298,7 +304,8 @@ class TTSService:
                 generate_audio, 
                 text, 
                 output_path, 
-                self.provider
+                self.provider,
+                voice_name  # CRITICAL: Pass voice parameter to sample script
             )
             
             # Check if file was created successfully
