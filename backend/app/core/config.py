@@ -55,7 +55,9 @@ class Settings(BaseSettings):
     AZURE_TTS_KEY: Optional[str] = None
     AZURE_TTS_REGION: Optional[str] = None
     AZURE_TTS_ENDPOINT: Optional[str] = None
-    AZURE_TTS_VOICE: str = "en-US-AriaNeural"  # Configurable voice for different languages
+    AZURE_TTS_VOICE: str = "alloy"  # Changed to match sample script default
+    AZURE_TTS_DEPLOYMENT: str = "tts"  # CRITICAL: Required by sample script
+    AZURE_TTS_API_VERSION: str = "2025-03-01-preview"  # CRITICAL: Required by sample script
     
     # Multi-speaker podcast voices optimized for faster generation
     AZURE_TTS_HOST_VOICE: str = "en-US-JennyNeural"  # Host speaker voice (fast neural voice)
