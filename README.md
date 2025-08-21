@@ -4,6 +4,17 @@ An intelligent document experience platform that transforms static PDFs into int
 
 ![Synapse-Docs Main Interface](./frontend/public/guide-images/main-page-intro.png)
 **Production Application**: [https://synapse-docs-833062842245.us-central1.run.app/](https://synapse-docs-833062842245.us-central1.run.app/)
+
+### ADOBE EMBED API KEY for Evaluation
+
+> **Note:** For evaluation purposes, a temporary API key is provided below as an exception to standard security protocols as requested. This key is domain-restricted for this demo and is not for production use. It will be permanently revoked after the hackathon concludes.
+
+```bash
+ADOBE_EMBED_API_KEY=3cd771f42fa94558ba086000f5146e2e
+```
+<img width="505" height="226" alt="Screenshot 2025-08-21 at 18 57 33" src="https://github.com/user-attachments/assets/977885c0-9408-4583-83e8-9c7091635484" />
+
+
 ## Table of Contents
 
 | #   | Section                                                      |
